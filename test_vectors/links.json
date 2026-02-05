@@ -1,0 +1,892 @@
+{
+  "description": "Reticulum v1.1.3 - link establishment test vectors",
+  "source": "RNS/Link.py, RNS/Packet.py",
+  "constants": {
+    "ECPUBSIZE": 64,
+    "KEYSIZE": 32,
+    "LINK_MTU_SIZE": 3,
+    "MTU_BYTEMASK": 2097151,
+    "MODE_BYTEMASK": 224,
+    "modes": {
+      "MODE_AES128_CBC": 0,
+      "MODE_AES256_CBC": 1,
+      "MODE_AES256_GCM": 2,
+      "MODE_OTP_RESERVED": 3,
+      "MODE_PQ_RESERVED_1": 4,
+      "MODE_PQ_RESERVED_2": 5,
+      "MODE_PQ_RESERVED_3": 6,
+      "MODE_PQ_RESERVED_4": 7
+    },
+    "ENABLED_MODES": [
+      1
+    ],
+    "MODE_DEFAULT": 1,
+    "MODE_DESCRIPTIONS": {
+      "0": "AES_128_CBC",
+      "1": "AES_256_CBC",
+      "2": "MODE_AES256_GCM",
+      "3": "MODE_OTP_RESERVED",
+      "4": "MODE_PQ_RESERVED_1",
+      "5": "MODE_PQ_RESERVED_2",
+      "6": "MODE_PQ_RESERVED_3",
+      "7": "MODE_PQ_RESERVED_4"
+    },
+    "states": {
+      "PENDING": 0,
+      "HANDSHAKE": 1,
+      "ACTIVE": 2,
+      "STALE": 3,
+      "CLOSED": 4
+    },
+    "teardown_reasons": {
+      "TIMEOUT": 1,
+      "INITIATOR_CLOSED": 2,
+      "DESTINATION_CLOSED": 3
+    },
+    "resource_strategies": {
+      "ACCEPT_NONE": 0,
+      "ACCEPT_APP": 1,
+      "ACCEPT_ALL": 2
+    },
+    "keepalive": {
+      "KEEPALIVE_MAX_RTT": 1.75,
+      "KEEPALIVE_TIMEOUT_FACTOR": 4,
+      "KEEPALIVE_MAX": 360,
+      "KEEPALIVE_MIN": 5,
+      "KEEPALIVE": 360,
+      "STALE_FACTOR": 2,
+      "STALE_TIME": 720,
+      "STALE_GRACE": 5,
+      "TRAFFIC_TIMEOUT_MIN_MS": 5,
+      "TRAFFIC_TIMEOUT_FACTOR": 6
+    },
+    "MDU": 431,
+    "MDU_derivation": "floor((MTU(500) - IFAC_MIN_SIZE(1) - HEADER_MINSIZE(19) - TOKEN_OVERHEAD(48)) / AES128_BLOCKSIZE(16)) * AES128_BLOCKSIZE(16) - 1 = 431",
+    "ESTABLISHMENT_TIMEOUT_PER_HOP": 6,
+    "context_bytes": {
+      "KEEPALIVE": "0xfa",
+      "LINKIDENTIFY": "0xfb",
+      "LINKCLOSE": "0xfc",
+      "LRRTT": "0xfe",
+      "LRPROOF": "0xff"
+    },
+    "packet_flags": {
+      "LINKREQUEST": "0x02",
+      "LINKREQUEST_description": "HEADER_1 | FLAG_UNSET | BROADCAST | SINGLE | LINKREQUEST",
+      "LRPROOF": "0x2f",
+      "LRPROOF_description": "HEADER_1 | FLAG_SET | BROADCAST | LINK | PROOF"
+    }
+  },
+  "ephemeral_keys": [
+    {
+      "index": 0,
+      "x25519_seed": "SHA256(b'reticulum_test_link_ephemeral_x25519_0')",
+      "x25519_private": "3fd37c602c1a289f5ebb72873419f49ba1033ba54e448e67b35099b1be77cb0b",
+      "x25519_public": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd7424",
+      "ed25519_seed": "SHA256(b'reticulum_test_link_ephemeral_ed25519_0')",
+      "ed25519_private": "5cf3c3a428d92c8b31d2bf5cb3163cebfc0862de36cfc0cb81aaf7c36cd71539",
+      "ed25519_public": "3c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a"
+    },
+    {
+      "index": 1,
+      "x25519_seed": "SHA256(b'reticulum_test_link_ephemeral_x25519_1')",
+      "x25519_private": "19caaa3e3542ba8c25433b0685e0ddc3479e991079a0f7e62aafe9dee153ef74",
+      "x25519_public": "e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570b",
+      "ed25519_seed": "SHA256(b'reticulum_test_link_ephemeral_ed25519_1')",
+      "ed25519_private": "9d884c8c6f657d065f75718f5ac276c055cbfa29b10fac1ac96c3ff07f2be9bd",
+      "ed25519_public": "b13cf8234542a587b87d0b925dc525df2f7075ba8a282454fdb38c76613d067c"
+    },
+    {
+      "index": 2,
+      "x25519_seed": "SHA256(b'reticulum_test_link_ephemeral_x25519_2')",
+      "x25519_private": "087d3b2153f50092e7471f1af9eeea9ad709a08d2577cc2c5edcdaf6dfaa44a4",
+      "x25519_public": "b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331",
+      "ed25519_seed": "SHA256(b'reticulum_test_link_ephemeral_ed25519_2')",
+      "ed25519_private": "837f511fdb2e2d8d6bbed0c5fa9cc88cf55ffd441313deeee92264aed274236a",
+      "ed25519_public": "a2d4555498df9bd3fad9f2bb9d66911835e1c34a8ec789aca6dde214e7fc1502"
+    },
+    {
+      "index": 3,
+      "x25519_seed": "SHA256(b'reticulum_test_link_ephemeral_x25519_3')",
+      "x25519_private": "09b8c3f60dab3fd02632d7baa06895329fd4df3c25b728796437fd1c3842fec2",
+      "x25519_public": "7ea26e2a63f0066ae15f48dcb7ae6f606b5e08233d4a934672178d8dcb6fed1b",
+      "ed25519_seed": "SHA256(b'reticulum_test_link_ephemeral_ed25519_3')",
+      "ed25519_private": "fe8ce046cc4392605777ed98459b8fdac07b42e824cba5b24bc8313e0e2a60bb",
+      "ed25519_public": "72d41ef99642a56fb645ee4b8a60d1f4121fa806c5011aa4d223c84c067482e4"
+    }
+  ],
+  "signalling_bytes_vectors": [
+    {
+      "description": "Default MTU with AES-256-CBC",
+      "input_mtu": 500,
+      "input_mode": 1,
+      "input_mode_name": "AES_256_CBC",
+      "signalling_bytes": "2001f4",
+      "decoded_mtu": 500,
+      "decoded_mode": 1,
+      "round_trip_match": true,
+      "formula": "signalling_value = (500 & 0x1FFFFF) + (((1<<5) & 0xE0) << 16) = 2097652"
+    },
+    {
+      "description": "1000-byte MTU with AES-256-CBC",
+      "input_mtu": 1000,
+      "input_mode": 1,
+      "input_mode_name": "AES_256_CBC",
+      "signalling_bytes": "2003e8",
+      "decoded_mtu": 1000,
+      "decoded_mode": 1,
+      "round_trip_match": true,
+      "formula": "signalling_value = (1000 & 0x1FFFFF) + (((1<<5) & 0xE0) << 16) = 2098152"
+    },
+    {
+      "description": "1500-byte MTU with AES-256-CBC",
+      "input_mtu": 1500,
+      "input_mode": 1,
+      "input_mode_name": "AES_256_CBC",
+      "signalling_bytes": "2005dc",
+      "decoded_mtu": 1500,
+      "decoded_mode": 1,
+      "round_trip_match": true,
+      "formula": "signalling_value = (1500 & 0x1FFFFF) + (((1<<5) & 0xE0) << 16) = 2098652"
+    },
+    {
+      "description": "Max 21-bit MTU (2097151) with AES-256-CBC",
+      "input_mtu": 2097151,
+      "input_mode": 1,
+      "input_mode_name": "AES_256_CBC",
+      "signalling_bytes": "3fffff",
+      "decoded_mtu": 2097151,
+      "decoded_mode": 1,
+      "round_trip_match": true,
+      "formula": "signalling_value = (2097151 & 0x1FFFFF) + (((1<<5) & 0xE0) << 16) = 4194303"
+    },
+    {
+      "description": "Zero MTU with AES-256-CBC",
+      "input_mtu": 0,
+      "input_mode": 1,
+      "input_mode_name": "AES_256_CBC",
+      "signalling_bytes": "200000",
+      "decoded_mtu": 0,
+      "decoded_mode": 1,
+      "round_trip_match": true,
+      "formula": "signalling_value = (0 & 0x1FFFFF) + (((1<<5) & 0xE0) << 16) = 2097152"
+    },
+    {
+      "description": "500-byte MTU (standard)",
+      "input_mtu": 500,
+      "input_mode": 1,
+      "input_mode_name": "AES_256_CBC",
+      "signalling_bytes": "2001f4",
+      "decoded_mtu": 500,
+      "decoded_mode": 1,
+      "round_trip_match": true,
+      "formula": "signalling_value = (500 & 0x1FFFFF) + (((1<<5) & 0xE0) << 16) = 2097652"
+    }
+  ],
+  "link_id_vectors": [
+    {
+      "description": "Link ID from LINKREQUEST with signalling bytes (MTU=500, MODE_AES256_CBC)",
+      "keypair_index": 0,
+      "ephemeral_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "request_data": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a2001f4",
+      "request_data_length": 67,
+      "signalling_bytes": "2001f4",
+      "flags_byte": "02",
+      "raw_packet": "0200fb48da0e82e6e01ba0c014513f74540d00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a2001f4",
+      "hashable_part": "02fb48da0e82e6e01ba0c014513f74540d00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a2001f4",
+      "hashable_part_length": 85,
+      "signalling_diff": 3,
+      "hashable_stripped": "02fb48da0e82e6e01ba0c014513f74540d00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+      "hashable_stripped_length": 82,
+      "link_id": "f2e7431707a3366cd6acfaff640207fb",
+      "algorithm": "link_id = SHA256(hashable_part_stripped)[:16]; hashable_part_stripped = hashable_part[:-diff] where diff = len(data) - ECPUBSIZE"
+    },
+    {
+      "description": "Link ID from LINKREQUEST without signalling bytes (legacy)",
+      "keypair_index": 0,
+      "ephemeral_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "request_data": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+      "request_data_length": 64,
+      "flags_byte": "02",
+      "raw_packet": "0200fb48da0e82e6e01ba0c014513f74540d00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+      "hashable_part": "02fb48da0e82e6e01ba0c014513f74540d00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+      "hashable_part_length": 82,
+      "signalling_diff": 0,
+      "link_id": "f2e7431707a3366cd6acfaff640207fb",
+      "algorithm": "link_id = SHA256(hashable_part)[:16]; no stripping because len(data) == ECPUBSIZE"
+    },
+    {
+      "description": "Same ephemeral keys + different MTU signalling \u2192 same link_id (signalling stripped)",
+      "link_id_mtu_500": "f2e7431707a3366cd6acfaff640207fb",
+      "link_id_mtu_1000": "f2e7431707a3366cd6acfaff640207fb",
+      "link_id_legacy": "f2e7431707a3366cd6acfaff640207fb",
+      "all_match": true,
+      "note": "link_id is computed from hashable_part with signalling bytes stripped, so MTU value does not affect link_id"
+    }
+  ],
+  "handshake_vectors": [
+    {
+      "description": "Keypair 0\u21921, MTU=500, MODE_AES256_CBC (default)",
+      "initiator_keypair_index": 0,
+      "responder_keypair_index": 1,
+      "initiator_ephemeral_index": 0,
+      "responder_ephemeral_index": 1,
+      "mtu": 500,
+      "mode": 1,
+      "mode_name": "AES_256_CBC",
+      "use_signalling": true,
+      "step_1_linkrequest": {
+        "initiator_eph_x25519_public": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd7424",
+        "initiator_eph_ed25519_public": "3c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+        "signalling_bytes": "2001f4",
+        "request_data": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a2001f4",
+        "request_data_length": 67,
+        "responder_destination_hash": "70c0d820f77ab30ed32d5e48baa90c28",
+        "flags_byte": "02",
+        "context_byte": "00",
+        "raw_packet": "020070c0d820f77ab30ed32d5e48baa90c2800dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a2001f4",
+        "raw_packet_length": 86,
+        "hashable_part": "0270c0d820f77ab30ed32d5e48baa90c2800dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a2001f4",
+        "signalling_diff": 3,
+        "hashable_stripped": "0270c0d820f77ab30ed32d5e48baa90c2800dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+        "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22"
+      },
+      "step_2_lrproof": {
+        "responder_eph_x25519_public": "e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570b",
+        "responder_identity_ed25519_public": "96103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11",
+        "shared_key": "77354aadcd178e5e23b6ca9f1ba917be04451006f75b51a9cccedce84ca3d83e",
+        "shared_key_length": 32,
+        "hkdf_salt": "4daf0d8a4a8a3e0bfe8401b810467b22",
+        "hkdf_context": null,
+        "hkdf_length": 64,
+        "derived_key": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e9091dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+        "signing_key": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e909",
+        "encryption_key": "1dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+        "signalling_bytes": "2001f4",
+        "signed_data": "4daf0d8a4a8a3e0bfe8401b810467b22e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570b96103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b112001f4",
+        "signed_data_layout": "link_id(16) + responder_eph_x25519_pub(32) + responder_identity_ed25519_pub(32) + signalling(3)",
+        "signature": "e38b0ac745582bc58650aada126c2c83b6f9bde226c748c71ecfd8598b81debed06c55b8e558b539ffddd47fed404eb34efe5edf34d40b078f3cbb785eddf306",
+        "proof_data": "e38b0ac745582bc58650aada126c2c83b6f9bde226c748c71ecfd8598b81debed06c55b8e558b539ffddd47fed404eb34efe5edf34d40b078f3cbb785eddf306e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570b2001f4",
+        "proof_data_layout": "signature(64) + responder_eph_x25519_pub(32) + signalling(3)",
+        "proof_data_length": 99,
+        "flags_byte": "2f",
+        "context_byte": "ff",
+        "header_destination": "4daf0d8a4a8a3e0bfe8401b810467b22",
+        "header_destination_note": "LRPROOF uses link_id as destination in header, not destination hash",
+        "raw_packet": "2f004daf0d8a4a8a3e0bfe8401b810467b22ffe38b0ac745582bc58650aada126c2c83b6f9bde226c748c71ecfd8598b81debed06c55b8e558b539ffddd47fed404eb34efe5edf34d40b078f3cbb785eddf306e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570b2001f4",
+        "raw_packet_length": 118
+      },
+      "step_3_verify": {
+        "initiator_shared_key": "77354aadcd178e5e23b6ca9f1ba917be04451006f75b51a9cccedce84ca3d83e",
+        "ecdh_symmetric": true,
+        "initiator_derived_key": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e9091dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+        "derived_keys_match": true,
+        "signature_valid": true
+      },
+      "step_4_lrrtt": {
+        "rtt_value": 0.125,
+        "rtt_msgpack": "cb3fc0000000000000",
+        "fixed_iv": "0806c89e7deab6acb1f0fe8012f0e355",
+        "padded_plaintext": "cb3fc000000000000007070707070707",
+        "ciphertext": "b5ab3c7758480a673a260f9441a039ea",
+        "hmac": "aa242e735fb38617e8d6d7c16a9a83a109fb634a29233026529701304fb455ff",
+        "encrypted_rtt_token": "0806c89e7deab6acb1f0fe8012f0e355b5ab3c7758480a673a260f9441a039eaaa242e735fb38617e8d6d7c16a9a83a109fb634a29233026529701304fb455ff",
+        "encrypted_rtt_token_length": 64,
+        "context_byte": "fe",
+        "note": "Encrypted with link's derived_key using Token (modified Fernet). IV is fixed for determinism."
+      }
+    },
+    {
+      "description": "Keypair 1\u21920, MTU=500, MODE_AES256_CBC (reverse direction)",
+      "initiator_keypair_index": 1,
+      "responder_keypair_index": 0,
+      "initiator_ephemeral_index": 1,
+      "responder_ephemeral_index": 0,
+      "mtu": 500,
+      "mode": 1,
+      "mode_name": "AES_256_CBC",
+      "use_signalling": true,
+      "step_1_linkrequest": {
+        "initiator_eph_x25519_public": "e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570b",
+        "initiator_eph_ed25519_public": "b13cf8234542a587b87d0b925dc525df2f7075ba8a282454fdb38c76613d067c",
+        "signalling_bytes": "2001f4",
+        "request_data": "e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570bb13cf8234542a587b87d0b925dc525df2f7075ba8a282454fdb38c76613d067c2001f4",
+        "request_data_length": 67,
+        "responder_destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+        "flags_byte": "02",
+        "context_byte": "00",
+        "raw_packet": "0200fb48da0e82e6e01ba0c014513f74540d00e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570bb13cf8234542a587b87d0b925dc525df2f7075ba8a282454fdb38c76613d067c2001f4",
+        "raw_packet_length": 86,
+        "hashable_part": "02fb48da0e82e6e01ba0c014513f74540d00e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570bb13cf8234542a587b87d0b925dc525df2f7075ba8a282454fdb38c76613d067c2001f4",
+        "signalling_diff": 3,
+        "hashable_stripped": "02fb48da0e82e6e01ba0c014513f74540d00e064d4ec5a2bf5d82dad33ee6b1554c6db08489d29a7449567794a88fe02570bb13cf8234542a587b87d0b925dc525df2f7075ba8a282454fdb38c76613d067c",
+        "link_id": "f0a4fa5cd6618144b1c01d803a3e0500"
+      },
+      "step_2_lrproof": {
+        "responder_eph_x25519_public": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd7424",
+        "responder_identity_ed25519_public": "1cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+        "shared_key": "77354aadcd178e5e23b6ca9f1ba917be04451006f75b51a9cccedce84ca3d83e",
+        "shared_key_length": 32,
+        "hkdf_salt": "f0a4fa5cd6618144b1c01d803a3e0500",
+        "hkdf_context": null,
+        "hkdf_length": 64,
+        "derived_key": "e2bca92c4a49d1018832c048b88c83ac1269457c9849cc43487ef9506eb67f7709e746c28bd875db95469dc287a898be5b1d87e5442fa4003a8ea1938a57ec93",
+        "signing_key": "e2bca92c4a49d1018832c048b88c83ac1269457c9849cc43487ef9506eb67f77",
+        "encryption_key": "09e746c28bd875db95469dc287a898be5b1d87e5442fa4003a8ea1938a57ec93",
+        "signalling_bytes": "2001f4",
+        "signed_data": "f0a4fa5cd6618144b1c01d803a3e0500dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74241cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b2001f4",
+        "signed_data_layout": "link_id(16) + responder_eph_x25519_pub(32) + responder_identity_ed25519_pub(32) + signalling(3)",
+        "signature": "3ae1e1b89e6504a38b5e8e8f0ebea6b3fd2d3693efa4aee14c6c470a33a80ef628a53e79ea4ee89073a7724b84c34e1a4ec549e1bc233a175f78bdd5f9ccce0d",
+        "proof_data": "3ae1e1b89e6504a38b5e8e8f0ebea6b3fd2d3693efa4aee14c6c470a33a80ef628a53e79ea4ee89073a7724b84c34e1a4ec549e1bc233a175f78bdd5f9ccce0ddee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74242001f4",
+        "proof_data_layout": "signature(64) + responder_eph_x25519_pub(32) + signalling(3)",
+        "proof_data_length": 99,
+        "flags_byte": "2f",
+        "context_byte": "ff",
+        "header_destination": "f0a4fa5cd6618144b1c01d803a3e0500",
+        "header_destination_note": "LRPROOF uses link_id as destination in header, not destination hash",
+        "raw_packet": "2f00f0a4fa5cd6618144b1c01d803a3e0500ff3ae1e1b89e6504a38b5e8e8f0ebea6b3fd2d3693efa4aee14c6c470a33a80ef628a53e79ea4ee89073a7724b84c34e1a4ec549e1bc233a175f78bdd5f9ccce0ddee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74242001f4",
+        "raw_packet_length": 118
+      },
+      "step_3_verify": {
+        "initiator_shared_key": "77354aadcd178e5e23b6ca9f1ba917be04451006f75b51a9cccedce84ca3d83e",
+        "ecdh_symmetric": true,
+        "initiator_derived_key": "e2bca92c4a49d1018832c048b88c83ac1269457c9849cc43487ef9506eb67f7709e746c28bd875db95469dc287a898be5b1d87e5442fa4003a8ea1938a57ec93",
+        "derived_keys_match": true,
+        "signature_valid": true
+      },
+      "step_4_lrrtt": {
+        "rtt_value": 0.125,
+        "rtt_msgpack": "cb3fc0000000000000",
+        "fixed_iv": "d9a46731a5e91a551a14728ea55a2fc3",
+        "padded_plaintext": "cb3fc000000000000007070707070707",
+        "ciphertext": "ef06b9a159b47768575508fa9d9f43a2",
+        "hmac": "a8079b02a7c7109bf37160dbafd36fd28881db53d9e5ac10fe2844f65656f592",
+        "encrypted_rtt_token": "d9a46731a5e91a551a14728ea55a2fc3ef06b9a159b47768575508fa9d9f43a2a8079b02a7c7109bf37160dbafd36fd28881db53d9e5ac10fe2844f65656f592",
+        "encrypted_rtt_token_length": 64,
+        "context_byte": "fe",
+        "note": "Encrypted with link's derived_key using Token (modified Fernet). IV is fixed for determinism."
+      }
+    },
+    {
+      "description": "Keypair 2\u21923, MTU=1000, MODE_AES256_CBC (non-default MTU)",
+      "initiator_keypair_index": 2,
+      "responder_keypair_index": 3,
+      "initiator_ephemeral_index": 2,
+      "responder_ephemeral_index": 3,
+      "mtu": 1000,
+      "mode": 1,
+      "mode_name": "AES_256_CBC",
+      "use_signalling": true,
+      "step_1_linkrequest": {
+        "initiator_eph_x25519_public": "b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331",
+        "initiator_eph_ed25519_public": "a2d4555498df9bd3fad9f2bb9d66911835e1c34a8ec789aca6dde214e7fc1502",
+        "signalling_bytes": "2003e8",
+        "request_data": "b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331a2d4555498df9bd3fad9f2bb9d66911835e1c34a8ec789aca6dde214e7fc15022003e8",
+        "request_data_length": 67,
+        "responder_destination_hash": "3cd05751c7689440291428c4ef149b39",
+        "flags_byte": "02",
+        "context_byte": "00",
+        "raw_packet": "02003cd05751c7689440291428c4ef149b3900b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331a2d4555498df9bd3fad9f2bb9d66911835e1c34a8ec789aca6dde214e7fc15022003e8",
+        "raw_packet_length": 86,
+        "hashable_part": "023cd05751c7689440291428c4ef149b3900b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331a2d4555498df9bd3fad9f2bb9d66911835e1c34a8ec789aca6dde214e7fc15022003e8",
+        "signalling_diff": 3,
+        "hashable_stripped": "023cd05751c7689440291428c4ef149b3900b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331a2d4555498df9bd3fad9f2bb9d66911835e1c34a8ec789aca6dde214e7fc1502",
+        "link_id": "88cc2cac829fdab308161c456f18d50c"
+      },
+      "step_2_lrproof": {
+        "responder_eph_x25519_public": "7ea26e2a63f0066ae15f48dcb7ae6f606b5e08233d4a934672178d8dcb6fed1b",
+        "responder_identity_ed25519_public": "c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14",
+        "shared_key": "2ff8ccad2bb8211f4943cd1e80980e27576d48b154bfc615a3fc024fc75fdf24",
+        "shared_key_length": 32,
+        "hkdf_salt": "88cc2cac829fdab308161c456f18d50c",
+        "hkdf_context": null,
+        "hkdf_length": 64,
+        "derived_key": "b38b5c76c01d2b85e072bb54681f329ea85afac4eddd725ca64a9f555f5559d5c7ea77d143dc97503f7abe23fb122cf5e9225ef2397c712ea8f58b773df0b4df",
+        "signing_key": "b38b5c76c01d2b85e072bb54681f329ea85afac4eddd725ca64a9f555f5559d5",
+        "encryption_key": "c7ea77d143dc97503f7abe23fb122cf5e9225ef2397c712ea8f58b773df0b4df",
+        "signalling_bytes": "2003e8",
+        "signed_data": "88cc2cac829fdab308161c456f18d50c7ea26e2a63f0066ae15f48dcb7ae6f606b5e08233d4a934672178d8dcb6fed1bc08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e142003e8",
+        "signed_data_layout": "link_id(16) + responder_eph_x25519_pub(32) + responder_identity_ed25519_pub(32) + signalling(3)",
+        "signature": "921acfeeb6b38eb865150b002d1e4eecfff191ff743a59a674114968a7bedd800ddb8f3d341836e0d93db7f1924d48f25ef6d0ddfa671c583c87410dc4e8ff02",
+        "proof_data": "921acfeeb6b38eb865150b002d1e4eecfff191ff743a59a674114968a7bedd800ddb8f3d341836e0d93db7f1924d48f25ef6d0ddfa671c583c87410dc4e8ff027ea26e2a63f0066ae15f48dcb7ae6f606b5e08233d4a934672178d8dcb6fed1b2003e8",
+        "proof_data_layout": "signature(64) + responder_eph_x25519_pub(32) + signalling(3)",
+        "proof_data_length": 99,
+        "flags_byte": "2f",
+        "context_byte": "ff",
+        "header_destination": "88cc2cac829fdab308161c456f18d50c",
+        "header_destination_note": "LRPROOF uses link_id as destination in header, not destination hash",
+        "raw_packet": "2f0088cc2cac829fdab308161c456f18d50cff921acfeeb6b38eb865150b002d1e4eecfff191ff743a59a674114968a7bedd800ddb8f3d341836e0d93db7f1924d48f25ef6d0ddfa671c583c87410dc4e8ff027ea26e2a63f0066ae15f48dcb7ae6f606b5e08233d4a934672178d8dcb6fed1b2003e8",
+        "raw_packet_length": 118
+      },
+      "step_3_verify": {
+        "initiator_shared_key": "2ff8ccad2bb8211f4943cd1e80980e27576d48b154bfc615a3fc024fc75fdf24",
+        "ecdh_symmetric": true,
+        "initiator_derived_key": "b38b5c76c01d2b85e072bb54681f329ea85afac4eddd725ca64a9f555f5559d5c7ea77d143dc97503f7abe23fb122cf5e9225ef2397c712ea8f58b773df0b4df",
+        "derived_keys_match": true,
+        "signature_valid": true
+      },
+      "step_4_lrrtt": {
+        "rtt_value": 0.125,
+        "rtt_msgpack": "cb3fc0000000000000",
+        "fixed_iv": "c890581a096a8c84d2bac30ec40639f5",
+        "padded_plaintext": "cb3fc000000000000007070707070707",
+        "ciphertext": "57717a39293bca354f89ae4e55200340",
+        "hmac": "594a6a4119f2e186191e9e35c431e5e379bdd13ab943598a14704474c247f559",
+        "encrypted_rtt_token": "c890581a096a8c84d2bac30ec40639f557717a39293bca354f89ae4e55200340594a6a4119f2e186191e9e35c431e5e379bdd13ab943598a14704474c247f559",
+        "encrypted_rtt_token_length": 64,
+        "context_byte": "fe",
+        "note": "Encrypted with link's derived_key using Token (modified Fernet). IV is fixed for determinism."
+      }
+    },
+    {
+      "description": "Keypair 0\u21922, no signalling bytes (legacy)",
+      "initiator_keypair_index": 0,
+      "responder_keypair_index": 2,
+      "initiator_ephemeral_index": 0,
+      "responder_ephemeral_index": 2,
+      "mtu": 500,
+      "mode": 1,
+      "mode_name": "AES_256_CBC",
+      "use_signalling": false,
+      "step_1_linkrequest": {
+        "initiator_eph_x25519_public": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd7424",
+        "initiator_eph_ed25519_public": "3c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+        "signalling_bytes": null,
+        "request_data": "dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+        "request_data_length": 64,
+        "responder_destination_hash": "84a963f1b12557d2282434e5a13f56ba",
+        "flags_byte": "02",
+        "context_byte": "00",
+        "raw_packet": "020084a963f1b12557d2282434e5a13f56ba00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+        "raw_packet_length": 83,
+        "hashable_part": "0284a963f1b12557d2282434e5a13f56ba00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+        "signalling_diff": 0,
+        "hashable_stripped": "0284a963f1b12557d2282434e5a13f56ba00dee0ed955afc0de7ec99b55984eaedc42529dcccdedcefe8c81314e6b5dd74243c83c279c05ac632bb9aad296fa648ac9ba542aa7dc4bb7270d4a3309049c51a",
+        "link_id": "6627ee81e808193fcda266ca79f01ce5"
+      },
+      "step_2_lrproof": {
+        "responder_eph_x25519_public": "b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331",
+        "responder_identity_ed25519_public": "10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2",
+        "shared_key": "7677c552b6f9e31915ab1266e7b8bd2c662788e352fce20326f33ecc6479ae33",
+        "shared_key_length": 32,
+        "hkdf_salt": "6627ee81e808193fcda266ca79f01ce5",
+        "hkdf_context": null,
+        "hkdf_length": 64,
+        "derived_key": "2c3b9f3e01832ab87ca6de09764143da77a5a3f639d11c496bffc05f57ea1fe7c300a9194c1b9d28b6279158df9a26064abdde19ecb0cb61b09a6c57baa307e5",
+        "signing_key": "2c3b9f3e01832ab87ca6de09764143da77a5a3f639d11c496bffc05f57ea1fe7",
+        "encryption_key": "c300a9194c1b9d28b6279158df9a26064abdde19ecb0cb61b09a6c57baa307e5",
+        "signalling_bytes": null,
+        "signed_data": "6627ee81e808193fcda266ca79f01ce5b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b933110e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2",
+        "signed_data_layout": "link_id(16) + responder_eph_x25519_pub(32) + responder_identity_ed25519_pub(32)",
+        "signature": "353bc0df64d267c9e957cce9d5b66f3ef995c7f13e10b382efa287d192621dd9ec0eaa21f30ae41420f04c0ed7efed50d8945a2182910b606b9f0a3ba3d4d609",
+        "proof_data": "353bc0df64d267c9e957cce9d5b66f3ef995c7f13e10b382efa287d192621dd9ec0eaa21f30ae41420f04c0ed7efed50d8945a2182910b606b9f0a3ba3d4d609b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331",
+        "proof_data_layout": "signature(64) + responder_eph_x25519_pub(32)",
+        "proof_data_length": 96,
+        "flags_byte": "2f",
+        "context_byte": "ff",
+        "header_destination": "6627ee81e808193fcda266ca79f01ce5",
+        "header_destination_note": "LRPROOF uses link_id as destination in header, not destination hash",
+        "raw_packet": "2f006627ee81e808193fcda266ca79f01ce5ff353bc0df64d267c9e957cce9d5b66f3ef995c7f13e10b382efa287d192621dd9ec0eaa21f30ae41420f04c0ed7efed50d8945a2182910b606b9f0a3ba3d4d609b9bfbec4e2d65ae0a2e607d5343cfc2ee2f35800c96700ad8f0e9f5c635b9331",
+        "raw_packet_length": 115
+      },
+      "step_3_verify": {
+        "initiator_shared_key": "7677c552b6f9e31915ab1266e7b8bd2c662788e352fce20326f33ecc6479ae33",
+        "ecdh_symmetric": true,
+        "initiator_derived_key": "2c3b9f3e01832ab87ca6de09764143da77a5a3f639d11c496bffc05f57ea1fe7c300a9194c1b9d28b6279158df9a26064abdde19ecb0cb61b09a6c57baa307e5",
+        "derived_keys_match": true,
+        "signature_valid": true
+      },
+      "step_4_lrrtt": {
+        "rtt_value": 0.125,
+        "rtt_msgpack": "cb3fc0000000000000",
+        "fixed_iv": "0806c89e7deab6acb1f0fe8012f0e355",
+        "padded_plaintext": "cb3fc000000000000007070707070707",
+        "ciphertext": "45d7708d9c481804b0db2192038ac655",
+        "hmac": "0c62c26e36cc4189fe76ca5cdc82a44a7d0e9413ec0b0260818bda5991385948",
+        "encrypted_rtt_token": "0806c89e7deab6acb1f0fe8012f0e35545d7708d9c481804b0db2192038ac6550c62c26e36cc4189fe76ca5cdc82a44a7d0e9413ec0b0260818bda5991385948",
+        "encrypted_rtt_token_length": 64,
+        "context_byte": "fe",
+        "note": "Encrypted with link's derived_key using Token (modified Fernet). IV is fixed for determinism."
+      }
+    }
+  ],
+  "rtt_vectors": [
+    {
+      "description": "RTT value 0.001",
+      "rtt_float": 0.001,
+      "msgpack_bytes": "cb3f50624dd2f1a9fc",
+      "msgpack_length": 9,
+      "round_trip_value": 0.001,
+      "round_trip_match": true
+    },
+    {
+      "description": "RTT value 0.05",
+      "rtt_float": 0.05,
+      "msgpack_bytes": "cb3fa999999999999a",
+      "msgpack_length": 9,
+      "round_trip_value": 0.05,
+      "round_trip_match": true
+    },
+    {
+      "description": "RTT value 0.125",
+      "rtt_float": 0.125,
+      "msgpack_bytes": "cb3fc0000000000000",
+      "msgpack_length": 9,
+      "round_trip_value": 0.125,
+      "round_trip_match": true
+    },
+    {
+      "description": "RTT value 0.5",
+      "rtt_float": 0.5,
+      "msgpack_bytes": "cb3fe0000000000000",
+      "msgpack_length": 9,
+      "round_trip_value": 0.5,
+      "round_trip_match": true
+    },
+    {
+      "description": "RTT value 1.0",
+      "rtt_float": 1.0,
+      "msgpack_bytes": "cb3ff0000000000000",
+      "msgpack_length": 9,
+      "round_trip_value": 1.0,
+      "round_trip_match": true
+    },
+    {
+      "description": "RTT value 1.75",
+      "rtt_float": 1.75,
+      "msgpack_bytes": "cb3ffc000000000000",
+      "msgpack_length": 9,
+      "round_trip_value": 1.75,
+      "round_trip_match": true
+    }
+  ],
+  "keepalive_calculation_vectors": [
+    {
+      "description": "Keepalive for RTT=0.001s",
+      "rtt": 0.001,
+      "keepalive": 5,
+      "stale_time": 10,
+      "formula": "keepalive = max(min(0.001 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(0.001 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 5 * 2"
+    },
+    {
+      "description": "Keepalive for RTT=0.01s",
+      "rtt": 0.01,
+      "keepalive": 5,
+      "stale_time": 10,
+      "formula": "keepalive = max(min(0.01 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(0.01 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 5 * 2"
+    },
+    {
+      "description": "Keepalive for RTT=0.1s",
+      "rtt": 0.1,
+      "keepalive": 20.571428571428573,
+      "stale_time": 41.142857142857146,
+      "formula": "keepalive = max(min(0.1 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(0.1 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 20.571428571428573 * 2"
+    },
+    {
+      "description": "Keepalive for RTT=0.5s",
+      "rtt": 0.5,
+      "keepalive": 102.85714285714286,
+      "stale_time": 205.71428571428572,
+      "formula": "keepalive = max(min(0.5 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(0.5 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 102.85714285714286 * 2"
+    },
+    {
+      "description": "Keepalive for RTT=1.0s",
+      "rtt": 1.0,
+      "keepalive": 205.71428571428572,
+      "stale_time": 411.42857142857144,
+      "formula": "keepalive = max(min(1.0 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(1.0 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 205.71428571428572 * 2"
+    },
+    {
+      "description": "Keepalive for RTT=1.75s",
+      "rtt": 1.75,
+      "keepalive": 360.0,
+      "stale_time": 720.0,
+      "formula": "keepalive = max(min(1.75 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(1.75 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 360.0 * 2"
+    },
+    {
+      "description": "Keepalive for RTT=2.0s",
+      "rtt": 2.0,
+      "keepalive": 360,
+      "stale_time": 720,
+      "formula": "keepalive = max(min(2.0 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(2.0 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 360 * 2"
+    },
+    {
+      "description": "Keepalive for RTT=5.0s",
+      "rtt": 5.0,
+      "keepalive": 360,
+      "stale_time": 720,
+      "formula": "keepalive = max(min(5.0 * (360 / 1.75), 360), 5)",
+      "formula_simplified": "keepalive = max(min(5.0 * 205.714286, 360), 5)",
+      "stale_formula": "stale_time = 360 * 2"
+    }
+  ],
+  "mdu_vectors": [
+    {
+      "description": "MDU for MTU=500",
+      "mtu": 500,
+      "ifac_min_size": 1,
+      "header_minsize": 19,
+      "token_overhead": 48,
+      "aes128_blocksize": 16,
+      "mdu": 431,
+      "formula": "floor((500 - 1 - 19 - 48) / 16) * 16 - 1",
+      "intermediate": "floor(432 / 16) * 16 - 1 = floor(27.0) * 16 - 1 = 431"
+    },
+    {
+      "description": "MDU for MTU=1000",
+      "mtu": 1000,
+      "ifac_min_size": 1,
+      "header_minsize": 19,
+      "token_overhead": 48,
+      "aes128_blocksize": 16,
+      "mdu": 927,
+      "formula": "floor((1000 - 1 - 19 - 48) / 16) * 16 - 1",
+      "intermediate": "floor(932 / 16) * 16 - 1 = floor(58.25) * 16 - 1 = 927"
+    },
+    {
+      "description": "MDU for MTU=1500",
+      "mtu": 1500,
+      "ifac_min_size": 1,
+      "header_minsize": 19,
+      "token_overhead": 48,
+      "aes128_blocksize": 16,
+      "mdu": 1423,
+      "formula": "floor((1500 - 1 - 19 - 48) / 16) * 16 - 1",
+      "intermediate": "floor(1432 / 16) * 16 - 1 = floor(89.5) * 16 - 1 = 1423"
+    }
+  ],
+  "mode_rejection_vectors": [
+    {
+      "description": "Mode encoding for all 8 mode values (3-bit field)",
+      "mode_encodings": [
+        {
+          "mode_value": 0,
+          "mode_name": "AES_128_CBC",
+          "mode_byte": "00",
+          "enabled": false
+        },
+        {
+          "mode_value": 1,
+          "mode_name": "AES_256_CBC",
+          "mode_byte": "20",
+          "enabled": true
+        },
+        {
+          "mode_value": 2,
+          "mode_name": "MODE_AES256_GCM",
+          "mode_byte": "40",
+          "enabled": false
+        },
+        {
+          "mode_value": 3,
+          "mode_name": "MODE_OTP_RESERVED",
+          "mode_byte": "60",
+          "enabled": false
+        },
+        {
+          "mode_value": 4,
+          "mode_name": "MODE_PQ_RESERVED_1",
+          "mode_byte": "80",
+          "enabled": false
+        },
+        {
+          "mode_value": 5,
+          "mode_name": "MODE_PQ_RESERVED_2",
+          "mode_byte": "a0",
+          "enabled": false
+        },
+        {
+          "mode_value": 6,
+          "mode_name": "MODE_PQ_RESERVED_3",
+          "mode_byte": "c0",
+          "enabled": false
+        },
+        {
+          "mode_value": 7,
+          "mode_name": "MODE_PQ_RESERVED_4",
+          "mode_byte": "e0",
+          "enabled": false
+        }
+      ],
+      "encoding_formula": "mode_byte = (mode << 5) & 0xE0",
+      "extraction_formula": "mode = (byte >> 5) & 0x07"
+    },
+    {
+      "description": "AES-128-CBC (mode=0) rejection",
+      "mode_value": 0,
+      "mode_name": "AES_128_CBC",
+      "is_enabled": false,
+      "signalling_bytes_raises_TypeError": true,
+      "note": "signalling_bytes() raises TypeError for modes not in ENABLED_MODES. AES-128-CBC is defined but not enabled."
+    },
+    {
+      "description": "Hypothetical AES-128-CBC signalling encoding (mode=0, for testing decoders)",
+      "mode_value": 0,
+      "mtu": 500,
+      "hypothetical_signalling_bytes": "0001f4",
+      "decoded_mtu": 500,
+      "decoded_mode": 0,
+      "note": "This encoding is never produced by the reference implementation but decoders should be able to parse it"
+    }
+  ],
+  "teardown_vectors": [
+    {
+      "description": "Keepalive request (initiator \u2192 responder)",
+      "handshake_reference": "handshake_vectors[0]",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "plaintext": "ff",
+      "plaintext_note": "0xFF = keepalive request marker",
+      "fixed_iv": "1db27ef6fbaea39f1af29ca10e94b81c",
+      "encrypted_token": "1db27ef6fbaea39f1af29ca10e94b81c81bd643adb9782885bbd1fceaf0f31b0cb86af7c5f3912ec60ca36d13ecc215cbe5b043bfff3cdfc5cfea57c0679996d",
+      "encrypted_token_length": 64,
+      "context_byte": "fa",
+      "context_name": "KEEPALIVE"
+    },
+    {
+      "description": "Keepalive response (responder \u2192 initiator)",
+      "handshake_reference": "handshake_vectors[0]",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "plaintext": "fe",
+      "plaintext_note": "0xFE = keepalive response marker",
+      "fixed_iv": "3ad7baed44f815a49b850d6f935cac05",
+      "encrypted_token": "3ad7baed44f815a49b850d6f935cac0553dfb121c1a38dac0d051b6a9682977a9bc030198c1ace8c0c14e3f622477a91768b2fda8cdcab7a76b352c40854260a",
+      "encrypted_token_length": 64,
+      "context_byte": "fa",
+      "context_name": "KEEPALIVE"
+    },
+    {
+      "description": "Teardown packet (LINKCLOSE)",
+      "handshake_reference": "handshake_vectors[0]",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "plaintext": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "plaintext_note": "Teardown plaintext is the link_id itself",
+      "fixed_iv": "a1a905e5afcc49ee73d2001094c35a16",
+      "encrypted_token": "a1a905e5afcc49ee73d2001094c35a16291014e14b99b1dfb7a78877d7b855f0c08793bb3ff3705e92837f3c2a7a613ace61db8972d5ad202c8be9128fd9ef85614bc113181345912155f29b4f89dacd",
+      "encrypted_token_length": 80,
+      "context_byte": "fc",
+      "context_name": "LINKCLOSE"
+    }
+  ],
+  "identify_vectors": [
+    {
+      "description": "Link identify packet (initiator reveals identity)",
+      "handshake_reference": "handshake_vectors[0]",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "initiator_keypair_index": 0,
+      "initiator_public_key": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+      "signed_data": "4daf0d8a4a8a3e0bfe8401b810467b224219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+      "signed_data_layout": "link_id(16) + identity_public_key(64)",
+      "signature": "b16937fcaa3428bbdb3acdec2a40f9083889c2fe7571dec842733d169aecd3e08277bb6e0c8d5746ee33c0fc4e87a756256af86e20964046265b387271dd7008",
+      "proof_data": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501bb16937fcaa3428bbdb3acdec2a40f9083889c2fe7571dec842733d169aecd3e08277bb6e0c8d5746ee33c0fc4e87a756256af86e20964046265b387271dd7008",
+      "proof_data_layout": "public_key(64) + signature(64) = 128 bytes",
+      "proof_data_length": 128,
+      "fixed_iv": "02082407c4466b34641e8fdfa6f6cb31",
+      "encrypted_token": "02082407c4466b34641e8fdfa6f6cb31dcc9e9915152db2bddaf42a2cedf945d714882a5a2c9009733df8a75df8f24fb54312b387f659a61b3373418a1e1a60a126598e9efb05ebc841387759134402c325495e94b59c14d9fc3b61bd21e8cd07e53668a6aa36b9c4f13257dc687edb782841aa9e5f28b2e5dd8eb36acd7161dadef12f2b681411b80d0ba1ff95eda00fd10bbe9e6e85bf27f3af6fccf31a9bf2fd5f6c8e089c8e02dc283fb1cf5eb94be172ffa21bf083f2ba19b4ebd2e6c60",
+      "encrypted_token_length": 192,
+      "context_byte": "fb",
+      "context_name": "LINKIDENTIFY"
+    }
+  ],
+  "state_machine_spec": {
+    "states": {
+      "PENDING": {
+        "value": 0,
+        "description": "Link request sent/received, awaiting proof"
+      },
+      "HANDSHAKE": {
+        "value": 1,
+        "description": "Handshake in progress (ECDH computed)"
+      },
+      "ACTIVE": {
+        "value": 2,
+        "description": "Link established and active"
+      },
+      "STALE": {
+        "value": 3,
+        "description": "No traffic received within stale_time"
+      },
+      "CLOSED": {
+        "value": 4,
+        "description": "Link torn down"
+      }
+    },
+    "teardown_reasons": {
+      "TIMEOUT": {
+        "value": 1,
+        "description": "No response within establishment timeout or keepalive timeout"
+      },
+      "INITIATOR_CLOSED": {
+        "value": 2,
+        "description": "Initiator called teardown()"
+      },
+      "DESTINATION_CLOSED": {
+        "value": 3,
+        "description": "Destination/responder called teardown() or received teardown packet"
+      }
+    },
+    "valid_transitions": [
+      {
+        "from": "PENDING",
+        "to": "HANDSHAKE",
+        "condition": "ECDH exchange completed (prv.exchange(peer_pub))"
+      },
+      {
+        "from": "PENDING",
+        "to": "CLOSED",
+        "condition": "Establishment timeout"
+      },
+      {
+        "from": "HANDSHAKE",
+        "to": "ACTIVE",
+        "condition": "Link proof validated (initiator) or RTT packet received (responder)"
+      },
+      {
+        "from": "HANDSHAKE",
+        "to": "CLOSED",
+        "condition": "Establishment timeout or proof validation failure"
+      },
+      {
+        "from": "ACTIVE",
+        "to": "STALE",
+        "condition": "No inbound traffic for stale_time seconds"
+      },
+      {
+        "from": "ACTIVE",
+        "to": "CLOSED",
+        "condition": "teardown() called"
+      },
+      {
+        "from": "STALE",
+        "to": "ACTIVE",
+        "condition": "Traffic received while stale"
+      },
+      {
+        "from": "STALE",
+        "to": "CLOSED",
+        "condition": "Teardown packet sent after entering STALE (immediate in watchdog)"
+      }
+    ],
+    "notes": [
+      "CLOSED is a terminal state; keys are purged",
+      "STALE \u2192 ACTIVE recovery happens when any packet is received on the link",
+      "In the current implementation, STALE immediately transitions to CLOSED in the watchdog",
+      "The initiator creates ephemeral Ed25519 keys; the responder uses its identity Ed25519 key for signing"
+    ]
+  }
+}
