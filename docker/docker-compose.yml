@@ -1,0 +1,64 @@
+services:
+  reference:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: rns-reference
+    volumes:
+      - ./configs/reference/config:/etc/reticulum/config:ro
+      - reference-storage:/app/storage
+    ports:
+      - "4242:4242"
+      - "37428:37428"
+    networks:
+      - rns-test-net
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1', 37428)); s.close()\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  alternative:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: rns-alternative
+    volumes:
+      - ./configs/alternative/config:/etc/reticulum/config:ro
+      - alternative-storage:/app/storage
+    ports:
+      - "4243:4242"
+      - "37430:37428"
+    networks:
+      - rns-test-net
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1', 37428)); s.close()\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  test-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: rns-test-runner
+    volumes:
+      - ./configs/test-runner/config:/etc/reticulum/config:ro
+    networks:
+      - rns-test-net
+    depends_on:
+      reference:
+        condition: service_healthy
+      alternative:
+        condition: service_healthy
+    command: ["python3", "-m", "tests.all"]
+
+networks:
+  rns-test-net:
+    driver: bridge
+
+volumes:
+  reference-storage:
+  alternative-storage:

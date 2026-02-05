@@ -1,0 +1,12 @@
+.git
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.egg-info
+build/
+dist/
+.eggs/
+docker/
+.beads/
+.claude/

@@ -1,0 +1,20 @@
+[reticulum]
+  enable_transport = yes
+  share_instance = yes
+  shared_instance_type = tcp
+  shared_instance_port = 37428
+  instance_control_port = 37429
+
+[logging]
+  loglevel = 5
+
+[interfaces]
+  [[TCP Server Interface]]
+    type = TCPServerInterface
+    listen_ip = 0.0.0.0
+    listen_port = 4242
+
+  [[TCP Client to Reference]]
+    type = TCPClientInterface
+    target_host = reference
+    target_port = 4242
