@@ -19,6 +19,7 @@ repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, repo_root)
 
 import RNS
+from RNS.Cryptography import X25519PrivateKey, X25519PublicKey
 from tests.identity import (
     encrypted_message,
     fixed_keys,
@@ -75,8 +76,79 @@ def extract_keypairs():
     return keypairs
 
 
-def build_output(keypairs):
-    # Signature test vector
+def extract_ecdh_vectors():
+    """
+    Extract X25519 ECDH shared secrets between keypair combinations.
+    Both sides must compute the same shared secret.
+    """
+    pairs = [(0, 1), (0, 2), (0, 3), (1, 2)]
+    vectors = []
+
+    identities = []
+    for prv_hex, _ in fixed_keys:
+        identities.append(RNS.Identity.from_bytes(bytes.fromhex(prv_hex)))
+
+    for a, b in pairs:
+        id_a = identities[a]
+        id_b = identities[b]
+
+        # a's private × b's public
+        shared_ab = id_a.prv.exchange(
+            X25519PublicKey.from_public_bytes(id_b.pub_bytes)
+        )
+        # b's private × a's public
+        shared_ba = id_b.prv.exchange(
+            X25519PublicKey.from_public_bytes(id_a.pub_bytes)
+        )
+        assert shared_ab == shared_ba, (
+            f"ECDH mismatch for keypairs {a}↔{b}: "
+            f"{shared_ab.hex()} != {shared_ba.hex()}"
+        )
+
+        vectors.append({
+            "keypair_a": a,
+            "keypair_b": b,
+            "shared_secret": shared_ab.hex(),
+            "shared_secret_length": len(shared_ab),
+        })
+
+    return vectors
+
+
+def extract_signature_vectors():
+    """
+    Extract Ed25519 signatures from all 5 keypairs.
+    Uses the same message for cross-comparison, plus one unique message per keypair.
+    """
+    common_message = b"Reticulum test vector"
+    vectors = []
+
+    for idx, (prv_hex, _) in enumerate(fixed_keys):
+        identity = RNS.Identity.from_bytes(bytes.fromhex(prv_hex))
+
+        # Sign common message
+        sig_common = identity.sign(common_message)
+        assert len(sig_common) == 64
+
+        # Sign unique message
+        unique_message = f"keypair {idx} unique message".encode("utf-8")
+        sig_unique = identity.sign(unique_message)
+        assert len(sig_unique) == 64
+
+        vectors.append({
+            "keypair_index": idx,
+            "common_message": common_message.hex(),
+            "common_signature": sig_common.hex(),
+            "unique_message": unique_message.hex(),
+            "unique_message_utf8": unique_message.decode("utf-8"),
+            "unique_signature": sig_unique.hex(),
+        })
+
+    return vectors
+
+
+def build_output(keypairs, ecdh_vectors, signature_vectors):
+    # Signature test vector (original, from tests/identity.py)
     # Critical: signed_message is signed as .encode("utf-8") — the UTF-8 bytes
     # of the hex string literal, NOT the decoded binary.
     message_bytes = signed_message.encode("utf-8")
@@ -103,6 +175,8 @@ def build_output(keypairs):
             "message_note": "UTF-8 encoding of hex string literal, NOT decoded hex bytes",
             "signature": sig_from_key_0,
         },
+        "signature_vectors": signature_vectors,
+        "ecdh_vectors": ecdh_vectors,
         "encryption_test": {
             "keypair_index": 0,
             "plaintext": encrypted_message,
@@ -131,12 +205,45 @@ def verify(output):
     assert plaintext == bytes.fromhex(encrypted_message), "Decryption verification failed"
     print("  [OK] Decryption of fixed_token produces encrypted_message")
 
-    # 3. Verify signature
+    # 3. Verify original signature
     sig = fid.sign(signed_message.encode("utf-8"))
     assert sig == bytes.fromhex(sig_from_key_0), "Signature verification failed"
     print("  [OK] Signature of signed_message matches sig_from_key_0")
 
-    # 4. JSON round-trip integrity
+    # 4. Verify ECDH vectors (both sides produce same shared secret)
+    identities = []
+    for prv_hex, _ in fixed_keys:
+        identities.append(RNS.Identity.from_bytes(bytes.fromhex(prv_hex)))
+
+    for vec in output["ecdh_vectors"]:
+        a, b = vec["keypair_a"], vec["keypair_b"]
+        shared = identities[a].prv.exchange(
+            X25519PublicKey.from_public_bytes(identities[b].pub_bytes)
+        )
+        assert shared.hex() == vec["shared_secret"], (
+            f"ECDH verify failed for {a}↔{b}"
+        )
+    print(f"  [OK] All {len(output['ecdh_vectors'])} ECDH shared secrets verified")
+
+    # 5. Verify all signature vectors
+    for vec in output["signature_vectors"]:
+        idx = vec["keypair_index"]
+        identity = identities[idx]
+
+        sig_c = identity.sign(bytes.fromhex(vec["common_message"]))
+        assert sig_c.hex() == vec["common_signature"], (
+            f"Common signature verify failed for keypair {idx}"
+        )
+        identity.validate(sig_c, bytes.fromhex(vec["common_message"]))
+
+        sig_u = identity.sign(bytes.fromhex(vec["unique_message"]))
+        assert sig_u.hex() == vec["unique_signature"], (
+            f"Unique signature verify failed for keypair {idx}"
+        )
+        identity.validate(sig_u, bytes.fromhex(vec["unique_message"]))
+    print(f"  [OK] All {len(output['signature_vectors'])} signature vectors verified")
+
+    # 6. JSON round-trip integrity
     json_str = json.dumps(output, indent=2)
     roundtripped = json.loads(json_str)
     assert roundtripped == output, "JSON round-trip failed"
@@ -148,8 +255,16 @@ def main():
     keypairs = extract_keypairs()
     print(f"  Extracted {len(keypairs)} keypairs")
 
+    print("Extracting ECDH shared secrets...")
+    ecdh_vectors = extract_ecdh_vectors()
+    print(f"  Extracted {len(ecdh_vectors)} ECDH vectors")
+
+    print("Extracting signature vectors from all keypairs...")
+    signature_vectors = extract_signature_vectors()
+    print(f"  Extracted {len(signature_vectors)} signature vectors")
+
     print("Building output...")
-    output = build_output(keypairs)
+    output = build_output(keypairs, ecdh_vectors, signature_vectors)
 
     print("Verifying...")
     verify(output)

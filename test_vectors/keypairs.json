@@ -81,6 +81,74 @@
     "message_note": "UTF-8 encoding of hex string literal, NOT decoded hex bytes",
     "signature": "3020ef58f861591826a61c3d2d4a25b949cdb3094085ba6b1177a6f2a05f3cdd24d1095d6fdd078f0b2826e80b261c93c1ff97fbfd4857f25706d57dd073590c"
   },
+  "signature_vectors": [
+    {
+      "keypair_index": 0,
+      "common_message": "5265746963756c756d207465737420766563746f72",
+      "common_signature": "ed0a68720149315b8d2d69f72cf30c544549418b8cec2d3b11b67a418d9aa38e937d2ae0f4c6c54f9fc56e3533c693b1ae6b9e40076a14bf89cd3aa0c2c97b0c",
+      "unique_message": "6b657970616972203020756e69717565206d657373616765",
+      "unique_message_utf8": "keypair 0 unique message",
+      "unique_signature": "533026cf72e055a42e043aa5cee916bc5f5fbf82c7e18af5a915f8391979cf6d113bdf12773e0d8547fcacb126efd0633559620c8f7c335300bb38ecc642790f"
+    },
+    {
+      "keypair_index": 1,
+      "common_message": "5265746963756c756d207465737420766563746f72",
+      "common_signature": "4d7dc9e9fa706c100d4a17630c0afd1f9a16e39edb9299dff53b048b45e7fc32f453c9d760693cdae68c525e08883b42ab1474bf3943cbed1222ac09d50f250d",
+      "unique_message": "6b657970616972203120756e69717565206d657373616765",
+      "unique_message_utf8": "keypair 1 unique message",
+      "unique_signature": "72b9709a4c55f8fb685a87458f893e10cc6df690a9ded815ee1d957772147f20f21cd1595b77d74bb8a8b2d04b0aed069a1fd575197f01653ccd556b4883e403"
+    },
+    {
+      "keypair_index": 2,
+      "common_message": "5265746963756c756d207465737420766563746f72",
+      "common_signature": "2ce6cdd3d07e106b2b4295f5147d1d6d317de40492606d58d8da768aad8c77c0587355c8f1959fd85fb19609e5be7dc5934f963ad162830be8b78a23c636ff03",
+      "unique_message": "6b657970616972203220756e69717565206d657373616765",
+      "unique_message_utf8": "keypair 2 unique message",
+      "unique_signature": "6490bd5ec20c62b380d69862de2fff4f647f7de90ca20a5a0bebe117222a9b7263a14c08bac673365d208ed5abee768d89f748bda895d32ba8466153116ceb01"
+    },
+    {
+      "keypair_index": 3,
+      "common_message": "5265746963756c756d207465737420766563746f72",
+      "common_signature": "ba1bb9bf7805cd25c751a8af81b1c661f2dd7881967dbcd0ab984e388a9d613d340ed5e26c750818558e6b35757788995a7fa221740c8664e2dfca5bd9404705",
+      "unique_message": "6b657970616972203320756e69717565206d657373616765",
+      "unique_message_utf8": "keypair 3 unique message",
+      "unique_signature": "d6846f0f15f80c0a45afd1ba18a5bfa6658d2fc22dd79ddcc77c7874fd4426a512a8b6be7e372f1187aab145be706d7733633bd034ec420dffc6c9259ce00f03"
+    },
+    {
+      "keypair_index": 4,
+      "common_message": "5265746963756c756d207465737420766563746f72",
+      "common_signature": "690f37bbdbb1127abc5e6194c19e53410310962c3148de8aad5b287b95ae9f1217006c9b7441b9043d79a110dbaf3ef242f9f844a411fefe08a50dfc6f507602",
+      "unique_message": "6b657970616972203420756e69717565206d657373616765",
+      "unique_message_utf8": "keypair 4 unique message",
+      "unique_signature": "615d63bc4cdd827c081cf52d2af10391364c78e7b9bc6304c6a91d364f82b443ea235de75ed3ab01487ae9454798c832b28d190b8dee6b69f0b3cb8a3c52f202"
+    }
+  ],
+  "ecdh_vectors": [
+    {
+      "keypair_a": 0,
+      "keypair_b": 1,
+      "shared_secret": "44e3be07a38bab658163ca5ceed491e4cbb06c155021bd54eba97f5a1e7c0b34",
+      "shared_secret_length": 32
+    },
+    {
+      "keypair_a": 0,
+      "keypair_b": 2,
+      "shared_secret": "d3bb470474a2928c8c076cbb543fb8327be6ab145bfcd94d42ce9ac46f7b5513",
+      "shared_secret_length": 32
+    },
+    {
+      "keypair_a": 0,
+      "keypair_b": 3,
+      "shared_secret": "d2b33a10c2b3dae9bf3b6a32d86bdf61234938d421eab8f7ee4a197524914e6b",
+      "shared_secret_length": 32
+    },
+    {
+      "keypair_a": 1,
+      "keypair_b": 2,
+      "shared_secret": "e2a14e8203a73f4c9cd9fb9aeae90773df1b5c6bf0a18dd827dbbae22c24fc10",
+      "shared_secret_length": 32
+    }
+  ],
   "encryption_test": {
     "keypair_index": 0,
     "plaintext": "71884a271ead43558fcf1e331c5aebcd43498f16da16f8056b0893ce6b15d521eaa4f31639cd34da1b57995944076c4f14f300f2d2612111d21a3429a9966ac1da68545c00c7887d8b26f6c1ab9defa020b9519849ca41b7904199882802b6542771df85144a79890289d3c02daef6c26652c5ce9de231a2",

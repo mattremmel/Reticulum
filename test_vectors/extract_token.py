@@ -86,38 +86,20 @@ def extract_hmac_vectors():
     return vectors
 
 
-def extract_deterministic_fernet_vector():
+def build_deterministic_fernet(description, key, iv, plaintext):
     """
-    Construct a Fernet token deterministically with a fixed key and IV,
-    then verify Token.decrypt() can decode it.
-
-    Token format (Reticulum modified Fernet, no version/timestamp):
-        IV (16 bytes) + AES-256-CBC(PKCS7.pad(plaintext)) + HMAC-SHA256(signing_key, IV + ciphertext)
-
-    Key split: 64-byte key -> signing_key[:32] + encryption_key[32:]
+    Build a single deterministic Fernet token vector from given parameters.
+    Returns a dict with all intermediate values.
     """
-    # Use a deterministic key (64 bytes for AES-256)
-    key = bytes(range(64))
     signing_key = key[:32]
     encryption_key = key[32:]
 
-    # Fixed IV
-    iv = bytes([0x10] * 16)
-
-    # Plaintext
-    plaintext = b"Hello, Reticulum!"
-
-    # Pad
     padded = PKCS7.pad(plaintext)
-
-    # Encrypt
     ciphertext = AES_256_CBC.encrypt(plaintext=padded, key=encryption_key, iv=iv)
 
-    # Compute HMAC over IV + ciphertext
     signed_parts = iv + ciphertext
     hmac_digest = HMAC.new(signing_key, signed_parts).digest()
 
-    # Assemble token
     token_bytes = signed_parts + hmac_digest
 
     # Verify Token.decrypt() can decode it
@@ -125,8 +107,8 @@ def extract_deterministic_fernet_vector():
     decrypted = t.decrypt(token_bytes)
     assert decrypted == plaintext, f"Deterministic token decryption failed: {decrypted} != {plaintext}"
 
-    return {
-        "description": "Deterministic Fernet token with fixed key and IV",
+    result = {
+        "description": description,
         "key": key.hex(),
         "key_split": {
             "signing_key": signing_key.hex(),
@@ -135,7 +117,6 @@ def extract_deterministic_fernet_vector():
         },
         "iv": iv.hex(),
         "plaintext": plaintext.hex(),
-        "plaintext_utf8": plaintext.decode("utf-8"),
         "padded_plaintext": padded.hex(),
         "ciphertext": ciphertext.hex(),
         "signed_parts": signed_parts.hex(),
@@ -152,6 +133,46 @@ def extract_deterministic_fernet_vector():
             "total_length": len(token_bytes),
         },
     }
+    # Include utf-8 rendering if it's valid utf-8
+    try:
+        result["plaintext_utf8"] = plaintext.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    return result
+
+
+def extract_deterministic_fernet_vectors():
+    """
+    Construct multiple Fernet tokens deterministically with fixed keys and IVs.
+    Covers: normal plaintext, empty plaintext, multi-block plaintext.
+    """
+    vectors = []
+
+    # Vector 1: Original — 17 bytes (1 block + 1 byte)
+    vectors.append(build_deterministic_fernet(
+        description="17-byte plaintext (1 block + 1 byte)",
+        key=bytes(range(64)),
+        iv=bytes([0x10] * 16),
+        plaintext=b"Hello, Reticulum!",
+    ))
+
+    # Vector 2: Empty plaintext — tests pure padding (full block of 0x10)
+    vectors.append(build_deterministic_fernet(
+        description="Empty plaintext (0 bytes, pure PKCS7 padding block)",
+        key=bytes([0xAA] * 64),
+        iv=bytes([0xBB] * 16),
+        plaintext=b"",
+    ))
+
+    # Vector 3: Multi-block — 48 bytes (exactly 3 blocks, needs extra padding block)
+    vectors.append(build_deterministic_fernet(
+        description="48-byte plaintext (3 blocks, requires extra padding block)",
+        key=bytes(range(64, 128)),
+        iv=bytes(range(16)),
+        plaintext=bytes(range(48)),
+    ))
+
+    return vectors
 
 
 def decompose_fixed_token():
@@ -217,7 +238,7 @@ def decompose_fixed_token():
     }
 
 
-def build_output(pkcs7_vectors, hmac_vectors, deterministic_vector, fixed_token_decomp):
+def build_output(pkcs7_vectors, hmac_vectors, deterministic_fernet_vectors, fixed_token_decomp):
     return {
         "description": "Reticulum v1.1.3 reference implementation - Token (modified Fernet) test vectors",
         "source": "RNS/Cryptography/Token.py, RNS/Cryptography/PKCS7.py",
@@ -236,7 +257,7 @@ def build_output(pkcs7_vectors, hmac_vectors, deterministic_vector, fixed_token_
         },
         "pkcs7_padding": pkcs7_vectors,
         "hmac_sha256": hmac_vectors,
-        "deterministic_fernet": deterministic_vector,
+        "deterministic_fernet_vectors": deterministic_fernet_vectors,
         "fixed_token_decomposition": fixed_token_decomp,
     }
 
@@ -255,12 +276,14 @@ def verify(output):
         assert digest.hex() == vec["digest"], f"HMAC verify failed: {vec['description']}"
     print(f"  [OK] All {len(output['hmac_sha256'])} HMAC-SHA256 vectors verified")
 
-    # Verify deterministic token
-    det = output["deterministic_fernet"]
-    t = TokenClass(key=bytes.fromhex(det["key"]))
-    decrypted = t.decrypt(bytes.fromhex(det["token"]))
-    assert decrypted == bytes.fromhex(det["plaintext"]), "Deterministic Fernet verification failed"
-    print("  [OK] Deterministic Fernet token verified")
+    # Verify deterministic tokens
+    for det in output["deterministic_fernet_vectors"]:
+        t = TokenClass(key=bytes.fromhex(det["key"]))
+        decrypted = t.decrypt(bytes.fromhex(det["token"]))
+        assert decrypted == bytes.fromhex(det["plaintext"]), (
+            f"Deterministic Fernet verification failed: {det['description']}"
+        )
+    print(f"  [OK] All {len(output['deterministic_fernet_vectors'])} deterministic Fernet tokens verified")
 
     # Verify fixed token decomposition
     decomp = output["fixed_token_decomposition"]
@@ -283,14 +306,14 @@ def main():
     hmac_vectors = extract_hmac_vectors()
     print(f"  Extracted {len(hmac_vectors)} HMAC-SHA256 vectors")
 
-    deterministic_vector = extract_deterministic_fernet_vector()
-    print("  Extracted deterministic Fernet vector")
+    deterministic_fernet_vectors = extract_deterministic_fernet_vectors()
+    print(f"  Extracted {len(deterministic_fernet_vectors)} deterministic Fernet vectors")
 
     fixed_token_decomp = decompose_fixed_token()
     print("  Decomposed fixed_token from tests/identity.py")
 
     print("Building output...")
-    output = build_output(pkcs7_vectors, hmac_vectors, deterministic_vector, fixed_token_decomp)
+    output = build_output(pkcs7_vectors, hmac_vectors, deterministic_fernet_vectors, fixed_token_decomp)
 
     print("Verifying...")
     verify(output)
