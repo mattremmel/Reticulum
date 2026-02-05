@@ -1,0 +1,59 @@
+{
+  "description": "Reticulum v1.1.3 reference implementation - HKDF-SHA256 test vectors",
+  "source": "RNS/Cryptography/HKDF.py",
+  "constants": {
+    "hash_length_bytes": 32,
+    "hash_algorithm": "SHA-256"
+  },
+  "algorithm_notes": {
+    "extract": "PRK = HMAC-SHA256(salt, IKM)",
+    "expand": "T(i) = HMAC-SHA256(PRK, T(i-1) || info || i) where i is 1-indexed byte",
+    "empty_salt": "When salt is empty or None, 32 zero bytes are used",
+    "counter_wrapping": "Counter byte is (i+1) % 256 in Reticulum implementation"
+  },
+  "rfc5869_vectors": [
+    {
+      "description": "RFC 5869 Test Case 1 (basic, 22-byte IKM)",
+      "ikm": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+      "salt": "000102030405060708090a0b0c",
+      "info": "f0f1f2f3f4f5f6f7f8f9",
+      "length": 42,
+      "prk": "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5",
+      "okm": "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865"
+    },
+    {
+      "description": "RFC 5869 Test Case 2 (longer inputs/outputs)",
+      "ikm": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f",
+      "salt": "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+      "info": "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "length": 82,
+      "prk": "06a6b88c5853361a06104c9ceb35b45cef760014904671014a193f40c15fc244",
+      "okm": "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71cc30c58179ec3e87c14c01d5c1f3434f1d87"
+    },
+    {
+      "description": "RFC 5869 Test Case 3 (zero-length salt/info, salt becomes 32 zero bytes)",
+      "ikm": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+      "salt": "",
+      "salt_note": "Empty salt; implementation uses 32 zero bytes per spec",
+      "info": "",
+      "length": 42,
+      "prk": "19ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb04",
+      "okm": "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8"
+    }
+  ],
+  "reticulum_vector": {
+    "description": "Reticulum ECDH + HKDF: X25519 shared secret between keypair 0 and keypair 1, derived with HKDF",
+    "keypair_0_x25519_private": "f8953ffaf607627e615603ff1530c82c434cf87c07179dd7689ea776f30b964c",
+    "keypair_0_x25519_public": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa62924930",
+    "keypair_1_x25519_private": "d85d036245436a3c33d3228affae06721f8203bc364ee0ee7556368ac62add65",
+    "keypair_1_x25519_public": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd635",
+    "shared_key": "44e3be07a38bab658163ca5ceed491e4cbb06c155021bd54eba97f5a1e7c0b34",
+    "salt": "650b5d76b6bec0390d1f8cfca5bd33f9",
+    "salt_note": "identity_hash of keypair 0",
+    "info": "",
+    "info_note": "Empty context (Reticulum default)",
+    "length": 64,
+    "prk": "389dc9750acb24eab89519483ed56dc616c0fed140b12883abb2ccdc0e681275",
+    "derived_key": "b39199a9f348023aa772c453a8ef3c411ac0797370172383ebf080d11eaca5cbcd139c66fb3701e1ec7ae8364bcb38b19db90cb63ab345401d4380892669d172"
+  }
+}
