@@ -1,0 +1,817 @@
+{
+  "description": "Reticulum v1.1.3 reference implementation - announce protocol test vectors",
+  "source": "RNS/Destination.py, RNS/Identity.py, RNS/Transport.py",
+  "constants": {
+    "mtu_bytes": 500,
+    "header_minsize_bytes": 19,
+    "keysize_bytes": 64,
+    "name_hash_length_bytes": 10,
+    "signature_length_bytes": 64,
+    "ratchetsize_bytes": 32,
+    "random_hash_length_bytes": 10,
+    "truncated_hash_length_bytes": 16,
+    "announce_min_payload_bytes": 148,
+    "max_app_data_no_ratchet_bytes": 333,
+    "max_app_data_with_ratchet_bytes": 301
+  },
+  "algorithm": {
+    "name_hash": "SHA256(expand_name(None, app_name, *aspects).encode('utf-8'))[:10]",
+    "expand_name": "app_name + '.' + '.'.join(aspects)  (no identity hash when computing name_hash for announces)",
+    "identity_hash": "SHA256(public_key)[:16]  where public_key = x25519_public(32) + ed25519_public(32)",
+    "destination_hash": "SHA256(name_hash + identity_hash)[:16]",
+    "random_hash": "random_bytes(5) + int(timestamp).to_bytes(5, 'big')",
+    "signed_data_no_ratchet": "dest_hash(16) + public_key(64) + name_hash(10) + random_hash(10) [+ app_data]",
+    "signed_data_with_ratchet": "dest_hash(16) + public_key(64) + name_hash(10) + random_hash(10) + ratchet_public(32) [+ app_data]",
+    "signature": "Ed25519.sign(signed_data)  -> 64 bytes",
+    "payload_no_ratchet": "public_key(64) + name_hash(10) + random_hash(10) + signature(64) [+ app_data]",
+    "payload_with_ratchet": "public_key(64) + name_hash(10) + random_hash(10) + ratchet_public(32) + signature(64) [+ app_data]",
+    "context_flag": "FLAG_SET (0x01) if ratchet present, FLAG_UNSET (0x00) otherwise",
+    "flags_byte": "(HEADER_1<<6) | (context_flag<<5) | (BROADCAST<<4) | (SINGLE<<2) | ANNOUNCE = context_flag ? 0x21 : 0x01",
+    "validation_steps": [
+      "1. Extract public_key from payload[0:64]",
+      "2. Based on context_flag, parse name_hash, random_hash, [ratchet], signature, [app_data]",
+      "3. Reconstruct signed_data = header_dest_hash + public_key + name_hash + random_hash + [ratchet] + [app_data]",
+      "4. Load public key and verify Ed25519 signature over signed_data",
+      "5. Compute identity_hash = SHA256(public_key)[:16]",
+      "6. Verify SHA256(name_hash + identity_hash)[:16] == destination_hash from packet header",
+      "7. If both checks pass, announce is valid"
+    ]
+  },
+  "valid_announces": [
+    {
+      "description": "Valid announce from keypair 0, app=rns_unit_tests.link.establish",
+      "keypair_index": 0,
+      "app_name": "rns_unit_tests",
+      "aspects": [
+        "link",
+        "establish"
+      ],
+      "name_hash": "528b84ff9fa689c05795",
+      "identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "random_hash": "aabbccddee006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100",
+      "signature": "f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "00",
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "raw_packet_length": 167,
+      "packet_hash": "584a89166c5bc6b33752ec759af99084"
+    },
+    {
+      "description": "Valid announce from keypair 1, app=rns_unit_tests.link.establish",
+      "keypair_index": 1,
+      "app_name": "rns_unit_tests",
+      "aspects": [
+        "link",
+        "establish"
+      ],
+      "name_hash": "528b84ff9fa689c05795",
+      "identity_hash": "1469e89450c361b253aefb0c606b6111",
+      "destination_hash": "70c0d820f77ab30ed32d5e48baa90c28",
+      "random_hash": "1122334455006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11",
+      "signed_data": "70c0d820f77ab30ed32d5e48baa90c28a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c057951122334455006553f100",
+      "signature": "e69ebebf889af460b5fb2bcbb4afe9e053603987ddeee88d87280eff864eaba0b57b6876b949d84352303644beba8a196372c24d5e2296025c847b417a64fd06",
+      "announce_payload": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c057951122334455006553f100e69ebebf889af460b5fb2bcbb4afe9e053603987ddeee88d87280eff864eaba0b57b6876b949d84352303644beba8a196372c24d5e2296025c847b417a64fd06",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "00",
+      "raw_packet": "010070c0d820f77ab30ed32d5e48baa90c2800a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c057951122334455006553f100e69ebebf889af460b5fb2bcbb4afe9e053603987ddeee88d87280eff864eaba0b57b6876b949d84352303644beba8a196372c24d5e2296025c847b417a64fd06",
+      "raw_packet_length": 167,
+      "packet_hash": "7bf87f28729ac62205b24de0d10d27f9"
+    },
+    {
+      "description": "Valid announce from keypair 2, app=rns_unit_tests.link.establish",
+      "keypair_index": 2,
+      "app_name": "rns_unit_tests",
+      "aspects": [
+        "link",
+        "establish"
+      ],
+      "name_hash": "528b84ff9fa689c05795",
+      "identity_hash": "e5fe93ee4acba095b3b9b6541515ed3e",
+      "destination_hash": "84a963f1b12557d2282434e5a13f56ba",
+      "random_hash": "deadbeef01006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2",
+      "signed_data": "84a963f1b12557d2282434e5a13f56bad095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2528b84ff9fa689c05795deadbeef01006553f100",
+      "signature": "006d00f0526776ad7ea44e2fb50e5f95852522d0bf33f996854074ac0bf642aa21e51e4a815709884836c26c6404e3a0cc2c2f946629eb93552a26de8a75ba04",
+      "announce_payload": "d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2528b84ff9fa689c05795deadbeef01006553f100006d00f0526776ad7ea44e2fb50e5f95852522d0bf33f996854074ac0bf642aa21e51e4a815709884836c26c6404e3a0cc2c2f946629eb93552a26de8a75ba04",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "00",
+      "raw_packet": "010084a963f1b12557d2282434e5a13f56ba00d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2528b84ff9fa689c05795deadbeef01006553f100006d00f0526776ad7ea44e2fb50e5f95852522d0bf33f996854074ac0bf642aa21e51e4a815709884836c26c6404e3a0cc2c2f946629eb93552a26de8a75ba04",
+      "raw_packet_length": 167,
+      "packet_hash": "a4c44e3e85a2f6fc73b4d6b1514d0650"
+    },
+    {
+      "description": "Valid announce from keypair 3, app=rns_unit_tests.link.establish",
+      "keypair_index": 3,
+      "app_name": "rns_unit_tests",
+      "aspects": [
+        "link",
+        "establish"
+      ],
+      "name_hash": "528b84ff9fa689c05795",
+      "identity_hash": "1333b911fa8ebb16726996adbe3c6262",
+      "destination_hash": "3cd05751c7689440291428c4ef149b39",
+      "random_hash": "cafebabe02006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "3874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14",
+      "signed_data": "3cd05751c7689440291428c4ef149b393874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14528b84ff9fa689c05795cafebabe02006553f100",
+      "signature": "3b857589e6f1eafb7312176224c88f5f85a08cd0a70ab77febb21885c5a65a7ab2d8dd3dac1203f8e151cc7671a65c435315523360b75a9c46f1ec8401e05f06",
+      "announce_payload": "3874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14528b84ff9fa689c05795cafebabe02006553f1003b857589e6f1eafb7312176224c88f5f85a08cd0a70ab77febb21885c5a65a7ab2d8dd3dac1203f8e151cc7671a65c435315523360b75a9c46f1ec8401e05f06",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "00",
+      "raw_packet": "01003cd05751c7689440291428c4ef149b39003874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14528b84ff9fa689c05795cafebabe02006553f1003b857589e6f1eafb7312176224c88f5f85a08cd0a70ab77febb21885c5a65a7ab2d8dd3dac1203f8e151cc7671a65c435315523360b75a9c46f1ec8401e05f06",
+      "raw_packet_length": 167,
+      "packet_hash": "7ba872fc03050e4e1a7f333cb6fc6b19"
+    },
+    {
+      "description": "Valid announce from keypair 4, app=rns_unit_tests.link.establish",
+      "keypair_index": 4,
+      "app_name": "rns_unit_tests",
+      "aspects": [
+        "link",
+        "establish"
+      ],
+      "name_hash": "528b84ff9fa689c05795",
+      "identity_hash": "d13712efc45ef87674fb5ac26c37c912",
+      "destination_hash": "c0e20981a67b1c758a30d06fbdf63a9b",
+      "random_hash": "f00dbad003006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "d4449bc887612b79f33fc890300d0dbd4fe5407c3b8fcaf1f62a2a2feabced7c1689bea590fe99eee563fdddcf66ea0b1281cf095251504da2fdb2b2428ca34f",
+      "signed_data": "c0e20981a67b1c758a30d06fbdf63a9bd4449bc887612b79f33fc890300d0dbd4fe5407c3b8fcaf1f62a2a2feabced7c1689bea590fe99eee563fdddcf66ea0b1281cf095251504da2fdb2b2428ca34f528b84ff9fa689c05795f00dbad003006553f100",
+      "signature": "1537bedd952edb6e750bc8c1fbffc325cfa81649d4cb0bee0490fa827b2017903c4071843b3a51c021d14cce8d450c9cdc5fd9274727fcceef4ca0fe696f780f",
+      "announce_payload": "d4449bc887612b79f33fc890300d0dbd4fe5407c3b8fcaf1f62a2a2feabced7c1689bea590fe99eee563fdddcf66ea0b1281cf095251504da2fdb2b2428ca34f528b84ff9fa689c05795f00dbad003006553f1001537bedd952edb6e750bc8c1fbffc325cfa81649d4cb0bee0490fa827b2017903c4071843b3a51c021d14cce8d450c9cdc5fd9274727fcceef4ca0fe696f780f",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "00",
+      "raw_packet": "0100c0e20981a67b1c758a30d06fbdf63a9b00d4449bc887612b79f33fc890300d0dbd4fe5407c3b8fcaf1f62a2a2feabced7c1689bea590fe99eee563fdddcf66ea0b1281cf095251504da2fdb2b2428ca34f528b84ff9fa689c05795f00dbad003006553f1001537bedd952edb6e750bc8c1fbffc325cfa81649d4cb0bee0490fa827b2017903c4071843b3a51c021d14cce8d450c9cdc5fd9274727fcceef4ca0fe696f780f",
+      "raw_packet_length": 167,
+      "packet_hash": "f45919f39cd4bffa0ef1a86864d249d0"
+    },
+    {
+      "description": "Valid announce with different app name: myapp.messaging.v1",
+      "keypair_index": 0,
+      "app_name": "myapp",
+      "aspects": [
+        "messaging",
+        "v1"
+      ],
+      "name_hash": "ec2c3da56069c736cdd3",
+      "identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "destination_hash": "7feb61cb3c990a6950f3f509af39219e",
+      "random_hash": "aabbccddee006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+      "signed_data": "7feb61cb3c990a6950f3f509af39219e4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501bec2c3da56069c736cdd3aabbccddee006553f100",
+      "signature": "ae16803c1ad6cc3b8ebcef047415dec2d473994a865b7fcc0cfd87a92e01d528e53a18de06e92fbbdba30ae47031e1f45283062bccd992bf6d12911c5c1a3706",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501bec2c3da56069c736cdd3aabbccddee006553f100ae16803c1ad6cc3b8ebcef047415dec2d473994a865b7fcc0cfd87a92e01d528e53a18de06e92fbbdba30ae47031e1f45283062bccd992bf6d12911c5c1a3706",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "00",
+      "raw_packet": "01007feb61cb3c990a6950f3f509af39219e004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501bec2c3da56069c736cdd3aabbccddee006553f100ae16803c1ad6cc3b8ebcef047415dec2d473994a865b7fcc0cfd87a92e01d528e53a18de06e92fbbdba30ae47031e1f45283062bccd992bf6d12911c5c1a3706",
+      "raw_packet_length": 167,
+      "packet_hash": "fff532de2e12154d22ca5d5a891cfbf2"
+    },
+    {
+      "description": "Valid announce as PATH_RESPONSE (context=0x0B)",
+      "keypair_index": 0,
+      "app_name": "rns_unit_tests",
+      "aspects": [
+        "link",
+        "establish"
+      ],
+      "name_hash": "528b84ff9fa689c05795",
+      "identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "random_hash": "aabbccddee006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100",
+      "signature": "f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "0b",
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d0b4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "raw_packet_length": 167,
+      "packet_hash": "45d3653064c9cc136981ccf4944d1058"
+    },
+    {
+      "description": "Valid announce with hops=3 (retransmitted)",
+      "keypair_index": 1,
+      "app_name": "rns_unit_tests",
+      "aspects": [
+        "link",
+        "establish"
+      ],
+      "name_hash": "528b84ff9fa689c05795",
+      "identity_hash": "1469e89450c361b253aefb0c606b6111",
+      "destination_hash": "70c0d820f77ab30ed32d5e48baa90c28",
+      "random_hash": "1122334455006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11",
+      "signed_data": "70c0d820f77ab30ed32d5e48baa90c28a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c057951122334455006553f100",
+      "signature": "e69ebebf889af460b5fb2bcbb4afe9e053603987ddeee88d87280eff864eaba0b57b6876b949d84352303644beba8a196372c24d5e2296025c847b417a64fd06",
+      "announce_payload": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c057951122334455006553f100e69ebebf889af460b5fb2bcbb4afe9e053603987ddeee88d87280eff864eaba0b57b6876b949d84352303644beba8a196372c24d5e2296025c847b417a64fd06",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 3,
+      "context": "00",
+      "raw_packet": "010370c0d820f77ab30ed32d5e48baa90c2800a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c057951122334455006553f100e69ebebf889af460b5fb2bcbb4afe9e053603987ddeee88d87280eff864eaba0b57b6876b949d84352303644beba8a196372c24d5e2296025c847b417a64fd06",
+      "raw_packet_length": 167,
+      "packet_hash": "7bf87f28729ac62205b24de0d10d27f9"
+    },
+    {
+      "description": "Valid announce with single aspect: nomadnetwork.node",
+      "keypair_index": 2,
+      "app_name": "nomadnetwork",
+      "aspects": [
+        "node"
+      ],
+      "name_hash": "213e6311bcec54ab4fde",
+      "identity_hash": "e5fe93ee4acba095b3b9b6541515ed3e",
+      "destination_hash": "42daccc517327844443b6297e6683c48",
+      "random_hash": "deadbeef01006553f100",
+      "timestamp_embedded": 1700000000,
+      "public_key": "d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2",
+      "signed_data": "42daccc517327844443b6297e6683c48d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2213e6311bcec54ab4fdedeadbeef01006553f100",
+      "signature": "dceeb7b66bee9e2eecfe2615c9a27c2f3bf93b7d0dcfd75b08ca7e962462382a23f727ba9cf301a81515cb91cc68b78471631b2a4f9751d4b4c434adef3c0f06",
+      "announce_payload": "d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2213e6311bcec54ab4fdedeadbeef01006553f100dceeb7b66bee9e2eecfe2615c9a27c2f3bf93b7d0dcfd75b08ca7e962462382a23f727ba9cf301a81515cb91cc68b78471631b2a4f9751d4b4c434adef3c0f06",
+      "announce_payload_length": 148,
+      "context_flag": 0,
+      "flags_byte": "01",
+      "hops": 0,
+      "context": "00",
+      "raw_packet": "010042daccc517327844443b6297e6683c4800d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2213e6311bcec54ab4fdedeadbeef01006553f100dceeb7b66bee9e2eecfe2615c9a27c2f3bf93b7d0dcfd75b08ca7e962462382a23f727ba9cf301a81515cb91cc68b78471631b2a4f9751d4b4c434adef3c0f06",
+      "raw_packet_length": 167,
+      "packet_hash": "862fa3fcc988cc63fcdf79d92998e16d"
+    }
+  ],
+  "invalid_announces": [
+    {
+      "description": "Tampered signature: first byte of signature flipped",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "tampered_field": "signature",
+      "tampered_byte_offset_in_payload": 84,
+      "original_byte": "f6",
+      "tampered_byte": "09",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100099a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100099a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "expected_failure": "signature_validation",
+      "failure_reason": "Ed25519 signature does not match signed_data"
+    },
+    {
+      "description": "Wrong destination hash: header has keypair 1's dest, payload has keypair 0's keys",
+      "keypair_index": 0,
+      "destination_hash_in_header": "70c0d820f77ab30ed32d5e48baa90c28",
+      "correct_destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "raw_packet": "010070c0d820f77ab30ed32d5e48baa90c28004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "expected_failure": "signature_validation",
+      "failure_reason": "signed_data includes header dest_hash, but signature was made with correct dest_hash, so signature check fails"
+    },
+    {
+      "description": "Wrong public key: payload has keypair 1's public key, signed by keypair 0",
+      "signing_keypair_index": 0,
+      "embedded_keypair_index": 1,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "announce_payload": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c05795aabbccddee006553f1000e16e3a9fc7f7d2f8fb99f9af9e79fdece026ef1324987ef6d3ae37bb39293eaadd17fa9d59e549ba97d57d09b65a6f94c743bb4bcdebdb03aeeb77065e3c201",
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d00a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11528b84ff9fa689c05795aabbccddee006553f1000e16e3a9fc7f7d2f8fb99f9af9e79fdece026ef1324987ef6d3ae37bb39293eaadd17fa9d59e549ba97d57d09b65a6f94c743bb4bcdebdb03aeeb77065e3c201",
+      "expected_failure": "signature_validation",
+      "failure_reason": "Validator extracts public key from payload (keypair 1) and uses it to verify signature (made by keypair 0); verification fails"
+    },
+    {
+      "description": "Truncated payload: only 100 bytes (minimum is 148)",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a",
+      "announce_payload_length": 100,
+      "minimum_payload_length": 148,
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a",
+      "expected_failure": "parse_error",
+      "failure_reason": "Payload too short to contain public_key(64) + name_hash(10) + random_hash(10) + signature(64)"
+    },
+    {
+      "description": "Corrupted name hash: payload has name_hash for 'wrong_app.wrong_aspect'",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "correct_name_hash": "528b84ff9fa689c05795",
+      "wrong_name_hash": "e8fb412af702fabf0322",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501be8fb412af702fabf0322aabbccddee006553f10061c2b9ba34ae801faf1a3283abcb5938446f7ae46d64e8136aaf819e4efcc7b2daebc140b9a89b83ee073ea5baab993ba516d571e1ce56af4d536ee2b0aada0e",
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501be8fb412af702fabf0322aabbccddee006553f10061c2b9ba34ae801faf1a3283abcb5938446f7ae46d64e8136aaf819e4efcc7b2daebc140b9a89b83ee073ea5baab993ba516d571e1ce56af4d536ee2b0aada0e",
+      "expected_failure": "destination_hash_mismatch",
+      "failure_reason": "SHA256(wrong_name_hash + identity_hash)[:16] != destination_hash in header; signature passes but hash derivation check fails"
+    },
+    {
+      "description": "Ratchet flag set but no ratchet data: parser treats bytes as ratchet, misaligning fields",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context_flag": 1,
+      "flags_byte": "21",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "raw_packet": "2100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100f69a68959ccdfdd9306d4de75e4d7b5a0ea2c07ef618ebcd49b84035cbb3283d8609dc9654831a6a4611640e91f2ba2ab174e7d9af1db3fe33d0a691ca227d0a",
+      "expected_failure": "signature_validation",
+      "failure_reason": "With FLAG_SET, validator reads 32 bytes as ratchet after random_hash, shifting signature extraction; wrong bytes used as signature",
+      "payload_parsing_note": {
+        "without_ratchet_flag": {
+          "public_key": "payload[0:64]",
+          "name_hash": "payload[64:74]",
+          "random_hash": "payload[74:84]",
+          "signature": "payload[84:148]"
+        },
+        "with_ratchet_flag": {
+          "public_key": "payload[0:64]",
+          "name_hash": "payload[64:74]",
+          "random_hash": "payload[74:84]",
+          "ratchet": "payload[84:116]",
+          "signature": "payload[116:180]"
+        }
+      }
+    },
+    {
+      "description": "All-zeros public key: invalid key material",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "announce_payload": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000528b84ff9fa689c05795aabbccddee006553f10079ae933d9fba6687d78e56b95f0ff96285b5dde310efbea25ce622c55bebbbcdf036cd358a7aeb1b368d52d3a21428b14fe34151801bf5d07b585eab7d10f803",
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000528b84ff9fa689c05795aabbccddee006553f10079ae933d9fba6687d78e56b95f0ff96285b5dde310efbea25ce622c55bebbbcdf036cd358a7aeb1b368d52d3a21428b14fe34151801bf5d07b585eab7d10f803",
+      "expected_failure": "signature_validation",
+      "failure_reason": "All-zeros is not a valid public key; load_public_key or verify will fail"
+    }
+  ],
+  "app_data_announces": [
+    {
+      "description": "App data: 5 bytes ASCII 'Hello'",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "app_data": "48656c6c6f",
+      "app_data_length": 5,
+      "app_data_utf8": "Hello",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f10048656c6c6f",
+      "signature": "c0deb1cefbc0bd56caee8712681c2d5bb4251dc1ac6370ff21bfbeae284cd19c988fbc0a8f252abec9ec67aa39ee2af2f39f0cfa415724f85b3dd3882dde220f",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100c0deb1cefbc0bd56caee8712681c2d5bb4251dc1ac6370ff21bfbeae284cd19c988fbc0a8f252abec9ec67aa39ee2af2f39f0cfa415724f85b3dd3882dde220f48656c6c6f",
+      "announce_payload_length": 153,
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100c0deb1cefbc0bd56caee8712681c2d5bb4251dc1ac6370ff21bfbeae284cd19c988fbc0a8f252abec9ec67aa39ee2af2f39f0cfa415724f85b3dd3882dde220f48656c6c6f",
+      "packet_hash": "6c8999d945dde895a74703f1aec2a7d6"
+    },
+    {
+      "description": "App data: 100 bytes sequential pattern (0x00..0x63)",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "app_data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60616263",
+      "app_data_length": 100,
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60616263",
+      "signature": "2f15d06b35f7acc8aab168a7e488e667a21f7607f700dc4f51ab8a486936929dd2b9fd1d701809e2371c7b937a83bd8569dc3afb6ceb192a11306081b2971f0a",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f1002f15d06b35f7acc8aab168a7e488e667a21f7607f700dc4f51ab8a486936929dd2b9fd1d701809e2371c7b937a83bd8569dc3afb6ceb192a11306081b2971f0a000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60616263",
+      "announce_payload_length": 248,
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f1002f15d06b35f7acc8aab168a7e488e667a21f7607f700dc4f51ab8a486936929dd2b9fd1d701809e2371c7b937a83bd8569dc3afb6ceb192a11306081b2971f0a000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60616263",
+      "packet_hash": "ab4ae72ce7d5974e0a8ffd22bc5ed68d"
+    },
+    {
+      "description": "App data: maximum size 333 bytes (fills to MTU=500 with HEADER_1)",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "app_data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c",
+      "app_data_length": 333,
+      "max_app_data_derivation": "MTU(500) - HEADER_MINSIZE(19) - ANNOUNCE_MIN_PAYLOAD(148) = 333",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c",
+      "signature": "a12c895301faea90ee1dd80009c9b724d074d87a63f000026966837807822f42af3c268fc96e76c250e7ca31707723d6a3f45b622d224951a621b97e698ff006",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100a12c895301faea90ee1dd80009c9b724d074d87a63f000026966837807822f42af3c268fc96e76c250e7ca31707723d6a3f45b622d224951a621b97e698ff006000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c",
+      "announce_payload_length": 481,
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100a12c895301faea90ee1dd80009c9b724d074d87a63f000026966837807822f42af3c268fc96e76c250e7ca31707723d6a3f45b622d224951a621b97e698ff006000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c",
+      "raw_packet_length": 500,
+      "packet_hash": "18eb601d339e57a988c6385aad5ea2aa"
+    },
+    {
+      "description": "App data: 50 bytes binary with null bytes (0x00..0x31)",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "app_data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031",
+      "app_data_length": 50,
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031",
+      "signature": "cf24924bc98951ad1a639ceb8e67fc123b9a0f30a0b890512e05f3e10ca3f76289e4866a6653a16f312135f3d2c636fc13409c0ac3022f309424d1103a4de006",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100cf24924bc98951ad1a639ceb8e67fc123b9a0f30a0b890512e05f3e10ca3f76289e4866a6653a16f312135f3d2c636fc13409c0ac3022f309424d1103a4de006000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031",
+      "announce_payload_length": 198,
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100cf24924bc98951ad1a639ceb8e67fc123b9a0f30a0b890512e05f3e10ca3f76289e4866a6653a16f312135f3d2c636fc13409c0ac3022f309424d1103a4de006000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031",
+      "packet_hash": "93e21f9c24b2ee35e73fa61c5c4e8cc1"
+    },
+    {
+      "description": "App data: MessagePack-encoded dict {'display_name': 'Test Node', 'version': '1.0.0'}",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "app_data": "82ac646973706c61795f6e616d65a954657374204e6f6465a776657273696f6ea5312e302e30",
+      "app_data_length": 38,
+      "app_data_decoded": {
+        "display_name": "Test Node",
+        "version": "1.0.0"
+      },
+      "app_data_encoding": "msgpack",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f10082ac646973706c61795f6e616d65a954657374204e6f6465a776657273696f6ea5312e302e30",
+      "signature": "c493a2ed68a213bc6a42a46a9507fd19fc5eb637a43a27a6b61802a5bf734a59f3d73444154b43099da2a0bcdb09b4550aac82966cfe4259dde87f6be0bb250d",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100c493a2ed68a213bc6a42a46a9507fd19fc5eb637a43a27a6b61802a5bf734a59f3d73444154b43099da2a0bcdb09b4550aac82966cfe4259dde87f6be0bb250d82ac646973706c61795f6e616d65a954657374204e6f6465a776657273696f6ea5312e302e30",
+      "announce_payload_length": 186,
+      "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100c493a2ed68a213bc6a42a46a9507fd19fc5eb637a43a27a6b61802a5bf734a59f3d73444154b43099da2a0bcdb09b4550aac82966cfe4259dde87f6be0bb250d82ac646973706c61795f6e616d65a954657374204e6f6465a776657273696f6ea5312e302e30",
+      "packet_hash": "3570dc34eda7c8d0f817860dc36f5bc0"
+    }
+  ],
+  "ratchet_announces": [
+    {
+      "description": "Ratchet announce without app_data, ratchet key 0",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "ratchet_private_key": "a0b1c2d3e4f5061728394a5b6c7d8e9f00112233445566778899aabbccddeeff",
+      "ratchet_public_key": "d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec36",
+      "context_flag": 1,
+      "flags_byte": "21",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec36",
+      "signature": "a5a39cd6290b009f075c9359f56ea7a479e97a16ae9e67930f89cbdd433a446712bcbf3014d098158a7c327049c7871c1052506af4c0b915d9decfbe28898f00",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec36a5a39cd6290b009f075c9359f56ea7a479e97a16ae9e67930f89cbdd433a446712bcbf3014d098158a7c327049c7871c1052506af4c0b915d9decfbe28898f00",
+      "announce_payload_length": 180,
+      "payload_layout": {
+        "public_key": "[0:64]",
+        "name_hash": "[64:74]",
+        "random_hash": "[74:84]",
+        "ratchet": "[84:116]",
+        "signature": "[116:180]"
+      },
+      "raw_packet": "2100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec36a5a39cd6290b009f075c9359f56ea7a479e97a16ae9e67930f89cbdd433a446712bcbf3014d098158a7c327049c7871c1052506af4c0b915d9decfbe28898f00",
+      "raw_packet_length": 199,
+      "packet_hash": "ab896f8a01f54d691b1a8d822a198bc0"
+    },
+    {
+      "description": "Ratchet announce with app_data 'Ratcheted node', ratchet key 1",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "ratchet_private_key": "1122334455667788990011223344556677889900112233445566778899001122",
+      "ratchet_public_key": "ee4424b2a660f9b46cef66ee9d907196b7abd1d512854c0b1fcc5121b515e60f",
+      "app_data": "526174636865746564206e6f6465",
+      "app_data_utf8": "Ratcheted node",
+      "context_flag": 1,
+      "flags_byte": "21",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100ee4424b2a660f9b46cef66ee9d907196b7abd1d512854c0b1fcc5121b515e60f526174636865746564206e6f6465",
+      "signature": "8b73ae6102b88adb0f56066c0de436e209217c2995bb176be9ba32373ba74c480f2b19a6f44728840ad7fa976b22baebcb90044acc854e9add7f37c848e7a60a",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100ee4424b2a660f9b46cef66ee9d907196b7abd1d512854c0b1fcc5121b515e60f8b73ae6102b88adb0f56066c0de436e209217c2995bb176be9ba32373ba74c480f2b19a6f44728840ad7fa976b22baebcb90044acc854e9add7f37c848e7a60a526174636865746564206e6f6465",
+      "announce_payload_length": 194,
+      "payload_layout": {
+        "public_key": "[0:64]",
+        "name_hash": "[64:74]",
+        "random_hash": "[74:84]",
+        "ratchet": "[84:116]",
+        "signature": "[116:180]",
+        "app_data": "[180:]"
+      },
+      "raw_packet": "2100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100ee4424b2a660f9b46cef66ee9d907196b7abd1d512854c0b1fcc5121b515e60f8b73ae6102b88adb0f56066c0de436e209217c2995bb176be9ba32373ba74c480f2b19a6f44728840ad7fa976b22baebcb90044acc854e9add7f37c848e7a60a526174636865746564206e6f6465",
+      "raw_packet_length": 213,
+      "packet_hash": "db00eba237b625b88642f516cd391885"
+    },
+    {
+      "description": "Ratchet announce from keypair 2 with ratchet key 2",
+      "keypair_index": 2,
+      "destination_hash": "84a963f1b12557d2282434e5a13f56ba",
+      "ratchet_private_key": "deadbeefcafebabe0123456789abcdef0123456789abcdef0123456789abcdef",
+      "ratchet_public_key": "8def911d338af4fe39fce0e11f1dbcabab4e0a6525a2a9bdceea2de5ca3a226a",
+      "context_flag": 1,
+      "flags_byte": "21",
+      "signed_data": "84a963f1b12557d2282434e5a13f56bad095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2528b84ff9fa689c05795deadbeef01006553f1008def911d338af4fe39fce0e11f1dbcabab4e0a6525a2a9bdceea2de5ca3a226a",
+      "signature": "d9870f89f5cbe1537a081f87d5a2624d85ca06d3e251c80f5b5aeb02ce972722ce832f0d381f165efa061136205324877b27cce60cfab0289356c21e77543509",
+      "announce_payload": "d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2528b84ff9fa689c05795deadbeef01006553f1008def911d338af4fe39fce0e11f1dbcabab4e0a6525a2a9bdceea2de5ca3a226ad9870f89f5cbe1537a081f87d5a2624d85ca06d3e251c80f5b5aeb02ce972722ce832f0d381f165efa061136205324877b27cce60cfab0289356c21e77543509",
+      "announce_payload_length": 180,
+      "raw_packet": "210084a963f1b12557d2282434e5a13f56ba00d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2528b84ff9fa689c05795deadbeef01006553f1008def911d338af4fe39fce0e11f1dbcabab4e0a6525a2a9bdceea2de5ca3a226ad9870f89f5cbe1537a081f87d5a2624d85ca06d3e251c80f5b5aeb02ce972722ce832f0d381f165efa061136205324877b27cce60cfab0289356c21e77543509",
+      "raw_packet_length": 199,
+      "packet_hash": "a844202041b87ecf63c4bb76bfe5329f"
+    },
+    {
+      "description": "Max-size ratchet announce: 301 bytes app_data fills to MTU=500",
+      "keypair_index": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "ratchet_public_key": "d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec36",
+      "app_data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c",
+      "app_data_length": 301,
+      "max_app_data_derivation": "MTU(500) - HEADER_MINSIZE(19) - ANNOUNCE_MIN_PAYLOAD(148) - RATCHETSIZE_BYTES(32) = 301",
+      "context_flag": 1,
+      "flags_byte": "21",
+      "signed_data": "fb48da0e82e6e01ba0c014513f74540d4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec36000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c",
+      "signature": "3b8cb92a9b6037a9d83037e387e21c7ad48afdcdb0da941fc7f2399dcd624b8c56e14ecae4f696532e4241465579ca724fd0648913523ba797df08ba1ae24c0e",
+      "announce_payload": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec363b8cb92a9b6037a9d83037e387e21c7ad48afdcdb0da941fc7f2399dcd624b8c56e14ecae4f696532e4241465579ca724fd0648913523ba797df08ba1ae24c0e000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c",
+      "announce_payload_length": 481,
+      "raw_packet": "2100fb48da0e82e6e01ba0c014513f74540d004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b528b84ff9fa689c05795aabbccddee006553f100d65fdd499a0f2028d4be5d361296f28ea560e8e68049d14b1d045a93722aec363b8cb92a9b6037a9d83037e387e21c7ad48afdcdb0da941fc7f2399dcd624b8c56e14ecae4f696532e4241465579ca724fd0648913523ba797df08ba1ae24c0e000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c",
+      "raw_packet_length": 500,
+      "packet_hash": "9123917a9dbf455ab7f8a5e96fd5134c"
+    }
+  ],
+  "propagation_metadata": {
+    "path_table_indices": {
+      "IDX_PT_TIMESTAMP": 0,
+      "IDX_PT_NEXT_HOP": 1,
+      "IDX_PT_HOPS": 2,
+      "IDX_PT_EXPIRES": 3,
+      "IDX_PT_RANDBLOBS": 4,
+      "IDX_PT_RVCD_IF": 5,
+      "IDX_PT_PACKET": 6
+    },
+    "announce_table_indices": {
+      "IDX_AT_TIMESTAMP": 0,
+      "IDX_AT_RTRNS_TMO": 1,
+      "IDX_AT_RETRIES": 2,
+      "IDX_AT_RCVD_IF": 3,
+      "IDX_AT_HOPS": 4,
+      "IDX_AT_PACKET": 5,
+      "IDX_AT_LCL_RBRD": 6,
+      "IDX_AT_BLCK_RBRD": 7,
+      "IDX_AT_ATTCHD_IF": 8
+    },
+    "retransmission_constants": {
+      "PATHFINDER_R": 1,
+      "PATHFINDER_R_description": "Maximum retransmit retries",
+      "PATHFINDER_G": 5,
+      "PATHFINDER_G_description": "Grace period in seconds before retransmit",
+      "PATHFINDER_RW": 0.5,
+      "PATHFINDER_RW_description": "Random window added to retransmit timeout (0 to RW seconds)"
+    },
+    "timestamp_extraction_vectors": [
+      {
+        "description": "Extract timestamp 0 from random_blob",
+        "random_blob": "aabbccddee0000000000",
+        "random_prefix": "aabbccddee",
+        "timestamp_bytes": "0000000000",
+        "extracted_timestamp": 0,
+        "extraction_method": "int.from_bytes(random_blob[5:10], 'big')"
+      },
+      {
+        "description": "Extract timestamp 1 from random_blob",
+        "random_blob": "aabbccddee0000000001",
+        "random_prefix": "aabbccddee",
+        "timestamp_bytes": "0000000001",
+        "extracted_timestamp": 1,
+        "extraction_method": "int.from_bytes(random_blob[5:10], 'big')"
+      },
+      {
+        "description": "Extract timestamp 1700000000 from random_blob",
+        "random_blob": "aabbccddee006553f100",
+        "random_prefix": "aabbccddee",
+        "timestamp_bytes": "006553f100",
+        "extracted_timestamp": 1700000000,
+        "extraction_method": "int.from_bytes(random_blob[5:10], 'big')"
+      },
+      {
+        "description": "Extract timestamp 1700000001 from random_blob",
+        "random_blob": "aabbccddee006553f101",
+        "random_prefix": "aabbccddee",
+        "timestamp_bytes": "006553f101",
+        "extracted_timestamp": 1700000001,
+        "extraction_method": "int.from_bytes(random_blob[5:10], 'big')"
+      },
+      {
+        "description": "Extract timestamp 1099511627775 from random_blob",
+        "random_blob": "aabbccddeeffffffffff",
+        "random_prefix": "aabbccddee",
+        "timestamp_bytes": "ffffffffff",
+        "extracted_timestamp": 1099511627775,
+        "extraction_method": "int.from_bytes(random_blob[5:10], 'big')"
+      }
+    ],
+    "aspect_filter_vectors": [
+      {
+        "description": "Aspect filter for 'rns_unit_tests.link.establish'",
+        "app_name": "rns_unit_tests",
+        "aspects": [
+          "link",
+          "establish"
+        ],
+        "full_name_no_identity": "rns_unit_tests.link.establish",
+        "keypair_index": 0,
+        "identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "name_hash": "528b84ff9fa689c05795",
+        "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+        "name_hash_derivation": "SHA256('rns_unit_tests.link.establish'.encode('utf-8'))[:10]",
+        "dest_hash_derivation": "SHA256(name_hash + identity_hash)[:16]"
+      },
+      {
+        "description": "Aspect filter for 'nomadnetwork.node'",
+        "app_name": "nomadnetwork",
+        "aspects": [
+          "node"
+        ],
+        "full_name_no_identity": "nomadnetwork.node",
+        "keypair_index": 0,
+        "identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "name_hash": "213e6311bcec54ab4fde",
+        "destination_hash": "a97134ec5836efc5bbea2f8c3e4bb74b",
+        "name_hash_derivation": "SHA256('nomadnetwork.node'.encode('utf-8'))[:10]",
+        "dest_hash_derivation": "SHA256(name_hash + identity_hash)[:16]"
+      },
+      {
+        "description": "Aspect filter for 'myapp.messaging.v1'",
+        "app_name": "myapp",
+        "aspects": [
+          "messaging",
+          "v1"
+        ],
+        "full_name_no_identity": "myapp.messaging.v1",
+        "keypair_index": 0,
+        "identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "name_hash": "ec2c3da56069c736cdd3",
+        "destination_hash": "7feb61cb3c990a6950f3f509af39219e",
+        "name_hash_derivation": "SHA256('myapp.messaging.v1'.encode('utf-8'))[:10]",
+        "dest_hash_derivation": "SHA256(name_hash + identity_hash)[:16]"
+      }
+    ],
+    "announce_handler_spec": {
+      "description": "Interface that announce handler callbacks must implement",
+      "required_attribute": "aspect_filter",
+      "aspect_filter_description": "String that the announced destination's full name (without identity hash) is matched against. Set to None to receive all announces.",
+      "callback_method": "received_announce",
+      "callback_signatures": {
+        "3_params": "(destination_hash, announced_identity, app_data)",
+        "4_params": "(destination_hash, announced_identity, app_data, number_of_hops)",
+        "5_params": "(destination_hash, announced_identity, app_data, number_of_hops, announce_packet)",
+        "note": "Reticulum inspects callback signature length to determine which form to use"
+      }
+    }
+  },
+  "rate_limiting": {
+    "constants": {
+      "ANNOUNCE_CAP": 2,
+      "ANNOUNCE_CAP_description": "Maximum percentage of interface bandwidth for announces (stored as integer, used as fraction: 2 -> 0.02)",
+      "ANNOUNCE_CAP_as_fraction": 0.02,
+      "MAX_QUEUED_ANNOUNCES": 16384,
+      "MAX_QUEUED_ANNOUNCES_description": "Maximum number of queued announces per interface",
+      "QUEUED_ANNOUNCE_LIFE": 86400,
+      "QUEUED_ANNOUNCE_LIFE_description": "Maximum lifetime for queued announces in seconds (60*60*24 = 86400)",
+      "MAX_RATE_TIMESTAMPS": 16,
+      "MAX_RATE_TIMESTAMPS_description": "Maximum announce timestamps kept per destination for rate limiting"
+    },
+    "bandwidth_cap_vectors": [
+      {
+        "description": "Rate limit for LoRa 9600 baud interface",
+        "interface_name": "LoRa 9600 baud",
+        "bitrate_bps": 9600,
+        "packet_size_bytes": 167,
+        "packet_size_bits": 1336,
+        "tx_time_seconds": 0.139167,
+        "announce_cap_fraction": 0.02,
+        "wait_time_seconds": 6.958333,
+        "formula": "wait_time = (packet_size_bytes * 8 / bitrate) / announce_cap_fraction",
+        "note": "Local announces (hops=0) bypass bandwidth cap; only retransmitted announces (hops>0) are rate-limited"
+      },
+      {
+        "description": "Rate limit for Serial 115200 baud interface",
+        "interface_name": "Serial 115200 baud",
+        "bitrate_bps": 115200,
+        "packet_size_bytes": 167,
+        "packet_size_bits": 1336,
+        "tx_time_seconds": 0.011597,
+        "announce_cap_fraction": 0.02,
+        "wait_time_seconds": 0.579861,
+        "formula": "wait_time = (packet_size_bytes * 8 / bitrate) / announce_cap_fraction",
+        "note": "Local announces (hops=0) bypass bandwidth cap; only retransmitted announces (hops>0) are rate-limited"
+      },
+      {
+        "description": "Rate limit for TCP 10 Mbps interface",
+        "interface_name": "TCP 10 Mbps",
+        "bitrate_bps": 10000000,
+        "packet_size_bytes": 167,
+        "packet_size_bits": 1336,
+        "tx_time_seconds": 0.000134,
+        "announce_cap_fraction": 0.02,
+        "wait_time_seconds": 0.00668,
+        "formula": "wait_time = (packet_size_bytes * 8 / bitrate) / announce_cap_fraction",
+        "note": "Local announces (hops=0) bypass bandwidth cap; only retransmitted announces (hops>0) are rate-limited"
+      },
+      {
+        "description": "Rate limit for TCP 1 Mbps interface",
+        "interface_name": "TCP 1 Mbps",
+        "bitrate_bps": 1000000,
+        "packet_size_bytes": 167,
+        "packet_size_bits": 1336,
+        "tx_time_seconds": 0.001336,
+        "announce_cap_fraction": 0.02,
+        "wait_time_seconds": 0.0668,
+        "formula": "wait_time = (packet_size_bytes * 8 / bitrate) / announce_cap_fraction",
+        "note": "Local announces (hops=0) bypass bandwidth cap; only retransmitted announces (hops>0) are rate-limited"
+      },
+      {
+        "description": "Rate limit for max-size packet on LoRa 9600 baud",
+        "interface_name": "LoRa 9600 baud",
+        "bitrate_bps": 9600,
+        "packet_size_bytes": 500,
+        "packet_size_bits": 4000,
+        "tx_time_seconds": 0.416667,
+        "announce_cap_fraction": 0.02,
+        "wait_time_seconds": 20.833333,
+        "formula": "wait_time = (packet_size_bytes * 8 / bitrate) / announce_cap_fraction"
+      },
+      {
+        "description": "Rate limit for max-size packet on Serial 115200 baud",
+        "interface_name": "Serial 115200 baud",
+        "bitrate_bps": 115200,
+        "packet_size_bytes": 500,
+        "packet_size_bits": 4000,
+        "tx_time_seconds": 0.034722,
+        "announce_cap_fraction": 0.02,
+        "wait_time_seconds": 1.736111,
+        "formula": "wait_time = (packet_size_bytes * 8 / bitrate) / announce_cap_fraction"
+      }
+    ],
+    "rate_limiting_scenarios": [
+      {
+        "description": "Scenario: announce arrives faster than rate_target",
+        "announce_rate_target": 300,
+        "announce_rate_target_description": "Minimum seconds between announces from same destination",
+        "announce_rate_grace": 3,
+        "announce_rate_grace_description": "Number of rate violations allowed before penalty",
+        "announce_rate_penalty": 600,
+        "announce_rate_penalty_description": "Seconds to block announces after grace exceeded",
+        "events": [
+          {
+            "time": 0,
+            "action": "announce arrives",
+            "current_rate": null,
+            "rate_violations": 0,
+            "blocked_until": 0,
+            "result": "accepted (first announce, creates rate entry)"
+          },
+          {
+            "time": 100,
+            "action": "announce arrives",
+            "current_rate": 100,
+            "rate_violations": 1,
+            "blocked_until": 0,
+            "result": "accepted but violation recorded (100 < 300)"
+          },
+          {
+            "time": 200,
+            "action": "announce arrives",
+            "current_rate": 100,
+            "rate_violations": 2,
+            "blocked_until": 0,
+            "result": "accepted but violation recorded (100 < 300)"
+          },
+          {
+            "time": 300,
+            "action": "announce arrives",
+            "current_rate": 100,
+            "rate_violations": 3,
+            "blocked_until": 0,
+            "result": "accepted but violation recorded (100 < 300)"
+          },
+          {
+            "time": 400,
+            "action": "announce arrives",
+            "current_rate": 100,
+            "rate_violations": 4,
+            "blocked_until": 0,
+            "result": "blocked: violations(4) > grace(3), blocked_until = last(300) + target(300) + penalty(600) = 1200"
+          },
+          {
+            "time": 500,
+            "action": "announce arrives",
+            "current_rate": null,
+            "rate_violations": 4,
+            "blocked_until": 1200,
+            "result": "blocked: now(500) < blocked_until(1200)"
+          },
+          {
+            "time": 1300,
+            "action": "announce arrives",
+            "current_rate": 1000,
+            "rate_violations": 3,
+            "blocked_until": 1200,
+            "result": "accepted: now(1300) > blocked_until(1200), rate ok (1000 > 300), violations decremented"
+          }
+        ],
+        "algorithm_note": "current_rate = now - last_announce_time; violation if current_rate < target; blocked when violations > grace; penalty = blocked_until = last + target + penalty"
+      },
+      {
+        "description": "Scenario: PATH_RESPONSE bypasses rate limiting",
+        "note": "Announces with context=PATH_RESPONSE (0x0B) skip per-interface rate limiting entirely",
+        "relevant_code": "if packet.context != RNS.Packet.PATH_RESPONSE and packet.receiving_interface.announce_rate_target != None"
+      }
+    ]
+  }
+}
