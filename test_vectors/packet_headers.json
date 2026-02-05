@@ -6,7 +6,10 @@
     "header_1_size_bytes": 19,
     "header_2_size_bytes": 35,
     "truncated_hash_length_bytes": 16,
-    "max_data_unit_bytes": 462
+    "max_data_unit_bytes": 464,
+    "encrypted_mdu_bytes": 383,
+    "plain_mdu_bytes": 464,
+    "header_maxsize_bytes": 35
   },
   "flag_byte_layout": {
     "description": "Single byte encoding packet metadata",
@@ -60,6 +63,29 @@
   "transport_type_values": {
     "BROADCAST": 0,
     "TRANSPORT": 1
+  },
+  "context_type_values": {
+    "NONE": 0,
+    "RESOURCE": 1,
+    "RESOURCE_ADV": 2,
+    "RESOURCE_REQ": 3,
+    "RESOURCE_HMU": 4,
+    "RESOURCE_PRF": 5,
+    "RESOURCE_ICL": 6,
+    "RESOURCE_RCL": 7,
+    "CACHE_REQUEST": 8,
+    "REQUEST": 9,
+    "RESPONSE": 10,
+    "PATH_RESPONSE": 11,
+    "COMMAND": 12,
+    "COMMAND_STATUS": 13,
+    "CHANNEL": 14,
+    "KEEPALIVE": 250,
+    "LINKIDENTIFY": 251,
+    "LINKCLOSE": 252,
+    "LINKPROOF": 253,
+    "LRRTT": 254,
+    "LRPROOF": 255
   },
   "header_1_layout": {
     "description": "Standard header: flags(1) + hops(1) + dest_hash(16) + context(1) = 19 bytes",
@@ -363,6 +389,1288 @@
       "packet_type": 3
     }
   ],
+  "exhaustive_flag_vectors": [
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | SINGLE | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "00",
+      "flags_binary": "00000000"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | SINGLE | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "01",
+      "flags_binary": "00000001"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | SINGLE | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "02",
+      "flags_binary": "00000010"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | SINGLE | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "03",
+      "flags_binary": "00000011"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | GROUP | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "04",
+      "flags_binary": "00000100"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | GROUP | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "05",
+      "flags_binary": "00000101"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | GROUP | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "06",
+      "flags_binary": "00000110"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | GROUP | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "07",
+      "flags_binary": "00000111"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | PLAIN | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "08",
+      "flags_binary": "00001000"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | PLAIN | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "09",
+      "flags_binary": "00001001"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | PLAIN | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "0a",
+      "flags_binary": "00001010"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | PLAIN | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "0b",
+      "flags_binary": "00001011"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | LINK | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "0c",
+      "flags_binary": "00001100"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | LINK | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "0d",
+      "flags_binary": "00001101"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | LINK | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "0e",
+      "flags_binary": "00001110"
+    },
+    {
+      "description": "HEADER_1 | no_context | BROADCAST | LINK | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "0f",
+      "flags_binary": "00001111"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | SINGLE | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "10",
+      "flags_binary": "00010000"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | SINGLE | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "11",
+      "flags_binary": "00010001"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | SINGLE | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "12",
+      "flags_binary": "00010010"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | SINGLE | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "13",
+      "flags_binary": "00010011"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | GROUP | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "14",
+      "flags_binary": "00010100"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | GROUP | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "15",
+      "flags_binary": "00010101"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | GROUP | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "16",
+      "flags_binary": "00010110"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | GROUP | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "17",
+      "flags_binary": "00010111"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | PLAIN | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "18",
+      "flags_binary": "00011000"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | PLAIN | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "19",
+      "flags_binary": "00011001"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | PLAIN | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "1a",
+      "flags_binary": "00011010"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | PLAIN | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "1b",
+      "flags_binary": "00011011"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | LINK | DATA",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "1c",
+      "flags_binary": "00011100"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | LINK | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "1d",
+      "flags_binary": "00011101"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | LINK | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "1e",
+      "flags_binary": "00011110"
+    },
+    {
+      "description": "HEADER_1 | no_context | TRANSPORT | LINK | PROOF",
+      "header_type": 0,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "1f",
+      "flags_binary": "00011111"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | SINGLE | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "20",
+      "flags_binary": "00100000"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | SINGLE | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "21",
+      "flags_binary": "00100001"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | SINGLE | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "22",
+      "flags_binary": "00100010"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | SINGLE | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "23",
+      "flags_binary": "00100011"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | GROUP | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "24",
+      "flags_binary": "00100100"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | GROUP | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "25",
+      "flags_binary": "00100101"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | GROUP | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "26",
+      "flags_binary": "00100110"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | GROUP | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "27",
+      "flags_binary": "00100111"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | PLAIN | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "28",
+      "flags_binary": "00101000"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | PLAIN | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "29",
+      "flags_binary": "00101001"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | PLAIN | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "2a",
+      "flags_binary": "00101010"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | PLAIN | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "2b",
+      "flags_binary": "00101011"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | LINK | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "2c",
+      "flags_binary": "00101100"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | LINK | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "2d",
+      "flags_binary": "00101101"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | LINK | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "2e",
+      "flags_binary": "00101110"
+    },
+    {
+      "description": "HEADER_1 | context_set | BROADCAST | LINK | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "2f",
+      "flags_binary": "00101111"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | SINGLE | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "30",
+      "flags_binary": "00110000"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | SINGLE | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "31",
+      "flags_binary": "00110001"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | SINGLE | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "32",
+      "flags_binary": "00110010"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | SINGLE | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "33",
+      "flags_binary": "00110011"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | GROUP | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "34",
+      "flags_binary": "00110100"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | GROUP | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "35",
+      "flags_binary": "00110101"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | GROUP | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "36",
+      "flags_binary": "00110110"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | GROUP | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "37",
+      "flags_binary": "00110111"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | PLAIN | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "38",
+      "flags_binary": "00111000"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | PLAIN | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "39",
+      "flags_binary": "00111001"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | PLAIN | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "3a",
+      "flags_binary": "00111010"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | PLAIN | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "3b",
+      "flags_binary": "00111011"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | LINK | DATA",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "3c",
+      "flags_binary": "00111100"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | LINK | ANNOUNCE",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "3d",
+      "flags_binary": "00111101"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | LINK | LINKREQUEST",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "3e",
+      "flags_binary": "00111110"
+    },
+    {
+      "description": "HEADER_1 | context_set | TRANSPORT | LINK | PROOF",
+      "header_type": 0,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "3f",
+      "flags_binary": "00111111"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | SINGLE | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "40",
+      "flags_binary": "01000000"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | SINGLE | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "41",
+      "flags_binary": "01000001"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | SINGLE | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "42",
+      "flags_binary": "01000010"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | SINGLE | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "43",
+      "flags_binary": "01000011"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | GROUP | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "44",
+      "flags_binary": "01000100"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | GROUP | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "45",
+      "flags_binary": "01000101"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | GROUP | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "46",
+      "flags_binary": "01000110"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | GROUP | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "47",
+      "flags_binary": "01000111"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | PLAIN | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "48",
+      "flags_binary": "01001000"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | PLAIN | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "49",
+      "flags_binary": "01001001"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | PLAIN | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "4a",
+      "flags_binary": "01001010"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | PLAIN | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "4b",
+      "flags_binary": "01001011"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | LINK | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "4c",
+      "flags_binary": "01001100"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | LINK | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "4d",
+      "flags_binary": "01001101"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | LINK | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "4e",
+      "flags_binary": "01001110"
+    },
+    {
+      "description": "HEADER_2 | no_context | BROADCAST | LINK | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "4f",
+      "flags_binary": "01001111"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | SINGLE | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "50",
+      "flags_binary": "01010000"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | SINGLE | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "51",
+      "flags_binary": "01010001"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | SINGLE | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "52",
+      "flags_binary": "01010010"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | SINGLE | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "53",
+      "flags_binary": "01010011"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | GROUP | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "54",
+      "flags_binary": "01010100"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | GROUP | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "55",
+      "flags_binary": "01010101"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | GROUP | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "56",
+      "flags_binary": "01010110"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | GROUP | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "57",
+      "flags_binary": "01010111"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | PLAIN | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "58",
+      "flags_binary": "01011000"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | PLAIN | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "59",
+      "flags_binary": "01011001"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | PLAIN | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "5a",
+      "flags_binary": "01011010"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | PLAIN | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "5b",
+      "flags_binary": "01011011"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | LINK | DATA",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "5c",
+      "flags_binary": "01011100"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | LINK | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "5d",
+      "flags_binary": "01011101"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | LINK | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "5e",
+      "flags_binary": "01011110"
+    },
+    {
+      "description": "HEADER_2 | no_context | TRANSPORT | LINK | PROOF",
+      "header_type": 1,
+      "context_flag": 0,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "5f",
+      "flags_binary": "01011111"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | SINGLE | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "60",
+      "flags_binary": "01100000"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | SINGLE | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "61",
+      "flags_binary": "01100001"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | SINGLE | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "62",
+      "flags_binary": "01100010"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | SINGLE | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "63",
+      "flags_binary": "01100011"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | GROUP | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "64",
+      "flags_binary": "01100100"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | GROUP | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "65",
+      "flags_binary": "01100101"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | GROUP | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "66",
+      "flags_binary": "01100110"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | GROUP | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "67",
+      "flags_binary": "01100111"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | PLAIN | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "68",
+      "flags_binary": "01101000"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | PLAIN | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "69",
+      "flags_binary": "01101001"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | PLAIN | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "6a",
+      "flags_binary": "01101010"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | PLAIN | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "6b",
+      "flags_binary": "01101011"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | LINK | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "6c",
+      "flags_binary": "01101100"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | LINK | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "6d",
+      "flags_binary": "01101101"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | LINK | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "6e",
+      "flags_binary": "01101110"
+    },
+    {
+      "description": "HEADER_2 | context_set | BROADCAST | LINK | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 0,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "6f",
+      "flags_binary": "01101111"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | SINGLE | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 0,
+      "flags_byte": "70",
+      "flags_binary": "01110000"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | SINGLE | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 1,
+      "flags_byte": "71",
+      "flags_binary": "01110001"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | SINGLE | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 2,
+      "flags_byte": "72",
+      "flags_binary": "01110010"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | SINGLE | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 0,
+      "packet_type": 3,
+      "flags_byte": "73",
+      "flags_binary": "01110011"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | GROUP | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 0,
+      "flags_byte": "74",
+      "flags_binary": "01110100"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | GROUP | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 1,
+      "flags_byte": "75",
+      "flags_binary": "01110101"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | GROUP | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 2,
+      "flags_byte": "76",
+      "flags_binary": "01110110"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | GROUP | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 1,
+      "packet_type": 3,
+      "flags_byte": "77",
+      "flags_binary": "01110111"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | PLAIN | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 0,
+      "flags_byte": "78",
+      "flags_binary": "01111000"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | PLAIN | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 1,
+      "flags_byte": "79",
+      "flags_binary": "01111001"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | PLAIN | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 2,
+      "flags_byte": "7a",
+      "flags_binary": "01111010"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | PLAIN | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 2,
+      "packet_type": 3,
+      "flags_byte": "7b",
+      "flags_binary": "01111011"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | LINK | DATA",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 0,
+      "flags_byte": "7c",
+      "flags_binary": "01111100"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | LINK | ANNOUNCE",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 1,
+      "flags_byte": "7d",
+      "flags_binary": "01111101"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | LINK | LINKREQUEST",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 2,
+      "flags_byte": "7e",
+      "flags_binary": "01111110"
+    },
+    {
+      "description": "HEADER_2 | context_set | TRANSPORT | LINK | PROOF",
+      "header_type": 1,
+      "context_flag": 1,
+      "transport_type": 1,
+      "destination_type": 3,
+      "packet_type": 3,
+      "flags_byte": "7f",
+      "flags_binary": "01111111"
+    }
+  ],
   "header_vectors": [
     {
       "description": "HEADER_1: DATA to SINGLE destination via BROADCAST",
@@ -450,6 +1758,445 @@
       "packet_hash_full": "e3c925b171a7b66b3d76ba9fa9d6900fea8b013b0a2af525780d694329d6f413",
       "packet_hash": "e3c925b171a7b66b3d76ba9fa9d6900f",
       "expected_header_length": 35
+    },
+    {
+      "description": "HEADER_1: PROOF to SINGLE destination via BROADCAST",
+      "header_type": "HEADER_1",
+      "flags_byte": "03",
+      "hops": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "0300fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "0300fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "03fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "dae61894edbb7eb06070214bf3671dd274128ace6a0a75d5677c857aec232c39",
+      "packet_hash": "dae61894edbb7eb06070214bf3671dd2",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to GROUP destination via BROADCAST",
+      "header_type": "HEADER_1",
+      "flags_byte": "04",
+      "hops": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "0400fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "0400fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "04fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "4dfc8ec3a0dad93730e48ef05fef90bbdaad21dfbac069b44321426452f26032",
+      "packet_hash": "4dfc8ec3a0dad93730e48ef05fef90bb",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to PLAIN destination via BROADCAST",
+      "header_type": "HEADER_1",
+      "flags_byte": "08",
+      "hops": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "0800fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "0800fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "08fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "915cb20bf8dfb9ab0110c6f1dd3b4f175d6e3512bec82bf05bba9a106bae28be",
+      "packet_hash": "915cb20bf8dfb9ab0110c6f1dd3b4f17",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to LINK destination via BROADCAST",
+      "header_type": "HEADER_1",
+      "flags_byte": "0c",
+      "hops": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "0c00fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "0c00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "0cfb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "b68f0e73c8e3d5b0326195edb5ec325f2d493a0cefc73fbfb142c9482ff2f77e",
+      "packet_hash": "b68f0e73c8e3d5b0326195edb5ec325f",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to SINGLE with context_flag set, context=NONE",
+      "header_type": "HEADER_1",
+      "flags_byte": "20",
+      "hops": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "2000fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "2000fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "37e98565752d1a30822391b994ed6a975024bd7ff4f3f94ed8961b14643e7370",
+      "packet_hash": "37e98565752d1a30822391b994ed6a97",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to SINGLE with context=CHANNEL",
+      "header_type": "HEADER_1",
+      "flags_byte": "20",
+      "hops": 0,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "0e",
+      "header": "2000fb48da0e82e6e01ba0c014513f74540d0e",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "2000fb48da0e82e6e01ba0c014513f74540d0e48656c6c6f2c205265746963756c756d21",
+      "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0e48656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "e243515d2a28705c5e99b97a3ae1d024fd1a9446f30f1f91bd95d02573345d7c",
+      "packet_hash": "e243515d2a28705c5e99b97a3ae1d024",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to SINGLE destination, hops=1",
+      "header_type": "HEADER_1",
+      "flags_byte": "00",
+      "hops": 1,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "0001fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "0001fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "37e98565752d1a30822391b994ed6a975024bd7ff4f3f94ed8961b14643e7370",
+      "packet_hash": "37e98565752d1a30822391b994ed6a97",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to SINGLE destination, hops=127",
+      "header_type": "HEADER_1",
+      "flags_byte": "00",
+      "hops": 127,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "007ffb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "007ffb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "37e98565752d1a30822391b994ed6a975024bd7ff4f3f94ed8961b14643e7370",
+      "packet_hash": "37e98565752d1a30822391b994ed6a97",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_1: DATA to SINGLE destination, hops=255",
+      "header_type": "HEADER_1",
+      "flags_byte": "00",
+      "hops": 255,
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "00fffb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 19,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "00fffb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[2:]",
+      "packet_hash_full": "37e98565752d1a30822391b994ed6a975024bd7ff4f3f94ed8961b14643e7370",
+      "packet_hash": "37e98565752d1a30822391b994ed6a97",
+      "expected_header_length": 19
+    },
+    {
+      "description": "HEADER_2: LINKREQUEST to SINGLE destination via TRANSPORT (2 hops)",
+      "header_type": "HEADER_2",
+      "flags_byte": "52",
+      "hops": 2,
+      "transport_id": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "5202650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 35,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "5202650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "02fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[TRUNCATED_HASHLENGTH_BYTES + 2:] (skips transport_id)",
+      "packet_hash_full": "a933a69c6cd8c466391c3ececd24e1b0a5bf687be68e07fa43d8e91ed9bf50f0",
+      "packet_hash": "a933a69c6cd8c466391c3ececd24e1b0",
+      "expected_header_length": 35
+    },
+    {
+      "description": "HEADER_2: PROOF to SINGLE destination via TRANSPORT",
+      "header_type": "HEADER_2",
+      "flags_byte": "53",
+      "hops": 0,
+      "transport_id": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "5300650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 35,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "5300650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "03fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[TRUNCATED_HASHLENGTH_BYTES + 2:] (skips transport_id)",
+      "packet_hash_full": "dae61894edbb7eb06070214bf3671dd274128ace6a0a75d5677c857aec232c39",
+      "packet_hash": "dae61894edbb7eb06070214bf3671dd2",
+      "expected_header_length": 35
+    },
+    {
+      "description": "HEADER_2: DATA to GROUP destination via TRANSPORT (1 hop)",
+      "header_type": "HEADER_2",
+      "flags_byte": "54",
+      "hops": 1,
+      "transport_id": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "00",
+      "header": "5401650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d00",
+      "header_length": 35,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "5401650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part": "04fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[TRUNCATED_HASHLENGTH_BYTES + 2:] (skips transport_id)",
+      "packet_hash_full": "4dfc8ec3a0dad93730e48ef05fef90bbdaad21dfbac069b44321426452f26032",
+      "packet_hash": "4dfc8ec3a0dad93730e48ef05fef90bb",
+      "expected_header_length": 35
+    },
+    {
+      "description": "HEADER_2: DATA to SINGLE via TRANSPORT with context=RESOURCE",
+      "header_type": "HEADER_2",
+      "flags_byte": "70",
+      "hops": 0,
+      "transport_id": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+      "context": "01",
+      "header": "7000650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d01",
+      "header_length": 35,
+      "payload": "48656c6c6f2c205265746963756c756d21",
+      "raw_packet": "7000650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d0148656c6c6f2c205265746963756c756d21",
+      "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0148656c6c6f2c205265746963756c756d21",
+      "hashable_part_note": "flags_masked(1 byte, raw[0] & 0x0F) + raw[TRUNCATED_HASHLENGTH_BYTES + 2:] (skips transport_id)",
+      "packet_hash_full": "9c604b48f924e19e2c638775b6877f045a9d7307f0994fdaed23d1325e561aff",
+      "packet_hash": "9c604b48f924e19e2c638775b6877f04",
+      "expected_header_length": 35
     }
-  ]
+  ],
+  "packet_hash_vectors": {
+    "hash_properties": {
+      "description": "Packet hash is computed from a 'hashable part' that strips routing-specific fields",
+      "algorithm": "SHA-256(hashable_part)[:16]",
+      "mask": "0x0F",
+      "mask_effect": "Strips header_type (bit 6), context_flag (bit 5), transport_type (bit 4) from flags byte",
+      "fields_stripped": [
+        "header_type",
+        "context_flag",
+        "transport_type",
+        "hops",
+        "transport_id"
+      ],
+      "fields_kept": [
+        "destination_type",
+        "packet_type",
+        "destination_hash",
+        "context",
+        "payload"
+      ],
+      "hashable_part_header_1": "bytes([raw[0] & 0x0F]) + raw[2:]  (skips flags high bits and hops)",
+      "hashable_part_header_2": "bytes([raw[0] & 0x0F]) + raw[TRUNCATED_HASHLENGTH_BYTES + 2:]  (also skips transport_id)"
+    },
+    "equivalence_pairs": [
+      {
+        "description": "DATA/SINGLE: HEADER_1 (BROADCAST, 0 hops) == HEADER_2 (TRANSPORT, 5 hops)",
+        "header_1": {
+          "flags_byte": "00",
+          "hops": 0,
+          "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "37e98565752d1a30822391b994ed6a97"
+        },
+        "header_2": {
+          "flags_byte": "50",
+          "hops": 5,
+          "transport_id": "650b5d76b6bec0390d1f8cfca5bd33f9",
+          "raw_packet": "5005650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "37e98565752d1a30822391b994ed6a97"
+        }
+      },
+      {
+        "description": "ANNOUNCE/SINGLE: HEADER_1 (BROADCAST, 0 hops) == HEADER_2 (TRANSPORT, 3 hops)",
+        "header_1": {
+          "flags_byte": "01",
+          "hops": 0,
+          "raw_packet": "0100fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "01fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "e3c925b171a7b66b3d76ba9fa9d6900f"
+        },
+        "header_2": {
+          "flags_byte": "51",
+          "hops": 3,
+          "transport_id": "650b5d76b6bec0390d1f8cfca5bd33f9",
+          "raw_packet": "5103650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "01fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "e3c925b171a7b66b3d76ba9fa9d6900f"
+        }
+      },
+      {
+        "description": "PROOF/LINK: HEADER_1 (BROADCAST, 0 hops) == HEADER_2 (TRANSPORT, 2 hops)",
+        "header_1": {
+          "flags_byte": "0f",
+          "hops": 0,
+          "raw_packet": "0f00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "0ffb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "0a9387d21d708303a70124da3c66ffd0"
+        },
+        "header_2": {
+          "flags_byte": "5f",
+          "hops": 2,
+          "transport_id": "650b5d76b6bec0390d1f8cfca5bd33f9",
+          "raw_packet": "5f02650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "0ffb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "0a9387d21d708303a70124da3c66ffd0"
+        }
+      }
+    ],
+    "edge_cases": [
+      {
+        "description": "Empty payload - header only, no data bytes",
+        "flags_byte": "00",
+        "hops": 0,
+        "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+        "context": "00",
+        "payload": "",
+        "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d00",
+        "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d00",
+        "packet_hash": "03d78e5e73872537a371d1c9113a8829"
+      },
+      {
+        "description": "Single-byte payload (0x42)",
+        "flags_byte": "00",
+        "hops": 0,
+        "destination_hash": "fb48da0e82e6e01ba0c014513f74540d",
+        "context": "00",
+        "payload": "42",
+        "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d0042",
+        "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0042",
+        "packet_hash": "7e2bad927cb7df3f66e5000a85c98d9c"
+      },
+      {
+        "description": "Same flags+dest+payload, different context (NONE vs CHANNEL) -> different hash",
+        "packet_a": {
+          "context": "00",
+          "context_name": "NONE",
+          "raw_packet": "2000fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "37e98565752d1a30822391b994ed6a97"
+        },
+        "packet_b": {
+          "context": "0e",
+          "context_name": "CHANNEL",
+          "raw_packet": "2000fb48da0e82e6e01ba0c014513f74540d0e48656c6c6f2c205265746963756c756d21",
+          "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0e48656c6c6f2c205265746963756c756d21",
+          "packet_hash": "e243515d2a28705c5e99b97a3ae1d024"
+        },
+        "hashes_equal": false
+      },
+      {
+        "description": "Same flags+dest+payload, different hops (0 vs 42) -> same hash (hops excluded from hash)",
+        "packet_a": {
+          "hops": 0,
+          "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "37e98565752d1a30822391b994ed6a97"
+        },
+        "packet_b": {
+          "hops": 42,
+          "raw_packet": "002afb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "hashable_part": "00fb48da0e82e6e01ba0c014513f74540d0048656c6c6f2c205265746963756c756d21",
+          "packet_hash": "37e98565752d1a30822391b994ed6a97"
+        },
+        "hashes_equal": true
+      }
+    ]
+  },
+  "size_limits": {
+    "constants": {
+      "mtu_bytes": 500,
+      "header_minsize_bytes": 19,
+      "header_maxsize_bytes": 35,
+      "ifac_min_size_bytes": 1,
+      "mdu_bytes": 464,
+      "encrypted_mdu_bytes": 383,
+      "plain_mdu_bytes": 464,
+      "token_overhead_bytes": 48,
+      "aes128_blocksize_bytes": 16,
+      "derivations": {
+        "header_minsize": "2 + 1 + (128 // 8) * 1 = 19",
+        "header_maxsize": "2 + 1 + (128 // 8) * 2 = 35",
+        "mdu": "MTU(500) - HEADER_MAXSIZE(35) - IFAC_MIN_SIZE(1) = 464",
+        "encrypted_mdu": "floor((MDU(464) - TOKEN_OVERHEAD(48) - KEYSIZE//16(32)) / AES128_BLOCKSIZE(16)) * AES128_BLOCKSIZE(16) - 1 = 383",
+        "plain_mdu": "MDU = 464"
+      }
+    },
+    "boundary_vectors": [
+      {
+        "description": "Minimum HEADER_1 packet: header only, no payload",
+        "header_type": "HEADER_1",
+        "payload_length": 0,
+        "total_length": 19,
+        "expected_total_length": 19,
+        "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d00",
+        "packet_hash": "03d78e5e73872537a371d1c9113a8829"
+      },
+      {
+        "description": "Minimum HEADER_2 packet: header only, no payload",
+        "header_type": "HEADER_2",
+        "payload_length": 0,
+        "total_length": 35,
+        "expected_total_length": 35,
+        "raw_packet": "5000650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d00",
+        "packet_hash": "03d78e5e73872537a371d1c9113a8829"
+      },
+      {
+        "description": "Maximum HEADER_1 at MTU: 481-byte payload fills to 500 bytes",
+        "header_type": "HEADER_1",
+        "payload_length": 481,
+        "total_length": 500,
+        "expected_total_length": 500,
+        "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d00000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0",
+        "packet_hash": "5d8a9c30b6ae80e9f429e7496d47f794"
+      },
+      {
+        "description": "Maximum HEADER_2 at MTU: 465-byte payload fills to 500 bytes",
+        "header_type": "HEADER_2",
+        "payload_length": 465,
+        "total_length": 500,
+        "expected_total_length": 500,
+        "raw_packet": "5000650b5d76b6bec0390d1f8cfca5bd33f9fb48da0e82e6e01ba0c014513f74540d00000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0",
+        "packet_hash": "08e559db30f1d9b1bea09d0161f856d9"
+      },
+      {
+        "description": "HEADER_1 with MDU payload: 464-byte payload, 483 total",
+        "header_type": "HEADER_1",
+        "payload_length": 464,
+        "total_length": 483,
+        "expected_total_length": 483,
+        "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d00000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecf",
+        "packet_hash": "ea6754a67f790acc5c050338a597c8e8"
+      },
+      {
+        "description": "HEADER_1 with ENCRYPTED_MDU payload: 383-byte payload, 402 total",
+        "header_type": "HEADER_1",
+        "payload_length": 383,
+        "total_length": 402,
+        "expected_total_length": 402,
+        "raw_packet": "0000fb48da0e82e6e01ba0c014513f74540d00000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e",
+        "packet_hash": "5ccb672c128b0a90fba3055cae68b0ab"
+      }
+    ]
+  }
 }
