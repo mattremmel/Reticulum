@@ -1,0 +1,583 @@
+{
+  "description": "Reticulum v1.1.3 - resource transfer test vectors",
+  "source": "RNS/Resource.py, RNS/Cryptography/Token.py",
+  "constants": {
+    "window": {
+      "WINDOW": 4,
+      "WINDOW_MIN": 2,
+      "WINDOW_MAX_SLOW": 10,
+      "WINDOW_MAX_VERY_SLOW": 4,
+      "WINDOW_MAX_FAST": 75,
+      "WINDOW_MAX": 75,
+      "WINDOW_FLEXIBILITY": 4
+    },
+    "rate_thresholds": {
+      "FAST_RATE_THRESHOLD": 4,
+      "FAST_RATE_THRESHOLD_derivation": "WINDOW_MAX_SLOW(10) - WINDOW(4) - 2 = 4",
+      "VERY_SLOW_RATE_THRESHOLD": 2,
+      "RATE_FAST": 6250.0,
+      "RATE_FAST_note": "50 Kbps in bytes/sec = (50*1000)/8",
+      "RATE_VERY_SLOW": 250.0,
+      "RATE_VERY_SLOW_note": "2 Kbps in bytes/sec = (2*1000)/8"
+    },
+    "sizes": {
+      "MAPHASH_LEN": 4,
+      "RANDOM_HASH_SIZE": 4,
+      "SDU": 464,
+      "SDU_derivation": "MTU(500) - HEADER_MAXSIZE(35) - IFAC_MIN_SIZE(1) = 464",
+      "SDU_note": "Resource.SDU = RNS.Packet.MDU = RNS.Reticulum.MDU at class level; instance sdu from link.mtu - HEADER_MAXSIZE - IFAC_MIN_SIZE",
+      "MAX_EFFICIENT_SIZE": 1048575,
+      "METADATA_MAX_SIZE": 16777215,
+      "AUTO_COMPRESS_MAX_SIZE": 67108864
+    },
+    "advertisement": {
+      "OVERHEAD": 134,
+      "HASHMAP_MAX_LEN": 74,
+      "HASHMAP_MAX_LEN_derivation": "floor((LINK_MDU(431) - OVERHEAD(134)) / MAPHASH_LEN(4)) = 74",
+      "COLLISION_GUARD_SIZE": 224,
+      "COLLISION_GUARD_SIZE_derivation": "2 * WINDOW_MAX(75) + HASHMAP_MAX_LEN(74) = 224"
+    },
+    "timeouts": {
+      "PART_TIMEOUT_FACTOR": 4,
+      "PART_TIMEOUT_FACTOR_AFTER_RTT": 2,
+      "PROOF_TIMEOUT_FACTOR": 3,
+      "MAX_RETRIES": 16,
+      "MAX_ADV_RETRIES": 4,
+      "SENDER_GRACE_TIME": 10.0,
+      "PROCESSING_GRACE": 1.0,
+      "RETRY_GRACE_TIME": 0.25,
+      "PER_RETRY_DELAY": 0.5,
+      "WATCHDOG_MAX_SLEEP": 1,
+      "RESPONSE_MAX_GRACE_TIME": 10
+    },
+    "status_codes": {
+      "NONE": 0,
+      "QUEUED": 1,
+      "ADVERTISED": 2,
+      "TRANSFERRING": 3,
+      "AWAITING_PROOF": 4,
+      "ASSEMBLING": 5,
+      "COMPLETE": 6,
+      "FAILED": 7,
+      "CORRUPT": 8,
+      "REJECTED": 0
+    },
+    "hashmap_exhaustion": {
+      "HASHMAP_IS_NOT_EXHAUSTED": 0,
+      "HASHMAP_IS_EXHAUSTED": 255
+    },
+    "flags": {
+      "bit_0_encrypted": "0x01",
+      "bit_1_compressed": "0x02",
+      "bit_2_split": "0x04",
+      "bit_3_is_request": "0x08",
+      "bit_4_is_response": "0x10",
+      "bit_5_has_metadata": "0x20",
+      "formula": "flags = has_metadata<<5 | is_response<<4 | is_request<<3 | split<<2 | compressed<<1 | encrypted"
+    }
+  },
+  "metadata_vectors": [
+    {
+      "index": 0,
+      "description": "Simple metadata with string and integer",
+      "metadata_dict": {
+        "text": "hello",
+        "n": 42
+      },
+      "packed_metadata_hex": "82a474657874a568656c6c6fa16e2a",
+      "packed_metadata_length": 15,
+      "size_prefix_hex": "00000f",
+      "size_prefix_note": "struct.pack('>I', len(packed))[1:] \u2014 3 bytes big-endian, drop leading byte",
+      "full_metadata_bytes_hex": "00000f82a474657874a568656c6c6fa16e2a",
+      "full_metadata_length": 18
+    },
+    {
+      "index": 1,
+      "description": "Metadata with 32-byte binary blob",
+      "metadata_dict": {
+        "type": "binary_test",
+        "blob": "9009cd66165f363762f4bb5a1954806d436debf7748ff41e1abe0134cd04ebcc"
+      },
+      "metadata_dict_note": "blob value shown as hex; actual msgpack uses raw bytes",
+      "packed_metadata_hex": "82a474797065ab62696e6172795f74657374a4626c6f62c4209009cd66165f363762f4bb5a1954806d436debf7748ff41e1abe0134cd04ebcc",
+      "packed_metadata_length": 57,
+      "size_prefix_hex": "000039",
+      "full_metadata_bytes_hex": "00003982a474797065ab62696e6172795f74657374a4626c6f62c4209009cd66165f363762f4bb5a1954806d436debf7748ff41e1abe0134cd04ebcc",
+      "full_metadata_length": 60
+    },
+    {
+      "index": 2,
+      "description": "Large metadata with 8KB binary blob",
+      "metadata_dict": {
+        "type": "large_test",
+        "data_length": 8192
+      },
+      "metadata_dict_note": "data field is 8192 bytes of deterministic data (index=99)",
+      "packed_metadata_hex": "82a474797065aa6c617267655f74657374a464617461c520005d68f32987a071522903ae34d25a87aafae7083b2be0dc8c8081bf00fe68de56724e7a7820bfbf... (8217 bytes total)",
+      "packed_metadata_length": 8217,
+      "size_prefix_hex": "002019",
+      "full_metadata_bytes_hex": "00201982a474797065aa6c617267655f74657374a464617461c520005d68f32987a071522903ae34d25a87aafae7083b2be0dc8c8081bf00fe68de56724e7a78... (8220 bytes total)",
+      "full_metadata_length": 8220
+    }
+  ],
+  "resource_advertisement_vectors": [
+    {
+      "index": 0,
+      "description": "Micro resource (128 bytes), no metadata, no compression",
+      "input_data_hex": "285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e13e4a0cc... (128 bytes total)",
+      "input_data_length": 128,
+      "metadata_dict": null,
+      "has_metadata": false,
+      "data_with_metadata_hex": "285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e13e4a0cc... (128 bytes total)",
+      "data_with_metadata_length": 128,
+      "total_size": 128,
+      "random_hash_hex": "ff8510d6",
+      "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_0')[:4]",
+      "auto_compress": true,
+      "compressed": false,
+      "pre_encryption_data_hex": "ff8510d6285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e... (132 bytes total)",
+      "pre_encryption_data_length": 132,
+      "pre_encryption_layout": "random_hash(4) + data_with_metadata(128) = 132",
+      "deterministic_iv_hex": "b0d257a5234b3d5c1fa8ea7ea5ec661b",
+      "deterministic_iv_seed": "SHA256(b'reticulum_test_resource_iv_0')[:16]",
+      "encrypted_data_hex": "b0d257a5234b3d5c1fa8ea7ea5ec661b3a14080a5610e329776fd409788eb4ee3050e40f77afb0bfe325cb0cfc63c7890876259005add765a3a4caa4f0e0f82e32d76c8e2c75ce6dec0a8474c3b92757d6df0eef2e50eb874f0ab9664a734da9d292748123bb455dc7af2172f157f0b9c43e1f8232e5158113711d10f8a39bb3... (192 bytes total)",
+      "encrypted_data_length": 192,
+      "encryption_layout": "IV(16) + AES_ciphertext + HMAC(32) = 192",
+      "sdu": 464,
+      "num_parts": 1,
+      "parts": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 192,
+          "data_hex": "b0d257a5234b3d5c1fa8ea7ea5ec661b3a14080a5610e329776fd409788eb4ee3050e40f77afb0bfe325cb0cfc63c7890876259005add765a3a4caa4f0e0f82e... (192 bytes total)",
+          "map_hash_hex": "1dc48c9a"
+        }
+      ],
+      "hashmap_hex": "1dc48c9a",
+      "hashmap_length": 4,
+      "resource_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+      "resource_hash_note": "SHA256(data_with_metadata + random_hash)",
+      "original_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+      "expected_proof_hex": "f13a075d319c76a039f160d6f6fe3141f51aed6a5f1310156cb613d6b8d938e1",
+      "expected_proof_note": "SHA256(data_with_metadata + resource_hash)",
+      "flags": 1,
+      "flags_hex": "0x01",
+      "flags_breakdown": {
+        "encrypted": true,
+        "compressed": false,
+        "split": false,
+        "is_request": false,
+        "is_response": false,
+        "has_metadata": false
+      },
+      "advertisement_dict": {
+        "t": 192,
+        "d": 128,
+        "n": 1,
+        "h": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+        "r": "ff8510d6",
+        "o": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+        "i": 1,
+        "l": 1,
+        "q": null,
+        "f": 1,
+        "m": "1dc48c9a"
+      },
+      "advertisement_packed_hex": "8ba174ccc0a164cc80a16e01a168c42018e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985a172c404ff8510d6a16fc42018e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985a16901a16c01a171c0a16601a16dc4041dc48c9a",
+      "advertisement_packed_length": 112
+    },
+    {
+      "index": 1,
+      "description": "Micro resource (128 bytes) with metadata, no compression",
+      "input_data_hex": "e4b7b1a88998c70fa8a60ac04e6f27e8e9ed7c7dc9c37a7a71c53528d364eb38c24d78653e0cfff2723796e6b346cea3eca169e2792a52d8ea8263d343fd784b... (128 bytes total)",
+      "input_data_length": 128,
+      "metadata_dict": {
+        "filename": "test.bin",
+        "size": 128
+      },
+      "has_metadata": true,
+      "packed_metadata_hex": "82a866696c656e616d65a8746573742e62696ea473697a65cc80",
+      "metadata_size_prefix_hex": "00001a",
+      "metadata_bytes_hex": "00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80",
+      "metadata_bytes_length": 29,
+      "data_with_metadata_hex": "00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80e4b7b1a88998c70fa8a60ac04e6f27e8e9ed7c7dc9c37a7a71c53528d364eb38c24d78... (157 bytes total)",
+      "data_with_metadata_length": 157,
+      "total_size": 157,
+      "random_hash_hex": "0508ad6a",
+      "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_1')[:4]",
+      "auto_compress": true,
+      "compressed": false,
+      "pre_encryption_data_hex": "0508ad6a00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80e4b7b1a88998c70fa8a60ac04e6f27e8e9ed7c7dc9c37a7a71c53528d364eb... (161 bytes total)",
+      "pre_encryption_data_length": 161,
+      "pre_encryption_layout": "random_hash(4) + data_with_metadata(157) = 161",
+      "deterministic_iv_hex": "406690dd8ddcccaf4dddc1c9483dd403",
+      "deterministic_iv_seed": "SHA256(b'reticulum_test_resource_iv_1')[:16]",
+      "encrypted_data_hex": "406690dd8ddcccaf4dddc1c9483dd4031766695ca55084953999157d2f09572ace9b05358ad90f34a1822266d21937166c4aa2622c57605c1d1a621c5810f919bbdecbf150acd760aa5e30b851fd2700edfe8910ff83fb35efe44c734db32c46745781c723d8bf0415c56d6fb4d5b1641c2bb0cbed26a4b8565cbc5d6625224e... (224 bytes total)",
+      "encrypted_data_length": 224,
+      "encryption_layout": "IV(16) + AES_ciphertext + HMAC(32) = 224",
+      "sdu": 464,
+      "num_parts": 1,
+      "parts": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 224,
+          "data_hex": "406690dd8ddcccaf4dddc1c9483dd4031766695ca55084953999157d2f09572ace9b05358ad90f34a1822266d21937166c4aa2622c57605c1d1a621c5810f919... (224 bytes total)",
+          "map_hash_hex": "2af7f723"
+        }
+      ],
+      "hashmap_hex": "2af7f723",
+      "hashmap_length": 4,
+      "resource_hash_hex": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046",
+      "resource_hash_note": "SHA256(data_with_metadata + random_hash)",
+      "original_hash_hex": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046",
+      "expected_proof_hex": "4c6e5097ba52129ccaa6e240acf5c3facfddf0d057e24951eb3235dccbde8a0c",
+      "expected_proof_note": "SHA256(data_with_metadata + resource_hash)",
+      "flags": 33,
+      "flags_hex": "0x21",
+      "flags_breakdown": {
+        "encrypted": true,
+        "compressed": false,
+        "split": false,
+        "is_request": false,
+        "is_response": false,
+        "has_metadata": true
+      },
+      "advertisement_dict": {
+        "t": 224,
+        "d": 157,
+        "n": 1,
+        "h": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046",
+        "r": "0508ad6a",
+        "o": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046",
+        "i": 1,
+        "l": 1,
+        "q": null,
+        "f": 33,
+        "m": "2af7f723"
+      },
+      "advertisement_packed_hex": "8ba174cce0a164cc9da16e01a168c420c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046a172c4040508ad6aa16fc420c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046a16901a16c01a171c0a16621a16dc4042af7f723",
+      "advertisement_packed_length": 112
+    },
+    {
+      "index": 2,
+      "description": "Small compressible resource (~2KB), no metadata, compressed",
+      "input_data_hex": "5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f54455354... (2048 bytes total)",
+      "input_data_length": 2048,
+      "metadata_dict": null,
+      "has_metadata": false,
+      "data_with_metadata_hex": "5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f54455354... (2048 bytes total)",
+      "data_with_metadata_length": 2048,
+      "total_size": 2048,
+      "random_hash_hex": "aa2d069c",
+      "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_2')[:4]",
+      "auto_compress": true,
+      "compressed": true,
+      "compressed_data_hex": "425a6839314159265359044bc2060001c28e0010002a275e00a0009020000052a9a9a3133d4c84e913f227844ed13644c226913e913a226e89a44d227289889f... (85 bytes total)",
+      "compressed_length": 85,
+      "compression_savings": 1963,
+      "pre_encryption_data_hex": "aa2d069c425a6839314159265359044bc2060001c28e0010002a275e00a0009020000052a9a9a3133d4c84e913f227844ed13644c226913e913a226e89a44d22... (89 bytes total)",
+      "pre_encryption_data_length": 89,
+      "pre_encryption_layout": "random_hash(4) + compressed_data(85) = 89",
+      "deterministic_iv_hex": "7d2679e25a638751d9f5bfcf85f0da18",
+      "deterministic_iv_seed": "SHA256(b'reticulum_test_resource_iv_2')[:16]",
+      "encrypted_data_hex": "7d2679e25a638751d9f5bfcf85f0da1888ea59c1f2c5c522a93fded93021abe2a00a4ef86f6b712b70e8e63f1cdb5fbe6cce292b7ce39ab3044dcc65beb87ac102c10fe91fbd39c4e670f9aa99a9502ee555f674ae152b8fc6403b75643acbaeab7539c94390d77374cbd69856e626ea6c01634fa2199198dd99c0d266ae89c1... (144 bytes total)",
+      "encrypted_data_length": 144,
+      "encryption_layout": "IV(16) + AES_ciphertext + HMAC(32) = 144",
+      "sdu": 464,
+      "num_parts": 1,
+      "parts": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 144,
+          "data_hex": "7d2679e25a638751d9f5bfcf85f0da1888ea59c1f2c5c522a93fded93021abe2a00a4ef86f6b712b70e8e63f1cdb5fbe6cce292b7ce39ab3044dcc65beb87ac1... (144 bytes total)",
+          "map_hash_hex": "890bb07e"
+        }
+      ],
+      "hashmap_hex": "890bb07e",
+      "hashmap_length": 4,
+      "resource_hash_hex": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0",
+      "resource_hash_note": "SHA256(data_with_metadata + random_hash)",
+      "original_hash_hex": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0",
+      "expected_proof_hex": "e9af152b52ad070ec2774ca6d0c1f13bd274815885467d7e499ab2aeb0a4a345",
+      "expected_proof_note": "SHA256(data_with_metadata + resource_hash)",
+      "flags": 3,
+      "flags_hex": "0x03",
+      "flags_breakdown": {
+        "encrypted": true,
+        "compressed": true,
+        "split": false,
+        "is_request": false,
+        "is_response": false,
+        "has_metadata": false
+      },
+      "advertisement_dict": {
+        "t": 144,
+        "d": 2048,
+        "n": 1,
+        "h": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0",
+        "r": "aa2d069c",
+        "o": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0",
+        "i": 1,
+        "l": 1,
+        "q": null,
+        "f": 3,
+        "m": "890bb07e"
+      },
+      "advertisement_packed_hex": "8ba174cc90a164cd0800a16e01a168c42058d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0a172c404aa2d069ca16fc42058d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0a16901a16c01a171c0a16603a16dc404890bb07e",
+      "advertisement_packed_length": 113
+    },
+    {
+      "index": 3,
+      "description": "Multi-part resource (~2KB random data), no metadata, no compression",
+      "input_data_hex": "25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218efcc041ee... (2048 bytes total)",
+      "input_data_length": 2048,
+      "metadata_dict": null,
+      "has_metadata": false,
+      "data_with_metadata_hex": "25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218efcc041ee... (2048 bytes total)",
+      "data_with_metadata_length": 2048,
+      "total_size": 2048,
+      "random_hash_hex": "abed1e7b",
+      "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_3')[:4]",
+      "auto_compress": true,
+      "compressed": false,
+      "pre_encryption_data_hex": "abed1e7b25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218e... (2052 bytes total)",
+      "pre_encryption_data_length": 2052,
+      "pre_encryption_layout": "random_hash(4) + data_with_metadata(2048) = 2052",
+      "deterministic_iv_hex": "f81dbe698eb26bde82dd6e7b64826316",
+      "deterministic_iv_seed": "SHA256(b'reticulum_test_resource_iv_3')[:16]",
+      "encrypted_data_hex": "f81dbe698eb26bde82dd6e7b64826316b164cd40664e31eb944fa23d1285ce262fcc37b6fdd9bc156905b8612ef4ed93fc703f2060a0a448a0dfeb353da70c5b12c556db35441d5a4028880e38715b9b81c61884ae3e8702fe9f2c7cbf894c3989bc9a0f3d79140ec999315ce300828861b35ba805f382c559a80d0d4213ea78... (2112 bytes total)",
+      "encrypted_data_length": 2112,
+      "encryption_layout": "IV(16) + AES_ciphertext + HMAC(32) = 2112",
+      "sdu": 464,
+      "num_parts": 5,
+      "parts": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 464,
+          "data_hex": "f81dbe698eb26bde82dd6e7b64826316b164cd40664e31eb944fa23d1285ce262fcc37b6fdd9bc156905b8612ef4ed93fc703f2060a0a448a0dfeb353da70c5b... (464 bytes total)",
+          "map_hash_hex": "66c0a784"
+        },
+        {
+          "index": 1,
+          "offset": 464,
+          "length": 464,
+          "data_hex": "ded89186b975691a665ec22f40f54fa57fa386cbc507922c28263ad36f31f402e58f21bff5fdf2449dadefa7be39a4831d26c85edaee203201245d457af10cf3... (464 bytes total)",
+          "map_hash_hex": "128b9e93"
+        },
+        {
+          "index": 2,
+          "offset": 928,
+          "length": 464,
+          "data_hex": "6d17580cb795b97eef82dceff57b5571949a2e0a931f9a7833074687191f700dea3fffed62663d442a9148f360913b2188c160c6d3cc0ed64759b5b48a0cd234... (464 bytes total)",
+          "map_hash_hex": "8c71e3de"
+        },
+        {
+          "index": 3,
+          "offset": 1392,
+          "length": 464,
+          "data_hex": "bc6a451eec532336c338612f549a38743e70bd66a7d09ea259cea3fb2243e05040ed63e6c7588ae223b66f6c8c8f167c729f3e56bae8e46a94e503ca1e73f63d... (464 bytes total)",
+          "map_hash_hex": "50f32afd"
+        },
+        {
+          "index": 4,
+          "offset": 1856,
+          "length": 256,
+          "data_hex": "2bc7b1c90f013f5e1adf401882d9da14832763131e07f7e5e42c98af1fd5a5147e882934150fe2dded660e13ceb42ddf266392df2c56d234ca6fc73369c10cf2... (256 bytes total)",
+          "map_hash_hex": "91779ee2"
+        }
+      ],
+      "hashmap_hex": "66c0a784128b9e938c71e3de50f32afd91779ee2",
+      "hashmap_length": 20,
+      "resource_hash_hex": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8a",
+      "resource_hash_note": "SHA256(data_with_metadata + random_hash)",
+      "original_hash_hex": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8a",
+      "expected_proof_hex": "b0af19d38ecda58001078ac3a497c618caa032ad29081ae70d20d85d8746bb5b",
+      "expected_proof_note": "SHA256(data_with_metadata + resource_hash)",
+      "flags": 1,
+      "flags_hex": "0x01",
+      "flags_breakdown": {
+        "encrypted": true,
+        "compressed": false,
+        "split": false,
+        "is_request": false,
+        "is_response": false,
+        "has_metadata": false
+      },
+      "advertisement_dict": {
+        "t": 2112,
+        "d": 2048,
+        "n": 5,
+        "h": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8a",
+        "r": "abed1e7b",
+        "o": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8a",
+        "i": 1,
+        "l": 1,
+        "q": null,
+        "f": 1,
+        "m": "66c0a784128b9e938c71e3de50f32afd91779ee2"
+      },
+      "advertisement_packed_hex": "8ba174cd0840a164cd0800a16e05a168c4209c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8aa172c404abed1e7ba16fc4209c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8aa16901a16c01a171c0a16601a16dc41466c0a784128b9e938c71e3de50f32afd91779ee2",
+      "advertisement_packed_length": 130
+    }
+  ],
+  "assembly_vectors": [
+    {
+      "index": 0,
+      "description": "Assembly verification for: Micro resource (128 bytes), no metadata, no compression",
+      "resource_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+      "random_hash_hex": "ff8510d6",
+      "flags": 1,
+      "steps": {
+        "1_join_parts": "Concatenate 1 encrypted part(s) \u2192 192 bytes",
+        "2_decrypt": "Token.decrypt(stream) \u2192 132 bytes",
+        "3_strip_random_hash": "Remove first 4 bytes \u2192 128 bytes",
+        "5_verify_hash": "SHA256(assembled_data + random_hash) == resource_hash \u2192 True"
+      },
+      "decrypted_stream_hex": "ff8510d6285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e... (132 bytes total)",
+      "decrypted_stream_length": 132,
+      "stripped_data_hex": "285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e13e4a0cc... (128 bytes total)",
+      "stripped_data_length": 128,
+      "calculated_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+      "verified": true,
+      "extracted_payload_hex": "285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e13e4a0cc... (128 bytes total)",
+      "extracted_payload_length": 128
+    },
+    {
+      "index": 1,
+      "description": "Assembly verification for: Micro resource (128 bytes) with metadata, no compression",
+      "resource_hash_hex": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046",
+      "random_hash_hex": "0508ad6a",
+      "flags": 33,
+      "steps": {
+        "1_join_parts": "Concatenate 1 encrypted part(s) \u2192 224 bytes",
+        "2_decrypt": "Token.decrypt(stream) \u2192 161 bytes",
+        "3_strip_random_hash": "Remove first 4 bytes \u2192 157 bytes",
+        "5_verify_hash": "SHA256(assembled_data + random_hash) == resource_hash \u2192 True",
+        "6_extract_metadata": "Read 3-byte size prefix, extract 26 bytes of packed metadata"
+      },
+      "decrypted_stream_hex": "0508ad6a00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80e4b7b1a88998c70fa8a60ac04e6f27e8e9ed7c7dc9c37a7a71c53528d364eb... (161 bytes total)",
+      "decrypted_stream_length": 161,
+      "stripped_data_hex": "00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80e4b7b1a88998c70fa8a60ac04e6f27e8e9ed7c7dc9c37a7a71c53528d364eb38c24d78... (157 bytes total)",
+      "stripped_data_length": 157,
+      "calculated_hash_hex": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046",
+      "verified": true,
+      "extracted_metadata_size": 26,
+      "extracted_metadata": {
+        "filename": "test.bin",
+        "size": 128
+      },
+      "extracted_payload_hex": "e4b7b1a88998c70fa8a60ac04e6f27e8e9ed7c7dc9c37a7a71c53528d364eb38c24d78653e0cfff2723796e6b346cea3eca169e2792a52d8ea8263d343fd784b... (128 bytes total)",
+      "extracted_payload_length": 128
+    },
+    {
+      "index": 2,
+      "description": "Assembly verification for: Small compressible resource (~2KB), no metadata, compressed",
+      "resource_hash_hex": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0",
+      "random_hash_hex": "aa2d069c",
+      "flags": 3,
+      "steps": {
+        "1_join_parts": "Concatenate 1 encrypted part(s) \u2192 144 bytes",
+        "2_decrypt": "Token.decrypt(stream) \u2192 89 bytes",
+        "3_strip_random_hash": "Remove first 4 bytes \u2192 85 bytes",
+        "4_decompress": "bz2.decompress(stripped_data) \u2192 2048 bytes",
+        "5_verify_hash": "SHA256(assembled_data + random_hash) == resource_hash \u2192 True"
+      },
+      "decrypted_stream_hex": "aa2d069c425a6839314159265359044bc2060001c28e0010002a275e00a0009020000052a9a9a3133d4c84e913f227844ed13644c226913e913a226e89a44d22... (89 bytes total)",
+      "decrypted_stream_length": 89,
+      "stripped_data_hex": "425a6839314159265359044bc2060001c28e0010002a275e00a0009020000052a9a9a3133d4c84e913f227844ed13644c226913e913a226e89a44d227289889f... (85 bytes total)",
+      "stripped_data_length": 85,
+      "decompressed_data_hex": "5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f54455354... (2048 bytes total)",
+      "decompressed_data_length": 2048,
+      "calculated_hash_hex": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0",
+      "verified": true,
+      "extracted_payload_hex": "5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f544553545f5041545445524e5f325f5245544943554c554d5f54455354... (2048 bytes total)",
+      "extracted_payload_length": 2048
+    },
+    {
+      "index": 3,
+      "description": "Assembly verification for: Multi-part resource (~2KB random data), no metadata, no compression",
+      "resource_hash_hex": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8a",
+      "random_hash_hex": "abed1e7b",
+      "flags": 1,
+      "steps": {
+        "1_join_parts": "Concatenate 5 encrypted part(s) \u2192 2112 bytes",
+        "2_decrypt": "Token.decrypt(stream) \u2192 2052 bytes",
+        "3_strip_random_hash": "Remove first 4 bytes \u2192 2048 bytes",
+        "5_verify_hash": "SHA256(assembled_data + random_hash) == resource_hash \u2192 True"
+      },
+      "decrypted_stream_hex": "abed1e7b25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218e... (2052 bytes total)",
+      "decrypted_stream_length": 2052,
+      "stripped_data_hex": "25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218efcc041ee... (2048 bytes total)",
+      "stripped_data_length": 2048,
+      "calculated_hash_hex": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8a",
+      "verified": true,
+      "extracted_payload_hex": "25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218efcc041ee... (2048 bytes total)",
+      "extracted_payload_length": 2048
+    }
+  ],
+  "resource_proof_vectors": [
+    {
+      "index": 0,
+      "description": "Resource proof for: Micro resource (128 bytes), no metadata, no compression",
+      "resource_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+      "expected_proof_hex": "f13a075d319c76a039f160d6f6fe3141f51aed6a5f1310156cb613d6b8d938e1",
+      "proof_computation": "SHA256(data_with_metadata + resource_hash)",
+      "proof_computation_note": "data_with_metadata is the pre-compression, pre-encryption plaintext (metadata_bytes + resource_data)",
+      "proof_packet_payload_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985f13a075d319c76a039f160d6f6fe3141f51aed6a5f1310156cb613d6b8d938e1",
+      "proof_packet_payload_length": 64,
+      "proof_packet_layout": "resource_hash(32) + proof(32) = 64 bytes",
+      "validation_note": "Sender validates: proof_data[32:] == self.expected_proof (Resource.validate_proof line 774)"
+    },
+    {
+      "index": 1,
+      "description": "Resource proof for: Micro resource (128 bytes) with metadata, no compression",
+      "resource_hash_hex": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed450046",
+      "expected_proof_hex": "4c6e5097ba52129ccaa6e240acf5c3facfddf0d057e24951eb3235dccbde8a0c",
+      "proof_computation": "SHA256(data_with_metadata + resource_hash)",
+      "proof_computation_note": "data_with_metadata is the pre-compression, pre-encryption plaintext (metadata_bytes + resource_data)",
+      "proof_packet_payload_hex": "c3ccc20f5f05a4ffb0d7c12b66bb57546d69c812b6a26882eab2a456ed4500464c6e5097ba52129ccaa6e240acf5c3facfddf0d057e24951eb3235dccbde8a0c",
+      "proof_packet_payload_length": 64,
+      "proof_packet_layout": "resource_hash(32) + proof(32) = 64 bytes",
+      "validation_note": "Sender validates: proof_data[32:] == self.expected_proof (Resource.validate_proof line 774)"
+    },
+    {
+      "index": 2,
+      "description": "Resource proof for: Small compressible resource (~2KB), no metadata, compressed",
+      "resource_hash_hex": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0",
+      "expected_proof_hex": "e9af152b52ad070ec2774ca6d0c1f13bd274815885467d7e499ab2aeb0a4a345",
+      "proof_computation": "SHA256(data_with_metadata + resource_hash)",
+      "proof_computation_note": "data_with_metadata is the pre-compression, pre-encryption plaintext (metadata_bytes + resource_data)",
+      "proof_packet_payload_hex": "58d4c05ceddcc31b2550750755d4373829d4b851960afb941cc64944fdddc8a0e9af152b52ad070ec2774ca6d0c1f13bd274815885467d7e499ab2aeb0a4a345",
+      "proof_packet_payload_length": 64,
+      "proof_packet_layout": "resource_hash(32) + proof(32) = 64 bytes",
+      "validation_note": "Sender validates: proof_data[32:] == self.expected_proof (Resource.validate_proof line 774)"
+    },
+    {
+      "index": 3,
+      "description": "Resource proof for: Multi-part resource (~2KB random data), no metadata, no compression",
+      "resource_hash_hex": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8a",
+      "expected_proof_hex": "b0af19d38ecda58001078ac3a497c618caa032ad29081ae70d20d85d8746bb5b",
+      "proof_computation": "SHA256(data_with_metadata + resource_hash)",
+      "proof_computation_note": "data_with_metadata is the pre-compression, pre-encryption plaintext (metadata_bytes + resource_data)",
+      "proof_packet_payload_hex": "9c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8ab0af19d38ecda58001078ac3a497c618caa032ad29081ae70d20d85d8746bb5b",
+      "proof_packet_payload_length": 64,
+      "proof_packet_layout": "resource_hash(32) + proof(32) = 64 bytes",
+      "validation_note": "Sender validates: proof_data[32:] == self.expected_proof (Resource.validate_proof line 774)"
+    }
+  ],
+  "invalid_metadata_vector": {
+    "description": "Metadata exceeding METADATA_MAX_SIZE raises SystemError",
+    "METADATA_MAX_SIZE": 16777215,
+    "METADATA_MAX_SIZE_hex": "0xffffff",
+    "METADATA_MAX_SIZE_bytes": "16777215 bytes (16 MiB - 1 byte)",
+    "error_type": "SystemError",
+    "error_message": "Resource metadata size exceeded",
+    "source": "Resource.py line 262",
+    "size_prefix_max": "3 bytes big-endian = 0xFFFFFF = 16777215",
+    "note": "The 3-byte size prefix naturally limits metadata to 16777215 bytes"
+  }
+}
