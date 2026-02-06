@@ -1,0 +1,1150 @@
+#!/usr/bin/env python3
+"""
+Extract request/response protocol test vectors from the Reticulum reference
+implementation into a JSON file for consumption by alternative implementations.
+
+All vectors are computed manually (no live Link/Transport/Resource objects) to
+avoid Transport init. Real RNS crypto primitives are used for encryption,
+hashing, and serialization.
+
+Covers:
+  - Request/Response constants (context types, policies, receipt statuses)
+  - Path hash computation (handler routing lookup)
+  - Request serialization (timestamp + path_hash + data → msgpack)
+  - Response serialization (request_id + response_data → msgpack)
+  - Small request wire format (encrypted packet construction)
+  - Small response wire format (encrypted packet construction)
+  - Large request/response resource flags
+  - Policy enforcement vectors
+  - Timeout computation vectors
+  - Round-trip integration vectors
+
+Usage:
+    python3 test_vectors/extract_requests.py
+
+Output:
+    test_vectors/requests.json
+"""
+
+import hashlib
+import json
+import math
+import os
+import struct
+import sys
+
+repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, repo_root)
+
+from RNS.vendor import umsgpack
+
+OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requests.json")
+KEYPAIRS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "keypairs.json")
+LINKS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "links.json")
+
+# --- Constants (reproduced to avoid Transport init) ---
+
+MTU = 500
+HEADER_MINSIZE = 19
+HEADER_MAXSIZE = 35
+IFAC_MIN_SIZE = 1
+TOKEN_OVERHEAD = 48
+AES128_BLOCKSIZE = 16
+HASHLENGTH_BYTES = 32
+TRUNCATED_HASHLENGTH_BYTES = 16
+
+# Link MDU (encrypted payload capacity for link data packets)
+LINK_MDU = math.floor((MTU - IFAC_MIN_SIZE - HEADER_MINSIZE - TOKEN_OVERHEAD) / AES128_BLOCKSIZE) * AES128_BLOCKSIZE - 1
+
+# Packet types
+PACKET_DATA = 0x00
+
+# Header types
+HEADER_1 = 0x00
+
+# Destination types
+DEST_LINK = 0x03
+
+# Transport types
+BROADCAST = 0x00
+
+# Context flag values
+FLAG_SET = 0x01
+
+# Packet contexts
+CONTEXT_NONE = 0x00
+CONTEXT_REQUEST = 0x09
+CONTEXT_RESPONSE = 0x0A
+
+# Access policies (from Destination)
+ALLOW_NONE = 0x00
+ALLOW_ALL = 0x01
+ALLOW_LIST = 0x02
+
+# RequestReceipt statuses
+RECEIPT_FAILED = 0x00
+RECEIPT_SENT = 0x01
+RECEIPT_DELIVERED = 0x02
+RECEIPT_RECEIVING = 0x03
+RECEIPT_READY = 0x04
+
+# Timeout constants
+RESPONSE_MAX_GRACE_TIME = 10
+TRAFFIC_TIMEOUT_FACTOR = 6
+
+
+# --- Helper functions ---
+
+def load_keypairs():
+    with open(KEYPAIRS_PATH, "r") as f:
+        data = json.load(f)
+    return data["keypairs"]
+
+
+def load_links_json():
+    with open(LINKS_PATH, "r") as f:
+        return json.load(f)
+
+
+def full_hash(data):
+    return hashlib.sha256(data).digest()
+
+
+def truncated_hash(data):
+    return hashlib.sha256(data).digest()[:TRUNCATED_HASHLENGTH_BYTES]
+
+
+def deterministic_data(index, length):
+    """Generate deterministic data of given length via SHA-256 expansion."""
+    seed = hashlib.sha256(b"reticulum_test_request_data_" + str(index).encode()).digest()
+    result = b""
+    counter = 0
+    while len(result) < length:
+        chunk = hashlib.sha256(seed + struct.pack(">I", counter)).digest()
+        result += chunk
+        counter += 1
+    return result[:length]
+
+
+def deterministic_iv(index):
+    """Generate deterministic 16-byte IV."""
+    return hashlib.sha256(b"reticulum_test_request_iv_" + str(index).encode()).digest()[:16]
+
+
+def token_encrypt_deterministic(plaintext, derived_key, iv):
+    """Encrypt using Token format with a deterministic IV.
+
+    Token format: IV(16) + AES-256-CBC(PKCS7(plaintext)) + HMAC-SHA256(32)
+    Key split: signing_key = derived_key[:32], encryption_key = derived_key[32:]
+    """
+    from RNS.Cryptography import HMAC, PKCS7
+    from RNS.Cryptography.AES import AES_256_CBC
+
+    signing_key = derived_key[:32]
+    encryption_key = derived_key[32:]
+
+    padded = PKCS7.pad(plaintext)
+    ciphertext = AES_256_CBC.encrypt(plaintext=padded, key=encryption_key, iv=iv)
+    signed_parts = iv + ciphertext
+    hmac_val = HMAC.new(signing_key, signed_parts).digest()
+    return signed_parts + hmac_val
+
+
+def token_decrypt(token_data, derived_key):
+    """Decrypt Token-encrypted data."""
+    from RNS.Cryptography.Token import Token
+    token = Token(key=derived_key)
+    return token.decrypt(token_data)
+
+
+def build_link_packet_flags():
+    """Compute flags byte for a link DATA packet with FLAG_SET.
+
+    flags = (HEADER_1<<6) | (FLAG_SET<<5) | (BROADCAST<<4) | (LINK<<2) | DATA
+          = (0<<6) | (1<<5) | (0<<4) | (3<<2) | 0 = 0x2C
+    """
+    return (HEADER_1 << 6) | (FLAG_SET << 5) | (BROADCAST << 4) | (DEST_LINK << 2) | PACKET_DATA
+
+
+def build_raw_packet(link_id, context_byte, token_data):
+    """Build raw packet bytes for a link DATA packet.
+
+    Header: flags(1) + hops(1) + link_id(16) + context(1) = 19 bytes
+    """
+    flags = build_link_packet_flags()
+    hops = 0
+    header = struct.pack("!B", flags) + struct.pack("!B", hops) + link_id + bytes([context_byte])
+    return header + token_data
+
+
+def get_hashable_part(raw):
+    """Compute hashable part of a raw packet (HEADER_1 format).
+
+    hashable_part = bytes([raw[0] & 0x0F]) + raw[2:]
+    """
+    return bytes([raw[0] & 0x0F]) + raw[2:]
+
+
+def get_truncated_hash(raw):
+    """Get truncated hash (request_id) of a raw packet."""
+    return truncated_hash(get_hashable_part(raw))
+
+
+# ============================================================
+# Extraction functions
+# ============================================================
+
+def extract_constants():
+    """Extract all request/response protocol constants."""
+    return {
+        "packet_contexts": {
+            "REQUEST": CONTEXT_REQUEST,
+            "REQUEST_hex": f"0x{CONTEXT_REQUEST:02x}",
+            "RESPONSE": CONTEXT_RESPONSE,
+            "RESPONSE_hex": f"0x{CONTEXT_RESPONSE:02x}",
+        },
+        "access_policies": {
+            "ALLOW_NONE": ALLOW_NONE,
+            "ALLOW_NONE_hex": f"0x{ALLOW_NONE:02x}",
+            "ALLOW_ALL": ALLOW_ALL,
+            "ALLOW_ALL_hex": f"0x{ALLOW_ALL:02x}",
+            "ALLOW_LIST": ALLOW_LIST,
+            "ALLOW_LIST_hex": f"0x{ALLOW_LIST:02x}",
+        },
+        "receipt_statuses": {
+            "FAILED": RECEIPT_FAILED,
+            "SENT": RECEIPT_SENT,
+            "DELIVERED": RECEIPT_DELIVERED,
+            "RECEIVING": RECEIPT_RECEIVING,
+            "READY": RECEIPT_READY,
+        },
+        "timeouts": {
+            "RESPONSE_MAX_GRACE_TIME": RESPONSE_MAX_GRACE_TIME,
+            "TRAFFIC_TIMEOUT_FACTOR": TRAFFIC_TIMEOUT_FACTOR,
+        },
+        "sizes": {
+            "LINK_MDU": LINK_MDU,
+            "LINK_MDU_derivation": f"floor(({MTU} - {IFAC_MIN_SIZE} - {HEADER_MINSIZE} - {TOKEN_OVERHEAD}) / {AES128_BLOCKSIZE}) * {AES128_BLOCKSIZE} - 1 = {LINK_MDU}",
+        },
+        "packet_flags": {
+            "link_data_flags": build_link_packet_flags(),
+            "link_data_flags_hex": f"0x{build_link_packet_flags():02x}",
+            "link_data_flags_description": "HEADER_1 | FLAG_SET | BROADCAST | LINK | DATA",
+            "link_data_flags_formula": "(0<<6) | (1<<5) | (0<<4) | (3<<2) | 0",
+        },
+    }
+
+
+def extract_path_hash_vectors():
+    """Extract path string → truncated hash vectors for handler routing."""
+    vectors = []
+
+    test_paths = [
+        ("/echo", "Simple echo path"),
+        ("/api/v1/status", "REST-style nested path"),
+        ("/random/text", "Random text path"),
+        ("/", "Single character path"),
+        ("/a/very/long/path/that/tests/deep/nesting/levels/in/the/routing/table", "Long deeply nested path"),
+    ]
+
+    for idx, (path, desc) in enumerate(test_paths):
+        path_bytes = path.encode("utf-8")
+        path_hash = truncated_hash(path_bytes)
+
+        vectors.append({
+            "index": idx,
+            "description": desc,
+            "path": path,
+            "path_bytes_hex": path_bytes.hex(),
+            "path_hash": path_hash.hex(),
+            "algorithm": "SHA256(path.encode('utf-8'))[:16]",
+        })
+
+    return vectors
+
+
+def extract_request_serialization_vectors():
+    """Extract request serialization vectors.
+
+    Request format: umsgpack.packb([timestamp, path_hash, data])
+    """
+    vectors = []
+
+    # Fixed timestamp for reproducibility
+    fixed_timestamp = 1700000000.0
+
+    test_cases = [
+        # (path, data, description)
+        ("/echo", None, "Request with None data"),
+        ("/echo", b"hello world", "Request with bytes data"),
+        ("/api/v1/status", {"key": "value", "count": 42}, "Request with dict data"),
+    ]
+
+    for idx, (path, data, desc) in enumerate(test_cases):
+        path_hash = truncated_hash(path.encode("utf-8"))
+        unpacked_request = [fixed_timestamp, path_hash, data]
+        packed_request = umsgpack.packb(unpacked_request)
+        fits_in_mdu = len(packed_request) <= LINK_MDU
+
+        vector = {
+            "index": idx,
+            "description": desc,
+            "path": path,
+            "timestamp": fixed_timestamp,
+            "path_hash": path_hash.hex(),
+            "data_description": "None" if data is None else type(data).__name__,
+            "packed_request_hex": packed_request.hex(),
+            "packed_request_length": len(packed_request),
+            "fits_in_mdu": fits_in_mdu,
+            "mdu": LINK_MDU,
+        }
+
+        if data is not None and isinstance(data, bytes):
+            vector["data_hex"] = data.hex()
+        elif data is not None and isinstance(data, dict):
+            vector["data_json"] = data
+
+        vectors.append(vector)
+
+    # Near-MDU case: data sized to make packed_request just fit
+    path = "/echo"
+    path_hash = truncated_hash(path.encode("utf-8"))
+    # Measure overhead: timestamp + path_hash + empty bytes
+    overhead_request = umsgpack.packb([fixed_timestamp, path_hash, b""])
+    overhead = len(overhead_request) - 1  # -1 for the empty bytes fixstr
+    # msgpack bin header overhead: 1 byte for fixstr up to 31, 2 bytes for bin8 up to 255
+    # We want total packed = LINK_MDU exactly
+    # For bin8 (length 32-255): header is 2 bytes; for bin16: 3 bytes
+    # packed = overhead + 2 + data_len (for bin8 range)
+    target_data_len = LINK_MDU - overhead - 2  # bin8: 0xc4 + length byte
+    if target_data_len > 255:
+        target_data_len = LINK_MDU - overhead - 3  # bin16
+
+    near_mdu_data = deterministic_data(100, target_data_len)
+    near_mdu_unpacked = [fixed_timestamp, path_hash, near_mdu_data]
+    near_mdu_packed = umsgpack.packb(near_mdu_unpacked)
+
+    # Adjust if not exact
+    while len(near_mdu_packed) > LINK_MDU:
+        target_data_len -= 1
+        near_mdu_data = deterministic_data(100, target_data_len)
+        near_mdu_unpacked = [fixed_timestamp, path_hash, near_mdu_data]
+        near_mdu_packed = umsgpack.packb(near_mdu_unpacked)
+
+    while len(near_mdu_packed) < LINK_MDU:
+        target_data_len += 1
+        near_mdu_data = deterministic_data(100, target_data_len)
+        near_mdu_unpacked = [fixed_timestamp, path_hash, near_mdu_data]
+        near_mdu_packed = umsgpack.packb(near_mdu_unpacked)
+
+    # Back off by 1 if we overshot
+    if len(near_mdu_packed) > LINK_MDU:
+        target_data_len -= 1
+        near_mdu_data = deterministic_data(100, target_data_len)
+        near_mdu_unpacked = [fixed_timestamp, path_hash, near_mdu_data]
+        near_mdu_packed = umsgpack.packb(near_mdu_unpacked)
+
+    vectors.append({
+        "index": len(vectors),
+        "description": "Request at exact MDU boundary (fits)",
+        "path": path,
+        "timestamp": fixed_timestamp,
+        "path_hash": path_hash.hex(),
+        "data_length": len(near_mdu_data),
+        "data_hex": near_mdu_data.hex(),
+        "packed_request_hex": near_mdu_packed.hex(),
+        "packed_request_length": len(near_mdu_packed),
+        "fits_in_mdu": len(near_mdu_packed) <= LINK_MDU,
+        "mdu": LINK_MDU,
+    })
+
+    # Over-MDU case: request that must go as Resource
+    over_mdu_data = deterministic_data(200, LINK_MDU)  # data alone is MDU-sized → packed > MDU
+    over_mdu_unpacked = [fixed_timestamp, path_hash, over_mdu_data]
+    over_mdu_packed = umsgpack.packb(over_mdu_unpacked)
+    assert len(over_mdu_packed) > LINK_MDU
+    over_mdu_request_id = truncated_hash(over_mdu_packed)
+
+    vectors.append({
+        "index": len(vectors),
+        "description": "Request exceeding MDU (sent as Resource)",
+        "path": path,
+        "timestamp": fixed_timestamp,
+        "path_hash": path_hash.hex(),
+        "data_length": len(over_mdu_data),
+        "data_hex_prefix": over_mdu_data[:32].hex() + f"... ({len(over_mdu_data)} bytes total)",
+        "packed_request_hex_prefix": over_mdu_packed[:32].hex() + f"... ({len(over_mdu_packed)} bytes total)",
+        "packed_request_length": len(over_mdu_packed),
+        "fits_in_mdu": False,
+        "mdu": LINK_MDU,
+        "request_id": over_mdu_request_id.hex(),
+        "request_id_algorithm": "truncated_hash(packed_request) — used for large requests sent as Resource",
+    })
+
+    return vectors
+
+
+def extract_response_serialization_vectors():
+    """Extract response serialization vectors.
+
+    Response format: umsgpack.packb([request_id, response_data])
+    """
+    vectors = []
+
+    # Use a deterministic request_id
+    fixed_request_id = truncated_hash(b"test_request_id_for_response_vectors")
+
+    test_cases = [
+        # (response_data, description)
+        ("echo response", "String response"),
+        (b"\x01\x02\x03\x04", "Bytes response"),
+        ({"status": "ok", "result": 123}, "Dict response"),
+    ]
+
+    for idx, (response_data, desc) in enumerate(test_cases):
+        packed_response = umsgpack.packb([fixed_request_id, response_data])
+        fits_in_mdu = len(packed_response) <= LINK_MDU
+
+        vector = {
+            "index": idx,
+            "description": desc,
+            "request_id": fixed_request_id.hex(),
+            "packed_response_hex": packed_response.hex(),
+            "packed_response_length": len(packed_response),
+            "fits_in_mdu": fits_in_mdu,
+            "mdu": LINK_MDU,
+        }
+
+        if isinstance(response_data, str):
+            vector["response_data"] = response_data
+        elif isinstance(response_data, bytes):
+            vector["response_data_hex"] = response_data.hex()
+        elif isinstance(response_data, dict):
+            vector["response_data_json"] = response_data
+
+        vectors.append(vector)
+
+    # Near-MDU response
+    overhead_response = umsgpack.packb([fixed_request_id, b""])
+    overhead = len(overhead_response) - 1
+    target_len = LINK_MDU - overhead - 2  # bin8 header
+    if target_len > 255:
+        target_len = LINK_MDU - overhead - 3
+
+    near_mdu_data = deterministic_data(300, target_len)
+    near_mdu_packed = umsgpack.packb([fixed_request_id, near_mdu_data])
+
+    while len(near_mdu_packed) > LINK_MDU:
+        target_len -= 1
+        near_mdu_data = deterministic_data(300, target_len)
+        near_mdu_packed = umsgpack.packb([fixed_request_id, near_mdu_data])
+
+    while len(near_mdu_packed) < LINK_MDU:
+        target_len += 1
+        near_mdu_data = deterministic_data(300, target_len)
+        near_mdu_packed = umsgpack.packb([fixed_request_id, near_mdu_data])
+
+    if len(near_mdu_packed) > LINK_MDU:
+        target_len -= 1
+        near_mdu_data = deterministic_data(300, target_len)
+        near_mdu_packed = umsgpack.packb([fixed_request_id, near_mdu_data])
+
+    vectors.append({
+        "index": len(vectors),
+        "description": "Response at exact MDU boundary (fits)",
+        "request_id": fixed_request_id.hex(),
+        "response_data_length": len(near_mdu_data),
+        "response_data_hex": near_mdu_data.hex(),
+        "packed_response_hex": near_mdu_packed.hex(),
+        "packed_response_length": len(near_mdu_packed),
+        "fits_in_mdu": len(near_mdu_packed) <= LINK_MDU,
+        "mdu": LINK_MDU,
+    })
+
+    # Over-MDU response
+    over_mdu_data = deterministic_data(400, LINK_MDU)
+    over_mdu_packed = umsgpack.packb([fixed_request_id, over_mdu_data])
+    assert len(over_mdu_packed) > LINK_MDU
+
+    vectors.append({
+        "index": len(vectors),
+        "description": "Response exceeding MDU (sent as Resource)",
+        "request_id": fixed_request_id.hex(),
+        "response_data_length": len(over_mdu_data),
+        "response_data_hex_prefix": over_mdu_data[:32].hex() + f"... ({len(over_mdu_data)} bytes total)",
+        "packed_response_hex_prefix": over_mdu_packed[:32].hex() + f"... ({len(over_mdu_packed)} bytes total)",
+        "packed_response_length": len(over_mdu_packed),
+        "fits_in_mdu": False,
+        "mdu": LINK_MDU,
+    })
+
+    return vectors
+
+
+def extract_small_request_wire_vectors(derived_key, link_id):
+    """Extract full encrypted packet construction for small requests.
+
+    For requests that fit in MDU:
+    1. Pack request: umsgpack.packb([timestamp, path_hash, data])
+    2. Encrypt: Token(derived_key).encrypt(packed_request) with deterministic IV
+    3. Build header: flags(1) + hops(1) + link_id(16) + context(1) = 19 bytes
+    4. raw = header + token_data
+    5. hashable_part = bytes([raw[0] & 0x0F]) + raw[2:]
+    6. request_id = truncated_hash(hashable_part)
+    """
+    vectors = []
+
+    fixed_timestamp = 1700000000.0
+
+    test_cases = [
+        # (path, data, iv_index, description)
+        ("/echo", None, 0, "Small request: None data"),
+        ("/echo", b"hello", 1, "Small request: bytes data"),
+        ("/api/v1/status", {"query": "test"}, 2, "Small request: dict data"),
+    ]
+
+    for idx, (path, data, iv_index, desc) in enumerate(test_cases):
+        path_hash = truncated_hash(path.encode("utf-8"))
+        unpacked_request = [fixed_timestamp, path_hash, data]
+        packed_request = umsgpack.packb(unpacked_request)
+        assert len(packed_request) <= LINK_MDU, f"Test case {idx} exceeds MDU"
+
+        iv = deterministic_iv(iv_index)
+        token_data = token_encrypt_deterministic(packed_request, derived_key, iv)
+
+        raw = build_raw_packet(link_id, CONTEXT_REQUEST, token_data)
+        hashable_part = get_hashable_part(raw)
+        request_id = truncated_hash(hashable_part)
+
+        # Verify decryption round-trip
+        decrypted = token_decrypt(token_data, derived_key)
+        assert decrypted == packed_request, f"Decryption round-trip failed for case {idx}"
+
+        # Verify unpacking
+        unpacked = umsgpack.unpackb(decrypted)
+        assert unpacked[1] == path_hash, f"Path hash mismatch for case {idx}"
+
+        vectors.append({
+            "index": idx,
+            "description": desc,
+            "path": path,
+            "timestamp": fixed_timestamp,
+            "path_hash": path_hash.hex(),
+            "data_description": "None" if data is None else type(data).__name__,
+            "packed_request_hex": packed_request.hex(),
+            "packed_request_length": len(packed_request),
+            "iv": iv.hex(),
+            "token_data_hex": token_data.hex(),
+            "token_data_length": len(token_data),
+            "flags_byte": f"0x{build_link_packet_flags():02x}",
+            "context_byte": f"0x{CONTEXT_REQUEST:02x}",
+            "link_id": link_id.hex(),
+            "raw_packet_hex": raw.hex(),
+            "raw_packet_length": len(raw),
+            "hashable_part_hex": hashable_part.hex(),
+            "hashable_part_length": len(hashable_part),
+            "request_id": request_id.hex(),
+            "request_id_algorithm": "truncated_hash(hashable_part) where hashable_part = bytes([raw[0] & 0x0F]) + raw[2:]",
+        })
+
+    return vectors
+
+
+def extract_small_response_wire_vectors(derived_key, link_id, request_ids):
+    """Extract full encrypted packet construction for small responses.
+
+    Response payload: umsgpack.packb([request_id, response_data])
+    Context: RESPONSE (0x0A)
+    """
+    vectors = []
+
+    test_cases = [
+        # (request_id_index, response_data, iv_index, description)
+        (0, "echo reply", 10, "Small response: string data"),
+        (1, b"\xde\xad\xbe\xef", 11, "Small response: bytes data"),
+        (2, {"status": "ok"}, 12, "Small response: dict data"),
+    ]
+
+    for idx, (req_id_idx, response_data, iv_index, desc) in enumerate(test_cases):
+        request_id = request_ids[req_id_idx]
+        packed_response = umsgpack.packb([request_id, response_data])
+        assert len(packed_response) <= LINK_MDU, f"Response case {idx} exceeds MDU"
+
+        iv = deterministic_iv(iv_index)
+        token_data = token_encrypt_deterministic(packed_response, derived_key, iv)
+
+        raw = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data)
+        hashable_part = get_hashable_part(raw)
+        packet_hash = full_hash(hashable_part)
+
+        # Verify decryption round-trip
+        decrypted = token_decrypt(token_data, derived_key)
+        assert decrypted == packed_response, f"Response decryption round-trip failed for case {idx}"
+
+        # Verify unpacking
+        unpacked = umsgpack.unpackb(decrypted)
+        assert unpacked[0] == request_id, f"Request ID mismatch in response for case {idx}"
+
+        vector = {
+            "index": idx,
+            "description": desc,
+            "request_id": request_id.hex(),
+            "packed_response_hex": packed_response.hex(),
+            "packed_response_length": len(packed_response),
+            "iv": iv.hex(),
+            "token_data_hex": token_data.hex(),
+            "token_data_length": len(token_data),
+            "flags_byte": f"0x{build_link_packet_flags():02x}",
+            "context_byte": f"0x{CONTEXT_RESPONSE:02x}",
+            "link_id": link_id.hex(),
+            "raw_packet_hex": raw.hex(),
+            "raw_packet_length": len(raw),
+            "hashable_part_hex": hashable_part.hex(),
+            "hashable_part_length": len(hashable_part),
+            "packet_hash": packet_hash.hex(),
+        }
+
+        if isinstance(response_data, str):
+            vector["response_data"] = response_data
+        elif isinstance(response_data, bytes):
+            vector["response_data_hex"] = response_data.hex()
+        elif isinstance(response_data, dict):
+            vector["response_data_json"] = response_data
+
+        vectors.append(vector)
+
+    return vectors
+
+
+def extract_large_request_resource_vectors():
+    """Extract vectors for requests/responses that exceed MDU and go as Resources.
+
+    For large requests:
+    - request_id = truncated_hash(packed_request)
+    - Resource created with: request_id=request_id, is_response=False
+
+    For large responses:
+    - Resource created with: request_id=request_id, is_response=True
+    - packed_response = umsgpack.packb([request_id, response_data])
+    """
+    vectors = []
+
+    fixed_timestamp = 1700000000.0
+
+    # Large request
+    path = "/upload"
+    path_hash = truncated_hash(path.encode("utf-8"))
+    large_data = deterministic_data(500, LINK_MDU + 100)
+    unpacked_request = [fixed_timestamp, path_hash, large_data]
+    packed_request = umsgpack.packb(unpacked_request)
+    assert len(packed_request) > LINK_MDU
+    request_id = truncated_hash(packed_request)
+
+    vectors.append({
+        "index": 0,
+        "description": "Large request sent as Resource",
+        "type": "request",
+        "path": path,
+        "timestamp": fixed_timestamp,
+        "path_hash": path_hash.hex(),
+        "data_length": len(large_data),
+        "packed_request_length": len(packed_request),
+        "exceeds_mdu": True,
+        "request_id": request_id.hex(),
+        "request_id_algorithm": "truncated_hash(packed_request)",
+        "resource_params": {
+            "is_response": False,
+            "request_id": request_id.hex(),
+        },
+        "receiver_side": {
+            "note": "Receiver computes request_id = truncated_hash(packed_request) after resource transfer completes",
+            "unpacked_structure": "[timestamp, path_hash, data]",
+        },
+    })
+
+    # Large response
+    large_response_data = deterministic_data(600, LINK_MDU + 100)
+    packed_response = umsgpack.packb([request_id, large_response_data])
+    assert len(packed_response) > LINK_MDU
+
+    vectors.append({
+        "index": 1,
+        "description": "Large response sent as Resource",
+        "type": "response",
+        "request_id": request_id.hex(),
+        "response_data_length": len(large_response_data),
+        "packed_response_length": len(packed_response),
+        "exceeds_mdu": True,
+        "resource_params": {
+            "is_response": True,
+            "request_id": request_id.hex(),
+        },
+        "receiver_side": {
+            "note": "Receiver unpacks: [request_id, response_data] = umsgpack.unpackb(resource.data.read())",
+            "unpacked_structure": "[request_id, response_data]",
+        },
+    })
+
+    return vectors
+
+
+def extract_policy_vectors(keypairs):
+    """Extract access policy enforcement vectors.
+
+    Logic from Link.handle_request():
+      allowed = False
+      if allow != ALLOW_NONE:
+          if allow == ALLOW_LIST:
+              if remote_identity is not None and remote_identity.hash in allowed_list:
+                  allowed = True
+          elif allow == ALLOW_ALL:
+              allowed = True
+    """
+    vectors = []
+
+    identity_hash_0 = bytes.fromhex(keypairs[0]["identity_hash"])
+    identity_hash_1 = bytes.fromhex(keypairs[1]["identity_hash"])
+    allowed_list = [identity_hash_0]
+
+    cases = [
+        # (policy, remote_identity_hash, expected, description)
+        (ALLOW_NONE, identity_hash_0, False, "ALLOW_NONE: always blocked (even with valid identity)"),
+        (ALLOW_NONE, None, False, "ALLOW_NONE: always blocked (no identity)"),
+        (ALLOW_ALL, identity_hash_0, True, "ALLOW_ALL: always allowed (with identity)"),
+        (ALLOW_ALL, None, True, "ALLOW_ALL: always allowed (no identity)"),
+        (ALLOW_LIST, identity_hash_0, True, "ALLOW_LIST: identity in list → allowed"),
+        (ALLOW_LIST, identity_hash_1, False, "ALLOW_LIST: identity not in list → blocked"),
+        (ALLOW_LIST, None, False, "ALLOW_LIST: no identity (unidentified peer) → blocked"),
+    ]
+
+    policy_names = {ALLOW_NONE: "ALLOW_NONE", ALLOW_ALL: "ALLOW_ALL", ALLOW_LIST: "ALLOW_LIST"}
+
+    for idx, (policy, remote_hash, expected, desc) in enumerate(cases):
+        vector = {
+            "index": idx,
+            "description": desc,
+            "policy": policy,
+            "policy_name": policy_names[policy],
+            "remote_identity_hash": remote_hash.hex() if remote_hash else None,
+            "allowed_list": [h.hex() for h in allowed_list],
+            "expected_allowed": expected,
+        }
+
+        # Reproduce the logic
+        allowed = False
+        if not policy == ALLOW_NONE:
+            if policy == ALLOW_LIST:
+                if remote_hash is not None and remote_hash in allowed_list:
+                    allowed = True
+            elif policy == ALLOW_ALL:
+                allowed = True
+
+        assert allowed == expected, f"Policy case {idx}: expected {expected}, got {allowed}"
+        vector["computed_allowed"] = allowed
+        vectors.append(vector)
+
+    return vectors
+
+
+def extract_timeout_vectors():
+    """Extract timeout computation vectors.
+
+    Formula: timeout = rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125
+    """
+    vectors = []
+
+    rtt_values = [0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
+
+    for idx, rtt in enumerate(rtt_values):
+        timeout = rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125
+        vectors.append({
+            "index": idx,
+            "description": f"Timeout for RTT={rtt}s",
+            "rtt": rtt,
+            "traffic_timeout_factor": TRAFFIC_TIMEOUT_FACTOR,
+            "response_max_grace_time": RESPONSE_MAX_GRACE_TIME,
+            "grace_multiplier": 1.125,
+            "timeout": timeout,
+            "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+            "computation": f"{rtt} * {TRAFFIC_TIMEOUT_FACTOR} + {RESPONSE_MAX_GRACE_TIME} * 1.125 = {rtt * TRAFFIC_TIMEOUT_FACTOR} + {RESPONSE_MAX_GRACE_TIME * 1.125} = {timeout}",
+        })
+
+    return vectors
+
+
+def extract_round_trip_vectors(derived_key, link_id):
+    """Extract complete request/response lifecycle vectors.
+
+    1. Handler registration: path → path_hash
+    2. Request packing and encryption
+    3. request_id derivation from raw packet
+    4. Receiver: decrypt, unpack, handler lookup by path_hash
+    5. Response generation, packing, encryption
+    6. Initiator: decrypt, unpack, match request_id
+    """
+    vectors = []
+
+    # Round-trip 0: Simple echo
+    path = "/echo"
+    request_data = b"ping"
+    response_data = b"pong"
+    fixed_timestamp = 1700000000.0
+
+    # Step 1: Handler registration
+    path_hash = truncated_hash(path.encode("utf-8"))
+
+    # Step 2: Request packing
+    unpacked_request = [fixed_timestamp, path_hash, request_data]
+    packed_request = umsgpack.packb(unpacked_request)
+    assert len(packed_request) <= LINK_MDU
+
+    # Step 3: Encrypt request
+    iv_req = deterministic_iv(50)
+    token_data_req = token_encrypt_deterministic(packed_request, derived_key, iv_req)
+    raw_req = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req)
+    hashable_part_req = get_hashable_part(raw_req)
+    request_id = truncated_hash(hashable_part_req)
+
+    # Step 4: Receiver decrypts and unpacks
+    decrypted_request = token_decrypt(token_data_req, derived_key)
+    assert decrypted_request == packed_request
+    unpacked_at_receiver = umsgpack.unpackb(decrypted_request)
+    received_timestamp = unpacked_at_receiver[0]
+    received_path_hash = unpacked_at_receiver[1]
+    received_data = unpacked_at_receiver[2]
+    assert received_path_hash == path_hash
+    assert received_data == request_data
+
+    # Step 5: Response generation and encryption
+    packed_response = umsgpack.packb([request_id, response_data])
+    assert len(packed_response) <= LINK_MDU
+
+    iv_resp = deterministic_iv(51)
+    token_data_resp = token_encrypt_deterministic(packed_response, derived_key, iv_resp)
+    raw_resp = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp)
+
+    # Step 6: Initiator decrypts and matches
+    decrypted_response = token_decrypt(token_data_resp, derived_key)
+    assert decrypted_response == packed_response
+    unpacked_response = umsgpack.unpackb(decrypted_response)
+    response_request_id = unpacked_response[0]
+    response_payload = unpacked_response[1]
+    assert response_request_id == request_id
+    assert response_payload == response_data
+
+    vectors.append({
+        "index": 0,
+        "description": "Complete echo request/response lifecycle",
+        "path": path,
+        "timestamp": fixed_timestamp,
+        "request_data_hex": request_data.hex(),
+        "response_data_hex": response_data.hex(),
+        "step_1_registration": {
+            "path": path,
+            "path_hash": path_hash.hex(),
+        },
+        "step_2_request_packing": {
+            "unpacked_request": f"[{fixed_timestamp}, path_hash, request_data]",
+            "packed_request_hex": packed_request.hex(),
+            "packed_request_length": len(packed_request),
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req.hex(),
+            "token_data_hex": token_data_req.hex(),
+            "raw_packet_hex": raw_req.hex(),
+            "raw_packet_length": len(raw_req),
+            "hashable_part_hex": hashable_part_req.hex(),
+            "request_id": request_id.hex(),
+        },
+        "step_4_receiver_decrypt": {
+            "decrypted_matches": decrypted_request == packed_request,
+            "received_timestamp": received_timestamp,
+            "received_path_hash": received_path_hash.hex(),
+            "received_data_hex": received_data.hex() if isinstance(received_data, bytes) else str(received_data),
+            "path_hash_lookup_matches": received_path_hash == path_hash,
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response.hex(),
+            "packed_response_length": len(packed_response),
+            "iv": iv_resp.hex(),
+            "token_data_hex": token_data_resp.hex(),
+            "raw_packet_hex": raw_resp.hex(),
+            "raw_packet_length": len(raw_resp),
+        },
+        "step_6_initiator_decrypt": {
+            "decrypted_matches": decrypted_response == packed_response,
+            "response_request_id": response_request_id.hex(),
+            "response_request_id_matches": response_request_id == request_id,
+            "response_payload_hex": response_payload.hex() if isinstance(response_payload, bytes) else str(response_payload),
+            "payload_matches": response_payload == response_data,
+        },
+        "verified": True,
+    })
+
+    # Round-trip 1: Dict request/response with string path
+    path2 = "/api/v1/query"
+    request_data2 = {"action": "lookup", "id": 42}
+    response_data2 = {"status": "found", "name": "test_item"}
+    fixed_timestamp2 = 1700000001.0
+
+    path_hash2 = truncated_hash(path2.encode("utf-8"))
+    unpacked_request2 = [fixed_timestamp2, path_hash2, request_data2]
+    packed_request2 = umsgpack.packb(unpacked_request2)
+    assert len(packed_request2) <= LINK_MDU
+
+    iv_req2 = deterministic_iv(52)
+    token_data_req2 = token_encrypt_deterministic(packed_request2, derived_key, iv_req2)
+    raw_req2 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req2)
+    hashable_part_req2 = get_hashable_part(raw_req2)
+    request_id2 = truncated_hash(hashable_part_req2)
+
+    decrypted_request2 = token_decrypt(token_data_req2, derived_key)
+    assert decrypted_request2 == packed_request2
+
+    packed_response2 = umsgpack.packb([request_id2, response_data2])
+    assert len(packed_response2) <= LINK_MDU
+
+    iv_resp2 = deterministic_iv(53)
+    token_data_resp2 = token_encrypt_deterministic(packed_response2, derived_key, iv_resp2)
+    raw_resp2 = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp2)
+
+    decrypted_response2 = token_decrypt(token_data_resp2, derived_key)
+    unpacked_response2 = umsgpack.unpackb(decrypted_response2)
+    assert unpacked_response2[0] == request_id2
+
+    vectors.append({
+        "index": 1,
+        "description": "Dict request/response lifecycle",
+        "path": path2,
+        "timestamp": fixed_timestamp2,
+        "request_data_json": request_data2,
+        "response_data_json": response_data2,
+        "step_1_registration": {
+            "path": path2,
+            "path_hash": path_hash2.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_hex": packed_request2.hex(),
+            "packed_request_length": len(packed_request2),
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req2.hex(),
+            "token_data_hex": token_data_req2.hex(),
+            "raw_packet_hex": raw_req2.hex(),
+            "raw_packet_length": len(raw_req2),
+            "hashable_part_hex": hashable_part_req2.hex(),
+            "request_id": request_id2.hex(),
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response2.hex(),
+            "packed_response_length": len(packed_response2),
+            "iv": iv_resp2.hex(),
+            "token_data_hex": token_data_resp2.hex(),
+            "raw_packet_hex": raw_resp2.hex(),
+            "raw_packet_length": len(raw_resp2),
+        },
+        "step_6_initiator_decrypt": {
+            "response_request_id": unpacked_response2[0].hex(),
+            "response_request_id_matches": unpacked_response2[0] == request_id2,
+        },
+        "verified": True,
+    })
+
+    return vectors
+
+
+# ============================================================
+# Verification
+# ============================================================
+
+def verify(output, derived_key):
+    """Cross-validate all vectors."""
+    print("  Verifying...")
+
+    # 1. Path hash vectors
+    for pv in output["path_hash_vectors"]:
+        path_bytes = pv["path"].encode("utf-8")
+        computed = truncated_hash(path_bytes)
+        assert computed.hex() == pv["path_hash"], f"Path hash {pv['index']}: mismatch"
+    print(f"    [OK] {len(output['path_hash_vectors'])} path hash vectors verified")
+
+    # 2. Request serialization round-trip
+    for rv in output["request_serialization_vectors"]:
+        packed = bytes.fromhex(rv["packed_request_hex"]) if "packed_request_hex" in rv else None
+        if packed:
+            unpacked = umsgpack.unpackb(packed)
+            assert isinstance(unpacked, list) and len(unpacked) == 3
+            assert unpacked[0] == rv["timestamp"]
+            assert unpacked[1] == bytes.fromhex(rv["path_hash"])
+            repacked = umsgpack.packb(unpacked)
+            assert repacked == packed, f"Request serialization {rv['index']}: repack mismatch"
+    print(f"    [OK] {len(output['request_serialization_vectors'])} request serialization vectors verified")
+
+    # 3. Response serialization round-trip
+    for rv in output["response_serialization_vectors"]:
+        packed = bytes.fromhex(rv["packed_response_hex"]) if "packed_response_hex" in rv else None
+        if packed:
+            unpacked = umsgpack.unpackb(packed)
+            assert isinstance(unpacked, list) and len(unpacked) == 2
+            assert unpacked[0] == bytes.fromhex(rv["request_id"])
+            repacked = umsgpack.packb(unpacked)
+            assert repacked == packed, f"Response serialization {rv['index']}: repack mismatch"
+    print(f"    [OK] {len(output['response_serialization_vectors'])} response serialization vectors verified")
+
+    # 4. Small request wire vectors: decrypt and verify
+    for wv in output["small_request_wire_vectors"]:
+        token_data = bytes.fromhex(wv["token_data_hex"])
+        decrypted = token_decrypt(token_data, derived_key)
+        packed_request = bytes.fromhex(wv["packed_request_hex"])
+        assert decrypted == packed_request, f"Wire request {wv['index']}: decrypt mismatch"
+
+        # Verify request_id derivation
+        raw = bytes.fromhex(wv["raw_packet_hex"])
+        hashable = get_hashable_part(raw)
+        assert hashable.hex() == wv["hashable_part_hex"], f"Wire request {wv['index']}: hashable part mismatch"
+        request_id = truncated_hash(hashable)
+        assert request_id.hex() == wv["request_id"], f"Wire request {wv['index']}: request_id mismatch"
+    print(f"    [OK] {len(output['small_request_wire_vectors'])} small request wire vectors verified")
+
+    # 5. Small response wire vectors: decrypt and verify
+    for wv in output["small_response_wire_vectors"]:
+        token_data = bytes.fromhex(wv["token_data_hex"])
+        decrypted = token_decrypt(token_data, derived_key)
+        packed_response = bytes.fromhex(wv["packed_response_hex"])
+        assert decrypted == packed_response, f"Wire response {wv['index']}: decrypt mismatch"
+    print(f"    [OK] {len(output['small_response_wire_vectors'])} small response wire vectors verified")
+
+    # 6. Policy enforcement
+    for pv in output["policy_vectors"]:
+        assert pv["computed_allowed"] == pv["expected_allowed"], f"Policy {pv['index']}: mismatch"
+    print(f"    [OK] {len(output['policy_vectors'])} policy vectors verified")
+
+    # 7. Timeout computation
+    for tv in output["timeout_vectors"]:
+        computed = tv["rtt"] * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125
+        assert abs(computed - tv["timeout"]) < 1e-10, f"Timeout {tv['index']}: mismatch"
+    print(f"    [OK] {len(output['timeout_vectors'])} timeout vectors verified")
+
+    # 8. Round-trip integration
+    for rv in output["round_trip_vectors"]:
+        assert rv["verified"] is True, f"Round-trip {rv['index']}: verification failed"
+    print(f"    [OK] {len(output['round_trip_vectors'])} round-trip vectors verified")
+
+    # JSON round-trip integrity
+    json_str = json.dumps(output, indent=2)
+    assert json.loads(json_str) == output, "JSON round-trip failed"
+    print("    [OK] JSON round-trip integrity verified")
+
+
+def verify_library_constants():
+    """Verify our local constants match the actual RNS library values."""
+    import RNS
+
+    assert CONTEXT_REQUEST == RNS.Packet.REQUEST, f"REQUEST: {CONTEXT_REQUEST} != {RNS.Packet.REQUEST}"
+    assert CONTEXT_RESPONSE == RNS.Packet.RESPONSE, f"RESPONSE: {CONTEXT_RESPONSE} != {RNS.Packet.RESPONSE}"
+    assert ALLOW_NONE == RNS.Destination.ALLOW_NONE, f"ALLOW_NONE: {ALLOW_NONE} != {RNS.Destination.ALLOW_NONE}"
+    assert ALLOW_ALL == RNS.Destination.ALLOW_ALL, f"ALLOW_ALL: {ALLOW_ALL} != {RNS.Destination.ALLOW_ALL}"
+    assert ALLOW_LIST == RNS.Destination.ALLOW_LIST, f"ALLOW_LIST: {ALLOW_LIST} != {RNS.Destination.ALLOW_LIST}"
+    assert RESPONSE_MAX_GRACE_TIME == RNS.Resource.RESPONSE_MAX_GRACE_TIME
+    assert TOKEN_OVERHEAD == RNS.Identity.TOKEN_OVERHEAD
+    assert LINK_MDU == math.floor((MTU - IFAC_MIN_SIZE - RNS.Reticulum.HEADER_MINSIZE - RNS.Identity.TOKEN_OVERHEAD) / RNS.Identity.AES128_BLOCKSIZE) * RNS.Identity.AES128_BLOCKSIZE - 1
+
+    from RNS.Link import RequestReceipt
+    assert RECEIPT_FAILED == RequestReceipt.FAILED
+    assert RECEIPT_SENT == RequestReceipt.SENT
+    assert RECEIPT_DELIVERED == RequestReceipt.DELIVERED
+    assert RECEIPT_RECEIVING == RequestReceipt.RECEIVING
+    assert RECEIPT_READY == RequestReceipt.READY
+
+    print("  [OK] All library constants verified")
+
+
+# ============================================================
+# Main
+# ============================================================
+
+def main():
+    print("Extracting request/response protocol test vectors...")
+
+    print("Verifying library constants...")
+    verify_library_constants()
+
+    # Load prerequisite data
+    links_data = load_links_json()
+    keypairs = load_keypairs()
+
+    # Use handshake_vectors[0] for derived_key and link_id
+    handshake = links_data["handshake_vectors"][0]
+    derived_key = bytes.fromhex(handshake["step_2_lrproof"]["derived_key"])
+    link_id = bytes.fromhex(handshake["step_1_linkrequest"]["link_id"])
+
+    print("Extracting constants...")
+    constants = extract_constants()
+
+    print("Extracting path hash vectors...")
+    path_hash_vectors = extract_path_hash_vectors()
+    print(f"  Extracted {len(path_hash_vectors)} path hash vectors")
+
+    print("Extracting request serialization vectors...")
+    req_ser_vectors = extract_request_serialization_vectors()
+    print(f"  Extracted {len(req_ser_vectors)} request serialization vectors")
+
+    print("Extracting response serialization vectors...")
+    resp_ser_vectors = extract_response_serialization_vectors()
+    print(f"  Extracted {len(resp_ser_vectors)} response serialization vectors")
+
+    print("Extracting small request wire vectors...")
+    small_req_vectors = extract_small_request_wire_vectors(derived_key, link_id)
+    print(f"  Extracted {len(small_req_vectors)} small request wire vectors")
+
+    # Collect request_ids from wire vectors for response construction
+    request_ids = [bytes.fromhex(v["request_id"]) for v in small_req_vectors]
+
+    print("Extracting small response wire vectors...")
+    small_resp_vectors = extract_small_response_wire_vectors(derived_key, link_id, request_ids)
+    print(f"  Extracted {len(small_resp_vectors)} small response wire vectors")
+
+    print("Extracting large request/response resource vectors...")
+    large_vectors = extract_large_request_resource_vectors()
+    print(f"  Extracted {len(large_vectors)} large request/response resource vectors")
+
+    print("Extracting policy enforcement vectors...")
+    policy_vectors = extract_policy_vectors(keypairs)
+    print(f"  Extracted {len(policy_vectors)} policy enforcement vectors")
+
+    print("Extracting timeout vectors...")
+    timeout_vectors = extract_timeout_vectors()
+    print(f"  Extracted {len(timeout_vectors)} timeout vectors")
+
+    print("Extracting round-trip integration vectors...")
+    rt_vectors = extract_round_trip_vectors(derived_key, link_id)
+    print(f"  Extracted {len(rt_vectors)} round-trip vectors")
+
+    output = {
+        "description": "Reticulum v1.1.3 - request/response protocol test vectors",
+        "source": "RNS/Link.py, RNS/Destination.py, RNS/Packet.py, RNS/Resource.py",
+        "handshake_reference": "handshake_vectors[0] from links.json",
+        "constants": constants,
+        "path_hash_vectors": path_hash_vectors,
+        "request_serialization_vectors": req_ser_vectors,
+        "response_serialization_vectors": resp_ser_vectors,
+        "small_request_wire_vectors": small_req_vectors,
+        "small_response_wire_vectors": small_resp_vectors,
+        "large_request_resource_vectors": large_vectors,
+        "policy_vectors": policy_vectors,
+        "timeout_vectors": timeout_vectors,
+        "round_trip_vectors": rt_vectors,
+    }
+
+    verify(output, derived_key)
+
+    print(f"Writing {OUTPUT_PATH}...")
+    with open(OUTPUT_PATH, "w") as f:
+        json.dump(output, f, indent=2)
+        f.write("\n")
+
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()

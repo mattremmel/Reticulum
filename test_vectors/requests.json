@@ -1,0 +1,661 @@
+{
+  "description": "Reticulum v1.1.3 - request/response protocol test vectors",
+  "source": "RNS/Link.py, RNS/Destination.py, RNS/Packet.py, RNS/Resource.py",
+  "handshake_reference": "handshake_vectors[0] from links.json",
+  "constants": {
+    "packet_contexts": {
+      "REQUEST": 9,
+      "REQUEST_hex": "0x09",
+      "RESPONSE": 10,
+      "RESPONSE_hex": "0x0a"
+    },
+    "access_policies": {
+      "ALLOW_NONE": 0,
+      "ALLOW_NONE_hex": "0x00",
+      "ALLOW_ALL": 1,
+      "ALLOW_ALL_hex": "0x01",
+      "ALLOW_LIST": 2,
+      "ALLOW_LIST_hex": "0x02"
+    },
+    "receipt_statuses": {
+      "FAILED": 0,
+      "SENT": 1,
+      "DELIVERED": 2,
+      "RECEIVING": 3,
+      "READY": 4
+    },
+    "timeouts": {
+      "RESPONSE_MAX_GRACE_TIME": 10,
+      "TRAFFIC_TIMEOUT_FACTOR": 6
+    },
+    "sizes": {
+      "LINK_MDU": 431,
+      "LINK_MDU_derivation": "floor((500 - 1 - 19 - 48) / 16) * 16 - 1 = 431"
+    },
+    "packet_flags": {
+      "link_data_flags": 44,
+      "link_data_flags_hex": "0x2c",
+      "link_data_flags_description": "HEADER_1 | FLAG_SET | BROADCAST | LINK | DATA",
+      "link_data_flags_formula": "(0<<6) | (1<<5) | (0<<4) | (3<<2) | 0"
+    }
+  },
+  "path_hash_vectors": [
+    {
+      "index": 0,
+      "description": "Simple echo path",
+      "path": "/echo",
+      "path_bytes_hex": "2f6563686f",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+    },
+    {
+      "index": 1,
+      "description": "REST-style nested path",
+      "path": "/api/v1/status",
+      "path_bytes_hex": "2f6170692f76312f737461747573",
+      "path_hash": "212e3326ed94d54abc342a251f15ffe2",
+      "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+    },
+    {
+      "index": 2,
+      "description": "Random text path",
+      "path": "/random/text",
+      "path_bytes_hex": "2f72616e646f6d2f74657874",
+      "path_hash": "30d556223053286230bcb323a600c202",
+      "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+    },
+    {
+      "index": 3,
+      "description": "Single character path",
+      "path": "/",
+      "path_bytes_hex": "2f",
+      "path_hash": "8a5edab282632443219e051e4ade2d1d",
+      "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+    },
+    {
+      "index": 4,
+      "description": "Long deeply nested path",
+      "path": "/a/very/long/path/that/tests/deep/nesting/levels/in/the/routing/table",
+      "path_bytes_hex": "2f612f766572792f6c6f6e672f706174682f746861742f74657374732f646565702f6e657374696e672f6c6576656c732f696e2f7468652f726f7574696e672f7461626c65",
+      "path_hash": "49b47a27a3ad98305291ecca574a5675",
+      "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+    }
+  ],
+  "request_serialization_vectors": [
+    {
+      "index": 0,
+      "description": "Request with None data",
+      "path": "/echo",
+      "timestamp": 1700000000.0,
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "data_description": "None",
+      "packed_request_hex": "93cb41d954fc40000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c0",
+      "packed_request_length": 29,
+      "fits_in_mdu": true,
+      "mdu": 431
+    },
+    {
+      "index": 1,
+      "description": "Request with bytes data",
+      "path": "/echo",
+      "timestamp": 1700000000.0,
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "data_description": "bytes",
+      "packed_request_hex": "93cb41d954fc40000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c40b68656c6c6f20776f726c64",
+      "packed_request_length": 41,
+      "fits_in_mdu": true,
+      "mdu": 431,
+      "data_hex": "68656c6c6f20776f726c64"
+    },
+    {
+      "index": 2,
+      "description": "Request with dict data",
+      "path": "/api/v1/status",
+      "timestamp": 1700000000.0,
+      "path_hash": "212e3326ed94d54abc342a251f15ffe2",
+      "data_description": "dict",
+      "packed_request_hex": "93cb41d954fc40000000c410212e3326ed94d54abc342a251f15ffe282a36b6579a576616c7565a5636f756e742a",
+      "packed_request_length": 46,
+      "fits_in_mdu": true,
+      "mdu": 431,
+      "data_json": {
+        "key": "value",
+        "count": 42
+      }
+    },
+    {
+      "index": 3,
+      "description": "Request at exact MDU boundary (fits)",
+      "path": "/echo",
+      "timestamp": 1700000000.0,
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "data_length": 400,
+      "data_hex": "d4a16ab00f8553d22c725b6ef13aa536d50b0b073224d7f93e2b66cae0bc8de8ba665ba5260f402f4f849320b4da591dde1f238f7a967c05f51378a89c9079131cbb4242f2acc2f76034ad364ecb0ed2c0ce6d2c7360ff31aa4fcdb8d54834d3cda2c9cb6962ea76ff44aa124c4c10084d08a5113bce1f6e95a3d78f2d3e9c0dfb6e47481a56f82585445e2ebd3438d19515f4de17163cc321e246cde221aa8ae66d64e6dc9019ce6dda55a87e2ada987f6fa1e9abc844a7e31bf0aab2e4c2c3323d6e022187a46f34a25df204b1c516047afb370b2e77e3f57d062c484bce4ac32001ac679cf3771219628ce6507c70c321a6476afad7cd4407a4f9ce0c1bd6d5843c4ef3fc89e23f2db2078a9e7dc8698e3fadd3024dc10983972d4c2152bec2c4a1be6b4f94bf6289e5f413e8ccf6b665f44a7f03460e0370af051960558e1a3c6e1001139ec3daa0e8fa2afc94e2c7968cd606e1c80ddb78123c4eaab3e04b2ef8ccbef5080a5bf15b8bfcfadbc6fb9ce64c62e3de9df73d35daed6c2233ee04ede0d879c8ff1fed57e24937bf26",
+      "packed_request_hex": "93cb41d954fc40000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c50190d4a16ab00f8553d22c725b6ef13aa536d50b0b073224d7f93e2b66cae0bc8de8ba665ba5260f402f4f849320b4da591dde1f238f7a967c05f51378a89c9079131cbb4242f2acc2f76034ad364ecb0ed2c0ce6d2c7360ff31aa4fcdb8d54834d3cda2c9cb6962ea76ff44aa124c4c10084d08a5113bce1f6e95a3d78f2d3e9c0dfb6e47481a56f82585445e2ebd3438d19515f4de17163cc321e246cde221aa8ae66d64e6dc9019ce6dda55a87e2ada987f6fa1e9abc844a7e31bf0aab2e4c2c3323d6e022187a46f34a25df204b1c516047afb370b2e77e3f57d062c484bce4ac32001ac679cf3771219628ce6507c70c321a6476afad7cd4407a4f9ce0c1bd6d5843c4ef3fc89e23f2db2078a9e7dc8698e3fadd3024dc10983972d4c2152bec2c4a1be6b4f94bf6289e5f413e8ccf6b665f44a7f03460e0370af051960558e1a3c6e1001139ec3daa0e8fa2afc94e2c7968cd606e1c80ddb78123c4eaab3e04b2ef8ccbef5080a5bf15b8bfcfadbc6fb9ce64c62e3de9df73d35daed6c2233ee04ede0d879c8ff1fed57e24937bf26",
+      "packed_request_length": 431,
+      "fits_in_mdu": true,
+      "mdu": 431
+    },
+    {
+      "index": 4,
+      "description": "Request exceeding MDU (sent as Resource)",
+      "path": "/echo",
+      "timestamp": 1700000000.0,
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "data_length": 431,
+      "data_hex_prefix": "e149b322ded9edb4b4b362dd7dcc05b11a64c408d134ae278b797873ff86b084... (431 bytes total)",
+      "packed_request_hex_prefix": "93cb41d954fc40000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c501afe1... (462 bytes total)",
+      "packed_request_length": 462,
+      "fits_in_mdu": false,
+      "mdu": 431,
+      "request_id": "f15a73fea0ab8985b2ffde9db5b3c38b",
+      "request_id_algorithm": "truncated_hash(packed_request) \u2014 used for large requests sent as Resource"
+    }
+  ],
+  "response_serialization_vectors": [
+    {
+      "index": 0,
+      "description": "String response",
+      "request_id": "7f61809c629a8d273977f04fc253f5ad",
+      "packed_response_hex": "92c4107f61809c629a8d273977f04fc253f5adad6563686f20726573706f6e7365",
+      "packed_response_length": 33,
+      "fits_in_mdu": true,
+      "mdu": 431,
+      "response_data": "echo response"
+    },
+    {
+      "index": 1,
+      "description": "Bytes response",
+      "request_id": "7f61809c629a8d273977f04fc253f5ad",
+      "packed_response_hex": "92c4107f61809c629a8d273977f04fc253f5adc40401020304",
+      "packed_response_length": 25,
+      "fits_in_mdu": true,
+      "mdu": 431,
+      "response_data_hex": "01020304"
+    },
+    {
+      "index": 2,
+      "description": "Dict response",
+      "request_id": "7f61809c629a8d273977f04fc253f5ad",
+      "packed_response_hex": "92c4107f61809c629a8d273977f04fc253f5ad82a6737461747573a26f6ba6726573756c747b",
+      "packed_response_length": 38,
+      "fits_in_mdu": true,
+      "mdu": 431,
+      "response_data_json": {
+        "status": "ok",
+        "result": 123
+      }
+    },
+    {
+      "index": 3,
+      "description": "Response at exact MDU boundary (fits)",
+      "request_id": "7f61809c629a8d273977f04fc253f5ad",
+      "response_data_length": 409,
+      "response_data_hex": "6bd0cf5e6dcb4f011467da0174922bbf4bee7893caa322a5608d8394ef93f3b12a8da102cc3467071448a6c743385160a92920958c2db27f18e2f06924ae704b089d8c2a8f4ec181289cb8b5cc7766028a7a74262e4a990c0f1deded7039dc04b800ba066e1fa3d4fd7405fdd3ccc6e136f4240c0ad52eec52060135e884112e42b42a5c3b08b1a3ac6ec2657c79f499fe88792d3d9aeb5f015d6b69f8db578951e8ea46bddc1fd180757c808fdbdccfb91a0bd163fb32a1fd2df8d20e79b9013a23a24ac94259696be2e5d90ddb7376d49fcb1cc58a074093264295b354c565594ea4d9f4aa5cc5cc3c495a13df33c342e5f7f0f7d1328a2ec4af0cbc4d2468b453db12e6cd1181e4f93d4c09e455fc80d9f607d06c7e2013c0de6e3a672c4d581619297cb2ba20c7e01a59991af040a1346370d71564fd37e9b8ad4a59fcd7308798ddff1bb5cfea8e37a1c95c0face098c4fbecd533b6d68f10a3e41311190fae8722a6ab3a34b7e5c0a654c394e582886660dc8e95c0ec884b6f52948b2f7d25c77aa9cc52cf6b30a2ca6415f6895cb9262cfaf82f0d43",
+      "packed_response_hex": "92c4107f61809c629a8d273977f04fc253f5adc501996bd0cf5e6dcb4f011467da0174922bbf4bee7893caa322a5608d8394ef93f3b12a8da102cc3467071448a6c743385160a92920958c2db27f18e2f06924ae704b089d8c2a8f4ec181289cb8b5cc7766028a7a74262e4a990c0f1deded7039dc04b800ba066e1fa3d4fd7405fdd3ccc6e136f4240c0ad52eec52060135e884112e42b42a5c3b08b1a3ac6ec2657c79f499fe88792d3d9aeb5f015d6b69f8db578951e8ea46bddc1fd180757c808fdbdccfb91a0bd163fb32a1fd2df8d20e79b9013a23a24ac94259696be2e5d90ddb7376d49fcb1cc58a074093264295b354c565594ea4d9f4aa5cc5cc3c495a13df33c342e5f7f0f7d1328a2ec4af0cbc4d2468b453db12e6cd1181e4f93d4c09e455fc80d9f607d06c7e2013c0de6e3a672c4d581619297cb2ba20c7e01a59991af040a1346370d71564fd37e9b8ad4a59fcd7308798ddff1bb5cfea8e37a1c95c0face098c4fbecd533b6d68f10a3e41311190fae8722a6ab3a34b7e5c0a654c394e582886660dc8e95c0ec884b6f52948b2f7d25c77aa9cc52cf6b30a2ca6415f6895cb9262cfaf82f0d43",
+      "packed_response_length": 431,
+      "fits_in_mdu": true,
+      "mdu": 431
+    },
+    {
+      "index": 4,
+      "description": "Response exceeding MDU (sent as Resource)",
+      "request_id": "7f61809c629a8d273977f04fc253f5ad",
+      "response_data_length": 431,
+      "response_data_hex_prefix": "8f6ec230426187cefac63eb885d0cbb4ea6dc64e03809c4b2011edd5bd557855... (431 bytes total)",
+      "packed_response_hex_prefix": "92c4107f61809c629a8d273977f04fc253f5adc501af8f6ec230426187cefac6... (453 bytes total)",
+      "packed_response_length": 453,
+      "fits_in_mdu": false,
+      "mdu": 431
+    }
+  ],
+  "small_request_wire_vectors": [
+    {
+      "index": 0,
+      "description": "Small request: None data",
+      "path": "/echo",
+      "timestamp": 1700000000.0,
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "data_description": "None",
+      "packed_request_hex": "93cb41d954fc40000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c0",
+      "packed_request_length": 29,
+      "iv": "94014194f91925137deaa5884696dbad",
+      "token_data_hex": "94014194f91925137deaa5884696dbad97dfb6f7b4864385809f4816cd9fed413095b68e25727ec2786c205dfc163b1967d18d7bef2595447f22f147f52bb079635e1b3b20460d89186bc30e2382fb1a",
+      "token_data_length": 80,
+      "flags_byte": "0x2c",
+      "context_byte": "0x09",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220994014194f91925137deaa5884696dbad97dfb6f7b4864385809f4816cd9fed413095b68e25727ec2786c205dfc163b1967d18d7bef2595447f22f147f52bb079635e1b3b20460d89186bc30e2382fb1a",
+      "raw_packet_length": 99,
+      "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b220994014194f91925137deaa5884696dbad97dfb6f7b4864385809f4816cd9fed413095b68e25727ec2786c205dfc163b1967d18d7bef2595447f22f147f52bb079635e1b3b20460d89186bc30e2382fb1a",
+      "hashable_part_length": 98,
+      "request_id": "6ebce5984971afec62b060a4857a4675",
+      "request_id_algorithm": "truncated_hash(hashable_part) where hashable_part = bytes([raw[0] & 0x0F]) + raw[2:]"
+    },
+    {
+      "index": 1,
+      "description": "Small request: bytes data",
+      "path": "/echo",
+      "timestamp": 1700000000.0,
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "data_description": "bytes",
+      "packed_request_hex": "93cb41d954fc40000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c40568656c6c6f",
+      "packed_request_length": 35,
+      "iv": "be7f7a891cf53279e16efcf645aad0ee",
+      "token_data_hex": "be7f7a891cf53279e16efcf645aad0ee7c612c2cefcc6568497995bb146c9af51869acbfaa89a3d87d8745919ba0a6277d68e2b2dff7d56e4e84b9ea41e6f34b7094ead8ae94e54e238d52fa7c974e60a7cce92e723129433532bb35d2d2857f",
+      "token_data_length": 96,
+      "flags_byte": "0x2c",
+      "context_byte": "0x09",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209be7f7a891cf53279e16efcf645aad0ee7c612c2cefcc6568497995bb146c9af51869acbfaa89a3d87d8745919ba0a6277d68e2b2dff7d56e4e84b9ea41e6f34b7094ead8ae94e54e238d52fa7c974e60a7cce92e723129433532bb35d2d2857f",
+      "raw_packet_length": 115,
+      "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209be7f7a891cf53279e16efcf645aad0ee7c612c2cefcc6568497995bb146c9af51869acbfaa89a3d87d8745919ba0a6277d68e2b2dff7d56e4e84b9ea41e6f34b7094ead8ae94e54e238d52fa7c974e60a7cce92e723129433532bb35d2d2857f",
+      "hashable_part_length": 114,
+      "request_id": "56eabd1d0dee3b60ee605c9dea47c865",
+      "request_id_algorithm": "truncated_hash(hashable_part) where hashable_part = bytes([raw[0] & 0x0F]) + raw[2:]"
+    },
+    {
+      "index": 2,
+      "description": "Small request: dict data",
+      "path": "/api/v1/status",
+      "timestamp": 1700000000.0,
+      "path_hash": "212e3326ed94d54abc342a251f15ffe2",
+      "data_description": "dict",
+      "packed_request_hex": "93cb41d954fc40000000c410212e3326ed94d54abc342a251f15ffe281a57175657279a474657374",
+      "packed_request_length": 40,
+      "iv": "315cac3abe0f1bdd0cb17d2f54967e56",
+      "token_data_hex": "315cac3abe0f1bdd0cb17d2f54967e561b3ad61e77e9b9fe8ecd908a89a702c46eb60e311ed47c754a8f80f4f50de850e5ebe2564ac6ae89e59a6f13ecff56afc4a3660354ad8ccd9cb272afe10807d6682cf7c0393a3f3a8b57fbf47e367d5a",
+      "token_data_length": 96,
+      "flags_byte": "0x2c",
+      "context_byte": "0x09",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209315cac3abe0f1bdd0cb17d2f54967e561b3ad61e77e9b9fe8ecd908a89a702c46eb60e311ed47c754a8f80f4f50de850e5ebe2564ac6ae89e59a6f13ecff56afc4a3660354ad8ccd9cb272afe10807d6682cf7c0393a3f3a8b57fbf47e367d5a",
+      "raw_packet_length": 115,
+      "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209315cac3abe0f1bdd0cb17d2f54967e561b3ad61e77e9b9fe8ecd908a89a702c46eb60e311ed47c754a8f80f4f50de850e5ebe2564ac6ae89e59a6f13ecff56afc4a3660354ad8ccd9cb272afe10807d6682cf7c0393a3f3a8b57fbf47e367d5a",
+      "hashable_part_length": 114,
+      "request_id": "3b6ca1aece81227c399d5b76645e443b",
+      "request_id_algorithm": "truncated_hash(hashable_part) where hashable_part = bytes([raw[0] & 0x0F]) + raw[2:]"
+    }
+  ],
+  "small_response_wire_vectors": [
+    {
+      "index": 0,
+      "description": "Small response: string data",
+      "request_id": "6ebce5984971afec62b060a4857a4675",
+      "packed_response_hex": "92c4106ebce5984971afec62b060a4857a4675aa6563686f207265706c79",
+      "packed_response_length": 30,
+      "iv": "cf75dd34e3c821d6e0a09b7924969b9d",
+      "token_data_hex": "cf75dd34e3c821d6e0a09b7924969b9d696d9a5bee04ee59c2ef88d80e9dede4685969386d874782f856d8c8f6fb850814404f90e62f5406e189b7042d43cb0e33fb94ea50c90984860f4176bd35fe5e",
+      "token_data_length": 80,
+      "flags_byte": "0x2c",
+      "context_byte": "0x0a",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220acf75dd34e3c821d6e0a09b7924969b9d696d9a5bee04ee59c2ef88d80e9dede4685969386d874782f856d8c8f6fb850814404f90e62f5406e189b7042d43cb0e33fb94ea50c90984860f4176bd35fe5e",
+      "raw_packet_length": 99,
+      "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b220acf75dd34e3c821d6e0a09b7924969b9d696d9a5bee04ee59c2ef88d80e9dede4685969386d874782f856d8c8f6fb850814404f90e62f5406e189b7042d43cb0e33fb94ea50c90984860f4176bd35fe5e",
+      "hashable_part_length": 98,
+      "packet_hash": "4dd82d6b5920e63d61cc267a492e41a851c768d682d598f2e98121cb2dbbc0ae",
+      "response_data": "echo reply"
+    },
+    {
+      "index": 1,
+      "description": "Small response: bytes data",
+      "request_id": "56eabd1d0dee3b60ee605c9dea47c865",
+      "packed_response_hex": "92c41056eabd1d0dee3b60ee605c9dea47c865c404deadbeef",
+      "packed_response_length": 25,
+      "iv": "3c67db29e27766b210ee05890628990e",
+      "token_data_hex": "3c67db29e27766b210ee05890628990ee254f787930563ad74c8553ba28a4af19bb6de025c8bf5d342758b64fae6beedeb5b423c7533066baaea1028309ae12c7932db62eb067d24bbcc61712981e7d0",
+      "token_data_length": 80,
+      "flags_byte": "0x2c",
+      "context_byte": "0x0a",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220a3c67db29e27766b210ee05890628990ee254f787930563ad74c8553ba28a4af19bb6de025c8bf5d342758b64fae6beedeb5b423c7533066baaea1028309ae12c7932db62eb067d24bbcc61712981e7d0",
+      "raw_packet_length": 99,
+      "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b220a3c67db29e27766b210ee05890628990ee254f787930563ad74c8553ba28a4af19bb6de025c8bf5d342758b64fae6beedeb5b423c7533066baaea1028309ae12c7932db62eb067d24bbcc61712981e7d0",
+      "hashable_part_length": 98,
+      "packet_hash": "89ca8abed1edde1b6fcc9db44a10d296793f2e576a648c7e59810edf40d8d3ec",
+      "response_data_hex": "deadbeef"
+    },
+    {
+      "index": 2,
+      "description": "Small response: dict data",
+      "request_id": "3b6ca1aece81227c399d5b76645e443b",
+      "packed_response_hex": "92c4103b6ca1aece81227c399d5b76645e443b81a6737461747573a26f6b",
+      "packed_response_length": 30,
+      "iv": "74791dc42dad3f46df4c6522d81e749d",
+      "token_data_hex": "74791dc42dad3f46df4c6522d81e749d3512acbbd76d5db191b215f5f456d46fea5f1af815b4b7d78caba663e9ce217b278bdf023d2a01d5c3d4f786d04b333f7b97dca13b74191392c88bc56fc0dc2e",
+      "token_data_length": 80,
+      "flags_byte": "0x2c",
+      "context_byte": "0x0a",
+      "link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+      "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220a74791dc42dad3f46df4c6522d81e749d3512acbbd76d5db191b215f5f456d46fea5f1af815b4b7d78caba663e9ce217b278bdf023d2a01d5c3d4f786d04b333f7b97dca13b74191392c88bc56fc0dc2e",
+      "raw_packet_length": 99,
+      "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b220a74791dc42dad3f46df4c6522d81e749d3512acbbd76d5db191b215f5f456d46fea5f1af815b4b7d78caba663e9ce217b278bdf023d2a01d5c3d4f786d04b333f7b97dca13b74191392c88bc56fc0dc2e",
+      "hashable_part_length": 98,
+      "packet_hash": "be245a4ad5430ecbf6433eab0546ab0e14c8e18454d82542fd7bf34fd24a0d74",
+      "response_data_json": {
+        "status": "ok"
+      }
+    }
+  ],
+  "large_request_resource_vectors": [
+    {
+      "index": 0,
+      "description": "Large request sent as Resource",
+      "type": "request",
+      "path": "/upload",
+      "timestamp": 1700000000.0,
+      "path_hash": "9a5ea6ccd4dc13823617991b0dda4e30",
+      "data_length": 531,
+      "packed_request_length": 562,
+      "exceeds_mdu": true,
+      "request_id": "0c03aa53004f6c7fae6fd094bf320f0e",
+      "request_id_algorithm": "truncated_hash(packed_request)",
+      "resource_params": {
+        "is_response": false,
+        "request_id": "0c03aa53004f6c7fae6fd094bf320f0e"
+      },
+      "receiver_side": {
+        "note": "Receiver computes request_id = truncated_hash(packed_request) after resource transfer completes",
+        "unpacked_structure": "[timestamp, path_hash, data]"
+      }
+    },
+    {
+      "index": 1,
+      "description": "Large response sent as Resource",
+      "type": "response",
+      "request_id": "0c03aa53004f6c7fae6fd094bf320f0e",
+      "response_data_length": 531,
+      "packed_response_length": 553,
+      "exceeds_mdu": true,
+      "resource_params": {
+        "is_response": true,
+        "request_id": "0c03aa53004f6c7fae6fd094bf320f0e"
+      },
+      "receiver_side": {
+        "note": "Receiver unpacks: [request_id, response_data] = umsgpack.unpackb(resource.data.read())",
+        "unpacked_structure": "[request_id, response_data]"
+      }
+    }
+  ],
+  "policy_vectors": [
+    {
+      "index": 0,
+      "description": "ALLOW_NONE: always blocked (even with valid identity)",
+      "policy": 0,
+      "policy_name": "ALLOW_NONE",
+      "remote_identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "computed_allowed": false
+    },
+    {
+      "index": 1,
+      "description": "ALLOW_NONE: always blocked (no identity)",
+      "policy": 0,
+      "policy_name": "ALLOW_NONE",
+      "remote_identity_hash": null,
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "computed_allowed": false
+    },
+    {
+      "index": 2,
+      "description": "ALLOW_ALL: always allowed (with identity)",
+      "policy": 1,
+      "policy_name": "ALLOW_ALL",
+      "remote_identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": true,
+      "computed_allowed": true
+    },
+    {
+      "index": 3,
+      "description": "ALLOW_ALL: always allowed (no identity)",
+      "policy": 1,
+      "policy_name": "ALLOW_ALL",
+      "remote_identity_hash": null,
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": true,
+      "computed_allowed": true
+    },
+    {
+      "index": 4,
+      "description": "ALLOW_LIST: identity in list \u2192 allowed",
+      "policy": 2,
+      "policy_name": "ALLOW_LIST",
+      "remote_identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": true,
+      "computed_allowed": true
+    },
+    {
+      "index": 5,
+      "description": "ALLOW_LIST: identity not in list \u2192 blocked",
+      "policy": 2,
+      "policy_name": "ALLOW_LIST",
+      "remote_identity_hash": "1469e89450c361b253aefb0c606b6111",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "computed_allowed": false
+    },
+    {
+      "index": 6,
+      "description": "ALLOW_LIST: no identity (unidentified peer) \u2192 blocked",
+      "policy": 2,
+      "policy_name": "ALLOW_LIST",
+      "remote_identity_hash": null,
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "computed_allowed": false
+    }
+  ],
+  "timeout_vectors": [
+    {
+      "index": 0,
+      "description": "Timeout for RTT=0.001s",
+      "rtt": 0.001,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 11.256,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "0.001 * 6 + 10 * 1.125 = 0.006 + 11.25 = 11.256"
+    },
+    {
+      "index": 1,
+      "description": "Timeout for RTT=0.01s",
+      "rtt": 0.01,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 11.31,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "0.01 * 6 + 10 * 1.125 = 0.06 + 11.25 = 11.31"
+    },
+    {
+      "index": 2,
+      "description": "Timeout for RTT=0.05s",
+      "rtt": 0.05,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 11.55,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "0.05 * 6 + 10 * 1.125 = 0.30000000000000004 + 11.25 = 11.55"
+    },
+    {
+      "index": 3,
+      "description": "Timeout for RTT=0.1s",
+      "rtt": 0.1,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 11.85,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "0.1 * 6 + 10 * 1.125 = 0.6000000000000001 + 11.25 = 11.85"
+    },
+    {
+      "index": 4,
+      "description": "Timeout for RTT=0.25s",
+      "rtt": 0.25,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 12.75,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "0.25 * 6 + 10 * 1.125 = 1.5 + 11.25 = 12.75"
+    },
+    {
+      "index": 5,
+      "description": "Timeout for RTT=0.5s",
+      "rtt": 0.5,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 14.25,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "0.5 * 6 + 10 * 1.125 = 3.0 + 11.25 = 14.25"
+    },
+    {
+      "index": 6,
+      "description": "Timeout for RTT=1.0s",
+      "rtt": 1.0,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 17.25,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "1.0 * 6 + 10 * 1.125 = 6.0 + 11.25 = 17.25"
+    },
+    {
+      "index": 7,
+      "description": "Timeout for RTT=2.0s",
+      "rtt": 2.0,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 23.25,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "2.0 * 6 + 10 * 1.125 = 12.0 + 11.25 = 23.25"
+    },
+    {
+      "index": 8,
+      "description": "Timeout for RTT=5.0s",
+      "rtt": 5.0,
+      "traffic_timeout_factor": 6,
+      "response_max_grace_time": 10,
+      "grace_multiplier": 1.125,
+      "timeout": 41.25,
+      "formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "computation": "5.0 * 6 + 10 * 1.125 = 30.0 + 11.25 = 41.25"
+    }
+  ],
+  "round_trip_vectors": [
+    {
+      "index": 0,
+      "description": "Complete echo request/response lifecycle",
+      "path": "/echo",
+      "timestamp": 1700000000.0,
+      "request_data_hex": "70696e67",
+      "response_data_hex": "706f6e67",
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "unpacked_request": "[1700000000.0, path_hash, request_data]",
+        "packed_request_hex": "93cb41d954fc40000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c40470696e67",
+        "packed_request_length": 34
+      },
+      "step_3_request_encryption": {
+        "iv": "046e16fac61f22f2bff9719a90e8abb9",
+        "token_data_hex": "046e16fac61f22f2bff9719a90e8abb9965a3f3ce90416e0fa617e4de27beddfc11b403fbec419b37e525e189aedf618250c48e8d4c69bf9a0b10dff1ce51ef21a43e7f24c5765f941796289bd0b5da524d76397fd774eb45e108f9d94ed544a",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209046e16fac61f22f2bff9719a90e8abb9965a3f3ce90416e0fa617e4de27beddfc11b403fbec419b37e525e189aedf618250c48e8d4c69bf9a0b10dff1ce51ef21a43e7f24c5765f941796289bd0b5da524d76397fd774eb45e108f9d94ed544a",
+        "raw_packet_length": 115,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209046e16fac61f22f2bff9719a90e8abb9965a3f3ce90416e0fa617e4de27beddfc11b403fbec419b37e525e189aedf618250c48e8d4c69bf9a0b10dff1ce51ef21a43e7f24c5765f941796289bd0b5da524d76397fd774eb45e108f9d94ed544a",
+        "request_id": "0c092ea1351abdea2a750b2bf06e7da1"
+      },
+      "step_4_receiver_decrypt": {
+        "decrypted_matches": true,
+        "received_timestamp": 1700000000.0,
+        "received_path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+        "received_data_hex": "70696e67",
+        "path_hash_lookup_matches": true
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c4100c092ea1351abdea2a750b2bf06e7da1c404706f6e67",
+        "packed_response_length": 25,
+        "iv": "2cad595187ee5317ee600b2dbd49942c",
+        "token_data_hex": "2cad595187ee5317ee600b2dbd49942c89e17d69faaf49c1aa28fa4052de3f32a747e8e5fd29070ba28b08b1cbc41014f515fe42fa680e9f4182e364ac2c490707dc8fd1c5ce60f3c317e550d4fe0546",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220a2cad595187ee5317ee600b2dbd49942c89e17d69faaf49c1aa28fa4052de3f32a747e8e5fd29070ba28b08b1cbc41014f515fe42fa680e9f4182e364ac2c490707dc8fd1c5ce60f3c317e550d4fe0546",
+        "raw_packet_length": 99
+      },
+      "step_6_initiator_decrypt": {
+        "decrypted_matches": true,
+        "response_request_id": "0c092ea1351abdea2a750b2bf06e7da1",
+        "response_request_id_matches": true,
+        "response_payload_hex": "706f6e67",
+        "payload_matches": true
+      },
+      "verified": true
+    },
+    {
+      "index": 1,
+      "description": "Dict request/response lifecycle",
+      "path": "/api/v1/query",
+      "timestamp": 1700000001.0,
+      "request_data_json": {
+        "action": "lookup",
+        "id": 42
+      },
+      "response_data_json": {
+        "status": "found",
+        "name": "test_item"
+      },
+      "step_1_registration": {
+        "path": "/api/v1/query",
+        "path_hash": "cdf94e151aa5bb1fbe01b9a66dd6f749"
+      },
+      "step_2_request_packing": {
+        "packed_request_hex": "93cb41d954fc40400000c410cdf94e151aa5bb1fbe01b9a66dd6f74982a6616374696f6ea66c6f6f6b7570a269642a",
+        "packed_request_length": 47
+      },
+      "step_3_request_encryption": {
+        "iv": "dc8b522fdd81f031a2e77b7a3857a236",
+        "token_data_hex": "dc8b522fdd81f031a2e77b7a3857a2367a1539c8bb8c17eed3e3945aa09d5272b37f022e49a3dcb4368bc33fa52d503ea6a0592e20923f42c81738cac587ce544201d9413f4208b00385311c3c3dc4cc696b329689fc8649d768c849d3530a44",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209dc8b522fdd81f031a2e77b7a3857a2367a1539c8bb8c17eed3e3945aa09d5272b37f022e49a3dcb4368bc33fa52d503ea6a0592e20923f42c81738cac587ce544201d9413f4208b00385311c3c3dc4cc696b329689fc8649d768c849d3530a44",
+        "raw_packet_length": 115,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209dc8b522fdd81f031a2e77b7a3857a2367a1539c8bb8c17eed3e3945aa09d5272b37f022e49a3dcb4368bc33fa52d503ea6a0592e20923f42c81738cac587ce544201d9413f4208b00385311c3c3dc4cc696b329689fc8649d768c849d3530a44",
+        "request_id": "3cf42e1ec77b6d959620b5633a09e938"
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c4103cf42e1ec77b6d959620b5633a09e93882a6737461747573a5666f756e64a46e616d65a9746573745f6974656d",
+        "packed_response_length": 48,
+        "iv": "e06fa9d5ec85f878bc0e4bff6acbd7d8",
+        "token_data_hex": "e06fa9d5ec85f878bc0e4bff6acbd7d8f87da96fdf3f755d8a14cb998c5939dc4ec59bd233ecf9ffa9eb6a9623c7f53b952de5b79f09c592458a4e80c3643473425387793091772dfe2b0b0c601a39403648fced501f8877f01ff3a64d0662f9cfd82f065d0b2f3f18ea1e575c707afa",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220ae06fa9d5ec85f878bc0e4bff6acbd7d8f87da96fdf3f755d8a14cb998c5939dc4ec59bd233ecf9ffa9eb6a9623c7f53b952de5b79f09c592458a4e80c3643473425387793091772dfe2b0b0c601a39403648fced501f8877f01ff3a64d0662f9cfd82f065d0b2f3f18ea1e575c707afa",
+        "raw_packet_length": 131
+      },
+      "step_6_initiator_decrypt": {
+        "response_request_id": "3cf42e1ec77b6d959620b5633a09e938",
+        "response_request_id_matches": true
+      },
+      "verified": true
+    }
+  ]
+}
