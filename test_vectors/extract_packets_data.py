@@ -96,6 +96,14 @@ RECEIPT_SENT = 0x01
 RECEIPT_DELIVERED = 0x02
 RECEIPT_CULLED = 0xFF
 
+# Receipt timeout constants (from Link.py, Reticulum.py, Transport.py, Packet.py)
+TRAFFIC_TIMEOUT_FACTOR = 6
+TRAFFIC_TIMEOUT_MIN_MS = 5
+DEFAULT_PER_HOP_TIMEOUT = 6
+TIMEOUT_PER_HOP = DEFAULT_PER_HOP_TIMEOUT
+MAX_RECEIPTS = 1024
+PATHFINDER_M = 128
+
 
 # --- Helper functions ---
 
@@ -201,6 +209,22 @@ def generate_ephemeral_keys(count=4):
         })
 
     return eph_x25519, eph_ed25519
+
+
+def deterministic_burst_plaintext(index, length):
+    """Generate deterministic plaintext for burst packet at given index.
+
+    Uses SHA-256 expansion: seed = SHA256(b"reticulum_test_burst_plaintext_" + str(index)),
+    then concatenates SHA256(seed + big-endian uint32 counter) chunks until length bytes.
+    """
+    seed = hashlib.sha256(b"reticulum_test_burst_plaintext_" + str(index).encode()).digest()
+    result = b""
+    counter = 0
+    while len(result) < length:
+        chunk = hashlib.sha256(seed + struct.pack(">I", counter)).digest()
+        result += chunk
+        counter += 1
+    return result[:length]
 
 
 def reconstruct_handshake_keys(keypairs, eph_x25519, eph_ed25519, scenario_idx=0):
@@ -781,6 +805,298 @@ def extract_bidirectional_vectors(hs_keys):
     }
 
 
+def extract_burst_vectors(hs_keys):
+    """Generate a burst of 10 sequential DATA packets over the same link.
+
+    Each packet uses deterministic plaintext and IV, with full round-trip
+    verification (encrypt → wire packet → hash → proof → verify).
+    """
+    from RNS.Cryptography import HMAC, PKCS7
+    from RNS.Cryptography.AES import AES_256_CBC
+    from RNS.Cryptography.Token import Token as TokenClass
+    from RNS.Cryptography.Ed25519 import Ed25519PrivateKey
+
+    link_id = hs_keys["link_id"]
+    derived_key = hs_keys["derived_key"]
+    signing_key = derived_key[:32]
+    encryption_key = derived_key[32:]
+    resp_kp = hs_keys["resp_kp"]
+
+    token_obj = TokenClass(key=derived_key)
+    data_flags = pack_flags(HEADER_1, FLAG_UNSET, BROADCAST, LINK, DATA)
+    proof_flags = pack_flags(HEADER_1, FLAG_UNSET, BROADCAST, LINK, PROOF)
+    resp_sig_prv = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(resp_kp["ed25519_private"]))
+
+    burst_count = 10
+    packet_size = 431  # bytes of plaintext per burst packet
+
+    vectors = []
+    all_packet_hashes = set()
+    all_ivs = set()
+    all_ciphertexts = set()
+
+    for i in range(burst_count):
+        plaintext = deterministic_burst_plaintext(i, packet_size)
+
+        # Deterministic IV
+        iv = hashlib.sha256(b"reticulum_test_burst_iv_" + str(i).encode()).digest()[:16]
+
+        # Token encryption: PKCS7 pad → AES-256-CBC → HMAC
+        padded = PKCS7.pad(plaintext)
+        ciphertext_aes = AES_256_CBC.encrypt(plaintext=padded, key=encryption_key, iv=iv)
+        signed_parts = iv + ciphertext_aes
+        hmac_val = HMAC.new(signing_key, signed_parts).digest()
+        token_ciphertext = signed_parts + hmac_val
+
+        # Verify decrypt round-trip
+        decrypted = token_obj.decrypt(token_ciphertext)
+        assert decrypted == plaintext, f"Burst packet {i} decrypt round-trip failed"
+
+        # Build wire packet
+        raw_packet = build_header_1(data_flags, 0, link_id, NONE_CONTEXT) + token_ciphertext
+
+        # Compute packet hash
+        hashable_part = compute_hashable_part(raw_packet)
+        packet_hash = full_hash(hashable_part)
+
+        # Generate proof
+        signature = resp_sig_prv.sign(packet_hash)
+        proof_data = packet_hash + signature
+        assert len(proof_data) == EXPL_LENGTH
+        raw_proof = build_header_1(proof_flags, 0, link_id, NONE_CONTEXT) + proof_data
+        proof_hashable = compute_hashable_part(raw_proof)
+        proof_packet_hash = full_hash(proof_hashable)
+
+        # Track uniqueness
+        all_packet_hashes.add(packet_hash.hex())
+        all_ivs.add(iv.hex())
+        all_ciphertexts.add(token_ciphertext.hex())
+
+        vectors.append({
+            "burst_index": i,
+            "plaintext": plaintext.hex(),
+            "deterministic_iv": iv.hex(),
+            "token_ciphertext": token_ciphertext.hex(),
+            "raw_packet": raw_packet.hex(),
+            "packet_hash": packet_hash.hex(),
+            "proof_signature": signature.hex(),
+            "proof_data": proof_data.hex(),
+            "raw_proof_packet": raw_proof.hex(),
+            "proof_packet_hash": proof_packet_hash.hex(),
+        })
+
+    assert len(all_packet_hashes) == burst_count, "Not all packet hashes are unique"
+    assert len(all_ivs) == burst_count, "Not all IVs are unique"
+    assert len(all_ciphertexts) == burst_count, "Not all ciphertexts are unique"
+
+    return {
+        "description": "Burst of 10 sequential DATA packets over same link with proofs",
+        "link_id": link_id.hex(),
+        "burst_count": burst_count,
+        "packet_size": packet_size,
+        "ordering_note": "DATA packets have no ordering at this layer; sequence is application-level",
+        "receipt_independence_note": "Each packet produces an independent PacketReceipt with its own timeout and proof tracking",
+        "vectors": vectors,
+        "uniqueness_verification": {
+            "all_packet_hashes_unique": len(all_packet_hashes) == burst_count,
+            "all_ivs_unique": len(all_ivs) == burst_count,
+            "all_ciphertexts_unique": len(all_ciphertexts) == burst_count,
+        },
+    }
+
+
+def extract_receipt_timeout_constants():
+    """Document receipt timeout computation constants."""
+    return {
+        "description": "Constants governing PacketReceipt timeout computation",
+        "TRAFFIC_TIMEOUT_FACTOR": {
+            "value": TRAFFIC_TIMEOUT_FACTOR,
+            "source": "Link.py:82",
+            "usage": "Multiplier for link RTT in timeout computation",
+        },
+        "TRAFFIC_TIMEOUT_MIN_MS": {
+            "value": TRAFFIC_TIMEOUT_MIN_MS,
+            "source": "Link.py:81",
+            "usage": "Minimum timeout in milliseconds for link-based receipts",
+        },
+        "DEFAULT_PER_HOP_TIMEOUT": {
+            "value": DEFAULT_PER_HOP_TIMEOUT,
+            "source": "Reticulum.py:144",
+            "usage": "Seconds added per hop for non-link receipt timeout",
+        },
+        "TIMEOUT_PER_HOP": {
+            "value": TIMEOUT_PER_HOP,
+            "source": "Packet.py:115 (= RNS.Reticulum.DEFAULT_PER_HOP_TIMEOUT)",
+            "usage": "Alias used in PacketReceipt timeout computation",
+        },
+        "MAX_RECEIPTS": {
+            "value": MAX_RECEIPTS,
+            "source": "Transport.py:90",
+            "usage": "Maximum receipts tracked; overflow causes FIFO culling",
+        },
+        "PATHFINDER_M": {
+            "value": PATHFINDER_M,
+            "source": "Transport.py:62",
+            "usage": "Max hops; used as default when hop count unknown",
+        },
+    }
+
+
+def extract_receipt_timeout_scenarios():
+    """Compute receipt timeout for various scenarios.
+
+    Link-based:  timeout = max(rtt * TRAFFIC_TIMEOUT_FACTOR, TRAFFIC_TIMEOUT_MIN_MS / 1000)
+    Non-link:    timeout = first_hop_timeout + TIMEOUT_PER_HOP * hops_to(dest)
+    """
+    link_scenarios = []
+    non_link_scenarios = []
+
+    # Link scenarios: varying RTT
+    rtts_ms = [50, 1, 0.1, 2000]
+    for rtt_ms in rtts_ms:
+        rtt_s = rtt_ms / 1000.0
+        timeout = max(rtt_s * TRAFFIC_TIMEOUT_FACTOR, TRAFFIC_TIMEOUT_MIN_MS / 1000.0)
+        link_scenarios.append({
+            "description": f"Link with RTT={rtt_ms}ms",
+            "rtt_ms": rtt_ms,
+            "rtt_seconds": rtt_s,
+            "formula": f"max({rtt_s} * {TRAFFIC_TIMEOUT_FACTOR}, {TRAFFIC_TIMEOUT_MIN_MS}/1000)",
+            "timeout_seconds": timeout,
+        })
+
+    # Non-link scenarios: varying hop counts
+    # first_hop_timeout: without latency info = DEFAULT_PER_HOP_TIMEOUT
+    hop_cases = [
+        (0, "Direct (0 hops, path known)"),
+        (3, "3-hop path"),
+        (PATHFINDER_M, f"Unknown path ({PATHFINDER_M} hops default)"),
+    ]
+    for hops, desc in hop_cases:
+        first_hop_timeout = DEFAULT_PER_HOP_TIMEOUT  # no latency info
+        timeout = first_hop_timeout + TIMEOUT_PER_HOP * hops
+        non_link_scenarios.append({
+            "description": desc,
+            "hops": hops,
+            "first_hop_timeout": first_hop_timeout,
+            "first_hop_timeout_note": "DEFAULT_PER_HOP_TIMEOUT (no next-hop latency info)",
+            "formula": f"{first_hop_timeout} + {TIMEOUT_PER_HOP} * {hops}",
+            "timeout_seconds": timeout,
+        })
+
+    return {
+        "description": "Receipt timeout computation scenarios",
+        "link_formula": "max(rtt * TRAFFIC_TIMEOUT_FACTOR, TRAFFIC_TIMEOUT_MIN_MS / 1000)",
+        "link_formula_source": "Packet.py:430",
+        "non_link_formula": "first_hop_timeout + TIMEOUT_PER_HOP * hops_to(destination)",
+        "non_link_formula_source": "Packet.py:432-433",
+        "link_scenarios": link_scenarios,
+        "non_link_scenarios": non_link_scenarios,
+    }
+
+
+def extract_receipt_state_machine():
+    """Document the full PacketReceipt state machine."""
+    return {
+        "description": "PacketReceipt state machine: states, transitions, and proof validation flow",
+        "states": {
+            "SENT": {
+                "value": RECEIPT_SENT,
+                "hex": f"{RECEIPT_SENT:#04x}",
+                "description": "Initial state after packet transmission",
+            },
+            "DELIVERED": {
+                "value": RECEIPT_DELIVERED,
+                "hex": f"{RECEIPT_DELIVERED:#04x}",
+                "description": "Valid proof received, delivery confirmed",
+            },
+            "FAILED": {
+                "value": RECEIPT_FAILED,
+                "hex": f"{RECEIPT_FAILED:#04x}",
+                "description": "Timeout expired without valid proof",
+            },
+            "CULLED": {
+                "value": RECEIPT_CULLED,
+                "hex": f"{RECEIPT_CULLED:#04x}",
+                "description": "Receipt removed due to MAX_RECEIPTS overflow (FIFO)",
+            },
+        },
+        "transitions": [
+            {
+                "from": "SENT",
+                "to": "DELIVERED",
+                "trigger": "Valid proof received",
+                "condition": "proof_hash == packet_hash AND signature validates with peer_sig_pub",
+                "callback": "delivery callback (if set)",
+                "side_effects": ["proved = True", "concluded_at = time.time()", "link.last_proof updated"],
+            },
+            {
+                "from": "SENT",
+                "to": "FAILED",
+                "trigger": "Timeout expires (check_timeout called periodically)",
+                "condition": "timeout >= 0 AND time.time() > sent_at + timeout",
+                "callback": "timeout callback (if set, in new thread)",
+                "side_effects": ["concluded_at = time.time()"],
+            },
+            {
+                "from": "SENT",
+                "to": "CULLED",
+                "trigger": "MAX_RECEIPTS overflow in Transport job loop",
+                "condition": "timeout set to -1 by Transport, then check_timeout detects -1",
+                "callback": "timeout callback (if set, in new thread)",
+                "side_effects": ["concluded_at = time.time()"],
+            },
+        ],
+        "proof_validation_flow": [
+            "1. Receive proof packet (PROOF type on LINK destination)",
+            "2. Proof is NOT encrypted (passthrough for PROOF on LINK)",
+            "3. Extract proof_data from packet",
+            "4. If link proof: call validate_link_proof(proof_data, link)",
+            "5. Extract proof_hash = proof_data[:32], signature = proof_data[32:96]",
+            "6. Check proof_hash == receipt.hash (full 32-byte packet hash)",
+            "7. Validate signature via link.validate(signature, receipt.hash)",
+            "8. link.validate uses peer_sig_pub.verify(signature, message)",
+            "9. If valid: status → DELIVERED, proved = True",
+        ],
+        "culling_behavior": {
+            "trigger": f"len(Transport.receipts) > MAX_RECEIPTS ({MAX_RECEIPTS})",
+            "mechanism": "FIFO: oldest receipt popped, timeout set to -1, check_timeout() called",
+            "result": "Status becomes CULLED (0xFF), timeout callback fires",
+            "source": "Transport.py:504-508",
+        },
+    }
+
+
+def extract_receipt_proof_matching_vectors(data_vectors, hs_keys):
+    """Generate vectors showing proof matching uses full 32-byte hash, not truncated 16-byte."""
+    link_id = hs_keys["link_id"]
+
+    vectors = []
+
+    for dv in data_vectors[:3]:
+        packet_hash = bytes.fromhex(dv["packet_hash"])
+        truncated = packet_hash[:TRUNCATED_HASHLENGTH_BYTES]
+
+        vectors.append({
+            "data_packet_index": dv["index"],
+            "description": f"Proof matching for data packet {dv['index']}: {dv['description']}",
+            "full_packet_hash": packet_hash.hex(),
+            "full_packet_hash_length": len(packet_hash),
+            "truncated_hash": truncated.hex(),
+            "truncated_hash_length": len(truncated),
+            "truncated_is_prefix": packet_hash[:TRUNCATED_HASHLENGTH_BYTES] == truncated,
+            "matching_note": "Proof matching uses full 32-byte hash (PacketReceipt.hash), NOT truncated 16-byte",
+            "source": "Packet.py:455 — proof_hash == self.hash (both 32 bytes)",
+        })
+
+    return {
+        "description": "Proof matching uses full 32-byte packet_hash, not truncated 16-byte destination hash",
+        "link_id": link_id.hex(),
+        "full_hash_length": HASHLENGTH_BYTES,
+        "truncated_hash_length": TRUNCATED_HASHLENGTH_BYTES,
+        "vectors": vectors,
+    }
+
+
 def verify(output, hs_keys):
     """Cross-validate all vectors."""
     from RNS.Cryptography.Token import Token as TokenClass
@@ -853,7 +1169,62 @@ def verify(output, hs_keys):
 
     print(f"    [OK] {len(bidir['vectors'])} bidirectional vectors verified")
 
-    # 6. Cross-check link_id and derived_key against links.json
+    # 6. Verify burst vectors: decrypt round-trip + hash + proof signature + uniqueness
+    burst = output["burst_vectors"]
+    resp_sig_pub = Ed25519PublicKey.from_public_bytes(bytes.fromhex(hs_keys["resp_kp"]["ed25519_public"]))
+    burst_hashes = set()
+    for bv in burst["vectors"]:
+        # Decrypt round-trip
+        token_ct = bytes.fromhex(bv["token_ciphertext"])
+        expected_pt = bytes.fromhex(bv["plaintext"])
+        decrypted = token_obj.decrypt(token_ct)
+        assert decrypted == expected_pt, f"Burst decrypt failed: index {bv['burst_index']}"
+
+        # Verify packet hash
+        raw = bytes.fromhex(bv["raw_packet"])
+        hp = compute_hashable_part(raw)
+        ph = full_hash(hp)
+        assert ph.hex() == bv["packet_hash"], f"Burst hash mismatch: index {bv['burst_index']}"
+
+        # Verify proof signature
+        packet_hash = bytes.fromhex(bv["packet_hash"])
+        signature = bytes.fromhex(bv["proof_signature"])
+        resp_sig_pub.verify(signature, packet_hash)
+
+        burst_hashes.add(bv["packet_hash"])
+
+    assert len(burst_hashes) == burst["burst_count"], "Burst packet hashes not all unique"
+    print(f"    [OK] {len(burst['vectors'])} burst vectors verified (decrypt + hash + proof + uniqueness)")
+
+    # 7. Verify timeout scenarios: recompute each formula and compare
+    scenarios = output["receipt_timeout_scenarios"]
+    for ls in scenarios["link_scenarios"]:
+        rtt_s = ls["rtt_ms"] / 1000.0
+        expected = max(rtt_s * TRAFFIC_TIMEOUT_FACTOR, TRAFFIC_TIMEOUT_MIN_MS / 1000.0)
+        assert ls["timeout_seconds"] == expected, f"Link timeout mismatch for RTT={ls['rtt_ms']}ms"
+    for ns in scenarios["non_link_scenarios"]:
+        expected = ns["first_hop_timeout"] + TIMEOUT_PER_HOP * ns["hops"]
+        assert ns["timeout_seconds"] == expected, f"Non-link timeout mismatch for hops={ns['hops']}"
+    print(f"    [OK] {len(scenarios['link_scenarios'])} link + {len(scenarios['non_link_scenarios'])} non-link timeout scenarios verified")
+
+    # 8. Verify state machine constant values
+    sm = output["receipt_state_machine"]
+    assert sm["states"]["SENT"]["value"] == RECEIPT_SENT
+    assert sm["states"]["DELIVERED"]["value"] == RECEIPT_DELIVERED
+    assert sm["states"]["FAILED"]["value"] == RECEIPT_FAILED
+    assert sm["states"]["CULLED"]["value"] == RECEIPT_CULLED
+    print("    [OK] State machine constants verified")
+
+    # 9. Verify proof matching: truncated hash is prefix of full hash
+    pm = output["receipt_proof_matching_vectors"]
+    for pmv in pm["vectors"]:
+        full_h = pmv["full_packet_hash"]
+        trunc_h = pmv["truncated_hash"]
+        assert full_h.startswith(trunc_h), f"Truncated hash not prefix of full hash for index {pmv['data_packet_index']}"
+        assert pmv["truncated_is_prefix"] is True
+    print(f"    [OK] {len(pm['vectors'])} proof matching vectors verified")
+
+    # 10. Cross-check link_id and derived_key against links.json
     links_data = load_links_json()
     hs0 = links_data["handshake_vectors"][0]
     links_link_id = hs0["step_1_linkrequest"]["link_id"]
@@ -862,7 +1233,7 @@ def verify(output, hs_keys):
     assert derived_key.hex() == links_derived_key, f"derived_key mismatch"
     print("    [OK] link_id and derived_key cross-validated against links.json")
 
-    # 7. JSON round-trip
+    # 11. JSON round-trip
     json_str = json.dumps(output, indent=2)
     assert json.loads(json_str) == output, "JSON round-trip failed"
     print("    [OK] JSON round-trip integrity verified")
@@ -898,6 +1269,15 @@ def verify_library_constants():
     assert PROVE_NONE == Destination.PROVE_NONE
     assert PROVE_APP == Destination.PROVE_APP
     assert PROVE_ALL == Destination.PROVE_ALL
+
+    assert TRAFFIC_TIMEOUT_FACTOR == Link.TRAFFIC_TIMEOUT_FACTOR
+    assert TRAFFIC_TIMEOUT_MIN_MS == Link.TRAFFIC_TIMEOUT_MIN_MS
+    assert DEFAULT_PER_HOP_TIMEOUT == RNS.Reticulum.DEFAULT_PER_HOP_TIMEOUT
+    assert TIMEOUT_PER_HOP == Packet.TIMEOUT_PER_HOP
+
+    from RNS.Transport import Transport
+    assert MAX_RECEIPTS == Transport.MAX_RECEIPTS
+    assert PATHFINDER_M == Transport.PATHFINDER_M
 
     print("  [OK] All library constants verified")
 
@@ -948,9 +1328,27 @@ def main():
     bidir_vectors = extract_bidirectional_vectors(hs_keys)
     print(f"  Extracted {len(bidir_vectors['vectors'])} bidirectional vectors")
 
+    print("Extracting burst vectors...")
+    burst_vectors = extract_burst_vectors(hs_keys)
+    print(f"  Extracted {len(burst_vectors['vectors'])} burst vectors")
+
+    print("Extracting receipt timeout constants...")
+    timeout_constants = extract_receipt_timeout_constants()
+
+    print("Extracting receipt timeout scenarios...")
+    timeout_scenarios = extract_receipt_timeout_scenarios()
+    print(f"  Extracted {len(timeout_scenarios['link_scenarios'])} link + {len(timeout_scenarios['non_link_scenarios'])} non-link scenarios")
+
+    print("Extracting receipt state machine...")
+    state_machine = extract_receipt_state_machine()
+
+    print("Extracting receipt proof matching vectors...")
+    proof_matching = extract_receipt_proof_matching_vectors(data_vectors, hs_keys)
+    print(f"  Extracted {len(proof_matching['vectors'])} proof matching vectors")
+
     output = {
         "description": "Reticulum v1.1.3 - data packet and proof test vectors",
-        "source": "RNS/Packet.py, RNS/Link.py, RNS/Destination.py",
+        "source": "RNS/Packet.py, RNS/Link.py, RNS/Destination.py, RNS/Transport.py",
         "constants": constants,
         "proof_strategies": proof_strategies,
         "receipt_states": receipt_states,
@@ -959,6 +1357,11 @@ def main():
         "proof_validation_vectors": proof_val_vectors,
         "invalid_proof_vectors": invalid_vectors,
         "bidirectional_vectors": bidir_vectors,
+        "burst_vectors": burst_vectors,
+        "receipt_timeout_constants": timeout_constants,
+        "receipt_timeout_scenarios": timeout_scenarios,
+        "receipt_state_machine": state_machine,
+        "receipt_proof_matching_vectors": proof_matching,
     }
 
     verify(output, hs_keys)
