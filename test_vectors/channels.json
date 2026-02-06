@@ -1,0 +1,930 @@
+{
+  "description": "Reticulum v1.1.3 - channel/buffer protocol test vectors",
+  "source": "RNS/Channel.py, RNS/Buffer.py",
+  "constants": {
+    "channel": {
+      "WINDOW": 2,
+      "WINDOW_MIN": 2,
+      "WINDOW_MIN_LIMIT_SLOW": 2,
+      "WINDOW_MIN_LIMIT_MEDIUM": 5,
+      "WINDOW_MIN_LIMIT_FAST": 16,
+      "WINDOW_MAX_SLOW": 5,
+      "WINDOW_MAX_MEDIUM": 12,
+      "WINDOW_MAX_FAST": 48,
+      "WINDOW_MAX": 48,
+      "FAST_RATE_THRESHOLD": 10,
+      "WINDOW_FLEXIBILITY": 4,
+      "SEQ_MAX": 65535,
+      "SEQ_MODULUS": 65536
+    },
+    "rtt_thresholds": {
+      "RTT_FAST": 0.18,
+      "RTT_MEDIUM": 0.75,
+      "RTT_SLOW": 1.45,
+      "note": "RTT <= RTT_FAST \u2192 fast link; RTT_FAST < RTT <= RTT_MEDIUM \u2192 medium; RTT_MEDIUM < RTT <= RTT_SLOW \u2192 slow; RTT > RTT_SLOW \u2192 very slow"
+    },
+    "buffer": {
+      "STREAM_ID_MAX": 16383,
+      "STREAM_DATA_OVERHEAD": 8,
+      "STREAM_DATA_OVERHEAD_note": "2 bytes stream header + 6 bytes channel envelope",
+      "SMT_STREAM_DATA": 65280
+    },
+    "system_message_boundary": {
+      "boundary": 61440,
+      "boundary_hex": "0xf000",
+      "note": "MSGTYPE >= 0xf000 are system-reserved; user types must be < 0xf000"
+    },
+    "envelope_format": {
+      "header_size": 6,
+      "layout": "struct.pack('>HHH', msgtype, sequence, data_length) + data",
+      "field_sizes": {
+        "msgtype": 2,
+        "sequence": 2,
+        "data_length": 2
+      }
+    }
+  },
+  "envelope_vectors": [
+    {
+      "index": 0,
+      "description": "Small message (10 bytes data, msgtype=0x1234, seq=0)",
+      "msgtype": 4660,
+      "sequence": 0,
+      "data_hex": "00010203040506070809",
+      "data_length": 10,
+      "packed_hex": "12340000000a00010203040506070809",
+      "packed_length": 16,
+      "header_hex": "12340000000a",
+      "decoded_msgtype": 4660,
+      "decoded_sequence": 0,
+      "decoded_length": 10,
+      "decoded_data_hex": "00010203040506070809"
+    },
+    {
+      "index": 1,
+      "description": "Large message (456 bytes data, msgtype=0xabcd, seq=100)",
+      "msgtype": 43981,
+      "sequence": 100,
+      "data_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+      "data_length": 456,
+      "packed_hex": "abcd006401c8000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+      "packed_length": 462,
+      "header_hex": "abcd006401c8",
+      "decoded_msgtype": 43981,
+      "decoded_sequence": 100,
+      "decoded_length": 456,
+      "decoded_data_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7"
+    },
+    {
+      "index": 2,
+      "description": "Empty message (0 bytes data, msgtype=0x5678, seq=65535)",
+      "msgtype": 22136,
+      "sequence": 65535,
+      "data_hex": "",
+      "data_length": 0,
+      "packed_hex": "5678ffff0000",
+      "packed_length": 6,
+      "header_hex": "5678ffff0000",
+      "decoded_msgtype": 22136,
+      "decoded_sequence": 65535,
+      "decoded_length": 0,
+      "decoded_data_hex": ""
+    },
+    {
+      "index": 3,
+      "description": "System message type (SMT_STREAM_DATA=0xff00, seq=5, 20 bytes data)",
+      "msgtype": 65280,
+      "sequence": 5,
+      "data_hex": "000102030405060708090a0b0c0d0e0f10111213",
+      "data_length": 20,
+      "packed_hex": "ff0000050014000102030405060708090a0b0c0d0e0f10111213",
+      "packed_length": 26,
+      "header_hex": "ff0000050014",
+      "decoded_msgtype": 65280,
+      "decoded_sequence": 5,
+      "decoded_length": 20,
+      "decoded_data_hex": "000102030405060708090a0b0c0d0e0f10111213"
+    }
+  ],
+  "message_serialization_vectors": [
+    {
+      "index": 0,
+      "description": "Simple string tuple (id, data) \u2014 matches MessageTest pattern",
+      "input_tuple": [
+        "test-id-001",
+        "hello world"
+      ],
+      "packed_hex": "92ab746573742d69642d303031ab68656c6c6f20776f726c64",
+      "packed_length": 25,
+      "unpacked": [
+        "test-id-001",
+        "hello world"
+      ],
+      "note": "umsgpack.packb((id, data)) \u2192 bytes; unpackb reverses"
+    },
+    {
+      "index": 1,
+      "description": "Empty strings tuple",
+      "input_tuple": [
+        "",
+        ""
+      ],
+      "packed_hex": "92a0a0",
+      "packed_length": 3,
+      "unpacked": [
+        "",
+        ""
+      ]
+    },
+    {
+      "index": 2,
+      "description": "Tuple with binary data field",
+      "input_tuple": [
+        "bin-id",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+      ],
+      "input_note": "Second element is raw bytes (shown as hex); msgpack encodes as bin type",
+      "packed_hex": "92a662696e2d6964c420000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "packed_length": 42,
+      "unpacked_id": "bin-id",
+      "unpacked_data_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    {
+      "index": 3,
+      "description": "Tuple with large binary data (400 bytes \u2014 near channel MDU)",
+      "input_tuple": [
+        "large-msg",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f"
+      ],
+      "input_note": "Second element is 400 raw bytes (shown as hex)",
+      "packed_hex": "92a96c617267652d6d7367c50190000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f",
+      "packed_length": 414,
+      "unpacked_id": "large-msg",
+      "unpacked_data_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f",
+      "unpacked_data_length": 400
+    }
+  ],
+  "sequence_number_vectors": [
+    {
+      "index": 0,
+      "description": "Normal sequence increment",
+      "current_seq": 0,
+      "next_seq": 1,
+      "formula": "(current + 1) % SEQ_MODULUS"
+    },
+    {
+      "index": 1,
+      "description": "Mid-range sequence increment",
+      "current_seq": 32767,
+      "next_seq": 32768,
+      "formula": "(current + 1) % SEQ_MODULUS"
+    },
+    {
+      "index": 2,
+      "description": "Sequence wraparound at SEQ_MAX",
+      "current_seq": 65535,
+      "next_seq": 0,
+      "formula": "(65535 + 1) % 65536 = 0"
+    },
+    {
+      "index": 3,
+      "description": "RX validation: exact match (accepted)",
+      "type": "rx_validation",
+      "next_rx_sequence": 10,
+      "incoming_sequence": 10,
+      "accepted": true,
+      "reason": "incoming >= next_rx_sequence, so old-sequence check is skipped"
+    },
+    {
+      "index": 4,
+      "description": "RX validation: future sequence within window (accepted)",
+      "type": "rx_validation",
+      "next_rx_sequence": 10,
+      "incoming_sequence": 15,
+      "accepted": true,
+      "reason": "incoming (15) >= next_rx_sequence (10), not old"
+    },
+    {
+      "index": 5,
+      "description": "RX validation: old sequence, no wraparound (rejected)",
+      "type": "rx_validation",
+      "next_rx_sequence": 100,
+      "incoming_sequence": 50,
+      "window_max": 48,
+      "window_overflow": 148,
+      "accepted": false,
+      "reason": "incoming (50) < next_rx (100); window_overflow (148) >= next_rx (100) \u2192 reject"
+    },
+    {
+      "index": 6,
+      "description": "RX validation: wraparound, incoming in valid window (accepted)",
+      "type": "rx_validation",
+      "next_rx_sequence": 65530,
+      "incoming_sequence": 10,
+      "window_max": 48,
+      "window_overflow": 42,
+      "accepted": true,
+      "reason": "incoming (10) < next_rx (65530); window_overflow (42) < next_rx (65530); incoming (10) <= window_overflow (42) \u2192 accepted"
+    },
+    {
+      "index": 7,
+      "description": "RX validation: wraparound, incoming beyond window (rejected)",
+      "type": "rx_validation",
+      "next_rx_sequence": 65530,
+      "incoming_sequence": 50,
+      "window_max": 48,
+      "window_overflow": 42,
+      "accepted": false,
+      "reason": "incoming (50) < next_rx (65530); window_overflow (42) < next_rx (65530); incoming (50) > window_overflow (42) \u2192 rejected"
+    }
+  ],
+  "stream_data_vectors": [
+    {
+      "index": 0,
+      "description": "Simple data, stream_id=0, no flags",
+      "stream_id": 0,
+      "eof": false,
+      "compressed": false,
+      "data_hex": "48656c6c6f2c205265746963756c756d21",
+      "data_length": 17,
+      "packed_hex": "000048656c6c6f2c205265746963756c756d21",
+      "packed_length": 19,
+      "header_hex": "0000",
+      "header_value": 0,
+      "decoded_stream_id": 0,
+      "decoded_eof": false,
+      "decoded_compressed": false,
+      "decoded_data_hex": "48656c6c6f2c205265746963756c756d21"
+    },
+    {
+      "index": 1,
+      "description": "EOF marker with empty data, stream_id=0",
+      "stream_id": 0,
+      "eof": true,
+      "compressed": false,
+      "data_hex": "",
+      "data_length": 0,
+      "packed_hex": "8000",
+      "packed_length": 2,
+      "header_hex": "8000",
+      "header_value": 32768,
+      "header_value_hex": "0x8000",
+      "decoded_stream_id": 0,
+      "decoded_eof": true,
+      "decoded_compressed": false,
+      "decoded_data_hex": ""
+    },
+    {
+      "index": 2,
+      "description": "Compressed data, stream_id=5",
+      "stream_id": 5,
+      "eof": false,
+      "compressed": true,
+      "original_data_hex": "4141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141",
+      "original_data_length": 500,
+      "compressed_data_hex": "425a68393141592653598b55efb60000008400a0002008200021264198a80e2ee48a70a12116abdf6c",
+      "compressed_data_length": 41,
+      "packed_hex": "4005425a68393141592653598b55efb60000008400a0002008200021264198a80e2ee48a70a12116abdf6c",
+      "packed_length": 43,
+      "header_hex": "4005",
+      "header_value": 16389,
+      "header_value_hex": "0x4005",
+      "decoded_stream_id": 5,
+      "decoded_eof": false,
+      "decoded_compressed": true,
+      "decoded_data_hex": "4141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141",
+      "decoded_data_length": 500,
+      "decompression_verified": true
+    },
+    {
+      "index": 3,
+      "description": "Compressed + EOF, stream_id=100",
+      "stream_id": 100,
+      "eof": true,
+      "compressed": true,
+      "original_data_hex": "424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242",
+      "original_data_length": 300,
+      "compressed_data_hex": "425a68393141592653593350f5200000029400802010000008200020aa6d4198c5478bb9229c284819a87a9000",
+      "compressed_data_length": 45,
+      "packed_hex": "c064425a68393141592653593350f5200000029400802010000008200020aa6d4198c5478bb9229c284819a87a9000",
+      "packed_length": 47,
+      "header_hex": "c064",
+      "header_value": 49252,
+      "header_value_hex": "0xc064",
+      "decoded_stream_id": 100,
+      "decoded_eof": true,
+      "decoded_compressed": true,
+      "decoded_data_hex": "424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242",
+      "decoded_data_length": 300,
+      "decompression_verified": true
+    },
+    {
+      "index": 4,
+      "description": "Max stream_id (16383), no flags",
+      "stream_id": 16383,
+      "eof": false,
+      "compressed": false,
+      "data_hex": "01020304",
+      "data_length": 4,
+      "packed_hex": "3fff01020304",
+      "packed_length": 6,
+      "header_hex": "3fff",
+      "header_value": 16383,
+      "header_value_hex": "0x3fff",
+      "decoded_stream_id": 16383,
+      "decoded_eof": false,
+      "decoded_compressed": false,
+      "decoded_data_hex": "01020304"
+    },
+    {
+      "index": 5,
+      "description": "All flags set (eof+compressed) with max stream_id (16383)",
+      "stream_id": 16383,
+      "eof": true,
+      "compressed": true,
+      "original_data_hex": "dead",
+      "original_data_length": 2,
+      "compressed_data_hex": "425a683931415926535983af986c0000008012000200012000210082b17724538509083af986c0",
+      "compressed_data_length": 39,
+      "packed_hex": "ffff425a683931415926535983af986c0000008012000200012000210082b17724538509083af986c0",
+      "packed_length": 41,
+      "header_hex": "ffff",
+      "header_value": 65535,
+      "header_value_hex": "0xffff",
+      "header_breakdown": {
+        "stream_id_bits": "0x3fff (bits 0-13)",
+        "compressed_bit": "0x4000 (bit 14)",
+        "eof_bit": "0x8000 (bit 15)",
+        "combined": "0xffff"
+      },
+      "decoded_stream_id": 16383,
+      "decoded_eof": true,
+      "decoded_compressed": true,
+      "decoded_data_hex": "dead",
+      "decompression_verified": true
+    }
+  ],
+  "window_init_vectors": [
+    {
+      "index": 0,
+      "description": "Very slow link (RTT=2.0 > RTT_SLOW=1.45)",
+      "rtt": 2.0,
+      "window": 1,
+      "window_max": 1,
+      "window_min": 1,
+      "window_flexibility": 1,
+      "condition": "rtt (2.0) > RTT_SLOW (1.45)"
+    },
+    {
+      "index": 1,
+      "description": "RTT at boundary (RTT=1.45 == RTT_SLOW=1.45): uses normal init",
+      "rtt": 1.45,
+      "window": 2,
+      "window_max": 5,
+      "window_min": 2,
+      "window_flexibility": 4,
+      "condition": "rtt (1.45) <= RTT_SLOW (1.45) \u2192 normal init"
+    },
+    {
+      "index": 2,
+      "description": "Normal link (RTT=0.5 < RTT_SLOW=1.45)",
+      "rtt": 0.5,
+      "window": 2,
+      "window_max": 5,
+      "window_min": 2,
+      "window_flexibility": 4,
+      "condition": "rtt (0.5) <= RTT_SLOW (1.45) \u2192 normal init"
+    },
+    {
+      "index": 3,
+      "description": "Fast link (RTT=0.01)",
+      "rtt": 0.01,
+      "window": 2,
+      "window_max": 5,
+      "window_min": 2,
+      "window_flexibility": 4,
+      "condition": "rtt (0.01) <= RTT_SLOW (1.45) \u2192 normal init (window grows via adaptation)",
+      "note": "All non-very-slow links start with WINDOW_MAX_SLOW; fast/medium upgrades happen during delivery callbacks"
+    },
+    {
+      "index": 4,
+      "description": "Just above boundary (RTT=1.46 > RTT_SLOW=1.45)",
+      "rtt": 1.46,
+      "window": 1,
+      "window_max": 1,
+      "window_min": 1,
+      "window_flexibility": 1,
+      "condition": "rtt (1.46) > RTT_SLOW (1.45) \u2192 very slow init"
+    }
+  ],
+  "window_adaptation_vectors": [
+    {
+      "index": 0,
+      "description": "Delivery: window grows by 1 (below max)",
+      "event": "delivery",
+      "before": {
+        "window": 2,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 0,
+        "medium_rate_rounds": 0
+      },
+      "rtt": 0.5,
+      "after": {
+        "window": 3,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 0,
+        "medium_rate_rounds": 1
+      },
+      "note": "RTT (0.5) > RTT_FAST (0.18) \u2192 fast_rate_rounds reset to 0; RTT <= RTT_MEDIUM (0.75) \u2192 medium_rate_rounds += 1"
+    },
+    {
+      "index": 1,
+      "description": "Delivery: window at max, no growth",
+      "event": "delivery",
+      "before": {
+        "window": 5,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 0,
+        "medium_rate_rounds": 0
+      },
+      "rtt": 0.5,
+      "after": {
+        "window": 5,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 0,
+        "medium_rate_rounds": 1
+      },
+      "note": "window (5) >= window_max (5) \u2192 no increment"
+    },
+    {
+      "index": 2,
+      "description": "Delivery: fast RTT, fast_rate_rounds increments",
+      "event": "delivery",
+      "before": {
+        "window": 3,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 5,
+        "medium_rate_rounds": 0
+      },
+      "rtt": 0.01,
+      "after": {
+        "window": 4,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 6,
+        "medium_rate_rounds": 0
+      },
+      "note": "RTT (0.01) <= RTT_FAST (0.18) \u2192 fast_rate_rounds += 1 (5\u21926)"
+    },
+    {
+      "index": 3,
+      "description": "Delivery: fast_rate_rounds reaches threshold, upgrade to FAST",
+      "event": "delivery",
+      "before": {
+        "window": 4,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 9,
+        "medium_rate_rounds": 0
+      },
+      "rtt": 0.01,
+      "after": {
+        "window": 5,
+        "window_max": 48,
+        "window_min": 16,
+        "fast_rate_rounds": 10,
+        "medium_rate_rounds": 0
+      },
+      "note": "fast_rate_rounds reaches FAST_RATE_THRESHOLD (10) \u2192 window_max upgraded to WINDOW_MAX_FAST (48), window_min to WINDOW_MIN_LIMIT_FAST (16)"
+    },
+    {
+      "index": 4,
+      "description": "Delivery: medium_rate_rounds reaches threshold, upgrade to MEDIUM",
+      "event": "delivery",
+      "before": {
+        "window": 4,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 0,
+        "medium_rate_rounds": 9
+      },
+      "rtt": 0.5,
+      "after": {
+        "window": 5,
+        "window_max": 12,
+        "window_min": 5,
+        "fast_rate_rounds": 0,
+        "medium_rate_rounds": 10
+      },
+      "note": "medium_rate_rounds reaches FAST_RATE_THRESHOLD (10) \u2192 window_max upgraded to WINDOW_MAX_MEDIUM (12), window_min to WINDOW_MIN_LIMIT_MEDIUM (5)"
+    },
+    {
+      "index": 5,
+      "description": "Delivery: slow RTT resets both rate counters",
+      "event": "delivery",
+      "before": {
+        "window": 3,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 5,
+        "medium_rate_rounds": 7
+      },
+      "rtt": 1.0,
+      "after": {
+        "window": 4,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 0,
+        "medium_rate_rounds": 0
+      },
+      "note": "RTT (1.0) > RTT_MEDIUM (0.75) \u2192 both fast_rate_rounds and medium_rate_rounds reset to 0"
+    },
+    {
+      "index": 6,
+      "description": "Delivery: RTT == 0, no rate adaptation",
+      "event": "delivery",
+      "before": {
+        "window": 2,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 3,
+        "medium_rate_rounds": 3
+      },
+      "rtt": 0,
+      "after": {
+        "window": 3,
+        "window_max": 5,
+        "window_min": 2,
+        "fast_rate_rounds": 3,
+        "medium_rate_rounds": 3
+      },
+      "note": "RTT == 0 \u2192 rate adaptation block is skipped entirely; counters unchanged"
+    },
+    {
+      "index": 7,
+      "description": "Timeout: window and window_max both shrink",
+      "event": "timeout",
+      "before": {
+        "window": 4,
+        "window_max": 12,
+        "window_min": 2,
+        "window_flexibility": 4
+      },
+      "after": {
+        "window": 3,
+        "window_max": 11,
+        "window_min": 2,
+        "window_flexibility": 4
+      },
+      "note": "window (4) > window_min (2) \u2192 window -= 1 (4\u21923); window_max (12) > window_min + flexibility (2+4=6) \u2192 window_max -= 1 (12\u219211)"
+    },
+    {
+      "index": 8,
+      "description": "Timeout: window at minimum, no shrink",
+      "event": "timeout",
+      "before": {
+        "window": 2,
+        "window_max": 5,
+        "window_min": 2,
+        "window_flexibility": 4
+      },
+      "after": {
+        "window": 2,
+        "window_max": 5,
+        "window_min": 2,
+        "window_flexibility": 4
+      },
+      "note": "window (2) <= window_min (2) \u2192 no shrink; window_max (5) <= window_min + flexibility (2+4=6) \u2192 no max shrink"
+    },
+    {
+      "index": 9,
+      "description": "Timeout: both window and window_max shrink (fast link)",
+      "event": "timeout",
+      "before": {
+        "window": 20,
+        "window_max": 48,
+        "window_min": 16,
+        "window_flexibility": 4
+      },
+      "after": {
+        "window": 19,
+        "window_max": 47,
+        "window_min": 16,
+        "window_flexibility": 4
+      },
+      "note": "window (20) > window_min (16) \u2192 window -= 1 (20\u219219); window_max (48) > window_min + flexibility (16+4=20) \u2192 window_max -= 1 (48\u219247)"
+    },
+    {
+      "index": 10,
+      "description": "Timeout: window shrinks but window_max at floor",
+      "event": "timeout",
+      "before": {
+        "window": 4,
+        "window_max": 6,
+        "window_min": 2,
+        "window_flexibility": 4
+      },
+      "after": {
+        "window": 3,
+        "window_max": 6,
+        "window_min": 2,
+        "window_flexibility": 4
+      },
+      "note": "window (4) > window_min (2) \u2192 window -= 1 (4\u21923); window_max (6) > window_min + flexibility (2+4=6)? 6 > 6 is False \u2192 window_max unchanged"
+    }
+  ],
+  "timeout_vectors": [
+    {
+      "index": 0,
+      "description": "First try, fast RTT, empty queue",
+      "tries": 1,
+      "rtt": 0.01,
+      "tx_ring_length": 0,
+      "timeout": 0.0375,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 1.0,
+        "rtt_factor": 0.025,
+        "rtt_factor_note": "max(0.01*2.5, 0.025) = max(0.025, 0.025) = 0.025",
+        "ring_factor": 1.5
+      },
+      "computation": "1.0 * 0.025 * 1.5 = 0.0375"
+    },
+    {
+      "index": 1,
+      "description": "First try, fast RTT, 1 in queue",
+      "tries": 1,
+      "rtt": 0.01,
+      "tx_ring_length": 1,
+      "timeout": 0.0625,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 1.0,
+        "rtt_factor": 0.025,
+        "rtt_factor_note": "max(0.01*2.5, 0.025) = max(0.025, 0.025) = 0.025",
+        "ring_factor": 2.5
+      },
+      "computation": "1.0 * 0.025 * 2.5 = 0.0625"
+    },
+    {
+      "index": 2,
+      "description": "Second try, fast RTT, 1 in queue",
+      "tries": 2,
+      "rtt": 0.01,
+      "tx_ring_length": 1,
+      "timeout": 0.09375,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 1.5,
+        "rtt_factor": 0.025,
+        "rtt_factor_note": "max(0.01*2.5, 0.025) = max(0.025, 0.025) = 0.025",
+        "ring_factor": 2.5
+      },
+      "computation": "1.5 * 0.025 * 2.5 = 0.09375"
+    },
+    {
+      "index": 3,
+      "description": "Third try, medium RTT, 2 in queue",
+      "tries": 3,
+      "rtt": 0.5,
+      "tx_ring_length": 2,
+      "timeout": 9.84375,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 2.25,
+        "rtt_factor": 1.25,
+        "rtt_factor_note": "max(0.5*2.5, 0.025) = max(1.25, 0.025) = 1.25",
+        "ring_factor": 3.5
+      },
+      "computation": "2.25 * 1.25 * 3.5 = 9.84375"
+    },
+    {
+      "index": 4,
+      "description": "Fifth try, slow RTT, 5 in queue",
+      "tries": 5,
+      "rtt": 1.0,
+      "tx_ring_length": 5,
+      "timeout": 82.265625,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 5.0625,
+        "rtt_factor": 2.5,
+        "rtt_factor_note": "max(1.0*2.5, 0.025) = max(2.5, 0.025) = 2.5",
+        "ring_factor": 6.5
+      },
+      "computation": "5.0625 * 2.5 * 6.5 = 82.265625"
+    },
+    {
+      "index": 5,
+      "description": "First try, zero RTT, empty queue (floor kicks in)",
+      "tries": 1,
+      "rtt": 0.0,
+      "tx_ring_length": 0,
+      "timeout": 0.0375,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 1.0,
+        "rtt_factor": 0.025,
+        "rtt_factor_note": "max(0.0*2.5, 0.025) = max(0.0, 0.025) = 0.025",
+        "ring_factor": 1.5
+      },
+      "computation": "1.0 * 0.025 * 1.5 = 0.0375"
+    },
+    {
+      "index": 6,
+      "description": "First try, very low RTT (below floor), empty queue",
+      "tries": 1,
+      "rtt": 0.005,
+      "tx_ring_length": 0,
+      "timeout": 0.0375,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 1.0,
+        "rtt_factor": 0.025,
+        "rtt_factor_note": "max(0.005*2.5, 0.025) = max(0.0125, 0.025) = 0.025",
+        "ring_factor": 1.5
+      },
+      "computation": "1.0 * 0.025 * 1.5 = 0.0375"
+    },
+    {
+      "index": 7,
+      "description": "Fourth try, moderate RTT, 3 in queue",
+      "tries": 4,
+      "rtt": 0.3,
+      "tx_ring_length": 3,
+      "timeout": 11.390625,
+      "formula": "pow(1.5, tries-1) * max(rtt*2.5, 0.025) * (tx_ring_length + 1.5)",
+      "breakdown": {
+        "exponential_factor": 3.375,
+        "rtt_factor": 0.75,
+        "rtt_factor_note": "max(0.3*2.5, 0.025) = max(0.75, 0.025) = 0.75",
+        "ring_factor": 4.5
+      },
+      "computation": "3.375 * 0.75 * 4.5 = 11.390625"
+    }
+  ],
+  "mdu_vectors": [
+    {
+      "index": 0,
+      "description": "Standard outlet MDU (500)",
+      "outlet_mdu": 500,
+      "channel_mdu": 494,
+      "formula": "min(outlet_mdu - 6, 0xFFFF)",
+      "computation": "min(500 - 6, 65535) = min(494, 65535) = 494"
+    },
+    {
+      "index": 1,
+      "description": "Link MDU (431)",
+      "outlet_mdu": 431,
+      "channel_mdu": 425,
+      "formula": "min(outlet_mdu - 6, 0xFFFF)",
+      "computation": "min(431 - 6, 65535) = min(425, 65535) = 425"
+    },
+    {
+      "index": 2,
+      "description": "Small outlet MDU (100)",
+      "outlet_mdu": 100,
+      "channel_mdu": 94,
+      "formula": "min(outlet_mdu - 6, 0xFFFF)",
+      "computation": "min(100 - 6, 65535) = min(94, 65535) = 94"
+    },
+    {
+      "index": 3,
+      "description": "Minimum viable outlet MDU (6) \u2014 yields MDU of 0",
+      "outlet_mdu": 6,
+      "channel_mdu": 0,
+      "formula": "min(outlet_mdu - 6, 0xFFFF)",
+      "computation": "min(6 - 6, 65535) = min(0, 65535) = 0"
+    },
+    {
+      "index": 4,
+      "description": "Outlet MDU of 7 \u2014 yields MDU of 1",
+      "outlet_mdu": 7,
+      "channel_mdu": 1,
+      "formula": "min(outlet_mdu - 6, 0xFFFF)",
+      "computation": "min(7 - 6, 65535) = min(1, 65535) = 1"
+    },
+    {
+      "index": 5,
+      "description": "Very large outlet MDU \u2014 capped at 0xFFFF",
+      "outlet_mdu": 70000,
+      "channel_mdu": 65535,
+      "formula": "min(outlet_mdu - 6, 0xFFFF)",
+      "computation": "min(70000 - 6, 65535) = min(69994, 65535) = 65535"
+    }
+  ],
+  "system_message_vectors": [
+    {
+      "msgtype": 0,
+      "msgtype_hex": "0x0000",
+      "description": "Minimum user type",
+      "is_system": false,
+      "is_valid_user_type": true
+    },
+    {
+      "msgtype": 1,
+      "msgtype_hex": "0x0001",
+      "description": "Low user type",
+      "is_system": false,
+      "is_valid_user_type": true
+    },
+    {
+      "msgtype": 43981,
+      "msgtype_hex": "0xabcd",
+      "description": "Typical user type",
+      "is_system": false,
+      "is_valid_user_type": true
+    },
+    {
+      "msgtype": 61439,
+      "msgtype_hex": "0xefff",
+      "description": "Maximum user type",
+      "is_system": false,
+      "is_valid_user_type": true
+    },
+    {
+      "msgtype": 61440,
+      "msgtype_hex": "0xf000",
+      "description": "Minimum system type (boundary)",
+      "is_system": true,
+      "is_valid_user_type": false
+    },
+    {
+      "msgtype": 65280,
+      "msgtype_hex": "0xff00",
+      "description": "SMT_STREAM_DATA",
+      "is_system": true,
+      "is_valid_user_type": false
+    },
+    {
+      "msgtype": 65535,
+      "msgtype_hex": "0xffff",
+      "description": "Maximum system type",
+      "is_system": true,
+      "is_valid_user_type": false
+    }
+  ],
+  "round_trip_vectors": [
+    {
+      "index": 0,
+      "description": "Simple message round-trip (pack \u2192 envelope \u2192 decode)",
+      "message": {
+        "id": "rt-test-001",
+        "data": "round trip test",
+        "msgtype": 43981
+      },
+      "message_packed_hex": "92ab72742d746573742d303031af726f756e6420747269702074657374",
+      "sequence": 42,
+      "envelope_raw_hex": "abcd002a001d92ab72742d746573742d303031af726f756e6420747269702074657374",
+      "envelope_length": 35,
+      "decoded_msgtype": 43981,
+      "decoded_sequence": 42,
+      "decoded_data_length": 29,
+      "decoded_message_id": "rt-test-001",
+      "decoded_message_data": "round trip test",
+      "verified": true
+    },
+    {
+      "index": 1,
+      "description": "StreamDataMessage round-trip via channel envelope",
+      "stream_id": 7,
+      "stream_data_hex": "73747265616d207061796c6f61642064617461",
+      "stream_msg_packed_hex": "000773747265616d207061796c6f61642064617461",
+      "envelope_msgtype": 65280,
+      "envelope_sequence": 0,
+      "envelope_raw_hex": "ff0000000015000773747265616d207061796c6f61642064617461",
+      "envelope_length": 27,
+      "decoded_envelope_msgtype": 65280,
+      "decoded_envelope_sequence": 0,
+      "decoded_stream_id": 7,
+      "decoded_stream_eof": false,
+      "decoded_stream_compressed": false,
+      "decoded_stream_data_hex": "73747265616d207061796c6f61642064617461",
+      "verified": true
+    },
+    {
+      "index": 2,
+      "description": "Message at SEQ_MAX (65535) \u2014 wraparound boundary",
+      "message": {
+        "id": "wrap-test",
+        "data": "at max sequence",
+        "msgtype": 4660
+      },
+      "message_packed_hex": "92a9777261702d74657374af6174206d61782073657175656e6365",
+      "sequence": 65535,
+      "next_sequence": 0,
+      "envelope_raw_hex": "1234ffff001b92a9777261702d74657374af6174206d61782073657175656e6365",
+      "envelope_length": 33,
+      "decoded_msgtype": 4660,
+      "decoded_sequence": 65535,
+      "decoded_message_id": "wrap-test",
+      "decoded_message_data": "at max sequence",
+      "verified": true
+    }
+  ]
+}
