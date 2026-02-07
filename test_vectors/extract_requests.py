@@ -950,6 +950,727 @@ def extract_round_trip_vectors(derived_key, link_id):
         "verified": True,
     })
 
+    # Round-trip 2: None data request and response
+    path3 = "/echo"
+    request_data3 = None
+    response_data3 = None
+    fixed_timestamp3 = 1700000002.0
+
+    path_hash3 = truncated_hash(path3.encode("utf-8"))
+    unpacked_request3 = [fixed_timestamp3, path_hash3, request_data3]
+    packed_request3 = umsgpack.packb(unpacked_request3)
+    assert len(packed_request3) <= LINK_MDU
+
+    iv_req3 = deterministic_iv(60)
+    token_data_req3 = token_encrypt_deterministic(packed_request3, derived_key, iv_req3)
+    raw_req3 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req3)
+    hashable_part_req3 = get_hashable_part(raw_req3)
+    request_id3 = truncated_hash(hashable_part_req3)
+
+    decrypted_request3 = token_decrypt(token_data_req3, derived_key)
+    assert decrypted_request3 == packed_request3
+
+    packed_response3 = umsgpack.packb([request_id3, response_data3])
+    assert len(packed_response3) <= LINK_MDU
+
+    iv_resp3 = deterministic_iv(61)
+    token_data_resp3 = token_encrypt_deterministic(packed_response3, derived_key, iv_resp3)
+    raw_resp3 = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp3)
+
+    decrypted_response3 = token_decrypt(token_data_resp3, derived_key)
+    unpacked_response3 = umsgpack.unpackb(decrypted_response3)
+    assert unpacked_response3[0] == request_id3
+
+    vectors.append({
+        "index": 2,
+        "description": "None data request/response lifecycle",
+        "path": path3,
+        "timestamp": fixed_timestamp3,
+        "request_data": None,
+        "response_data": None,
+        "transport_mode": {"request": "inline", "response": "inline"},
+        "step_1_registration": {
+            "path": path3,
+            "path_hash": path_hash3.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_hex": packed_request3.hex(),
+            "packed_request_length": len(packed_request3),
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req3.hex(),
+            "token_data_hex": token_data_req3.hex(),
+            "raw_packet_hex": raw_req3.hex(),
+            "raw_packet_length": len(raw_req3),
+            "hashable_part_hex": hashable_part_req3.hex(),
+            "request_id": request_id3.hex(),
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response3.hex(),
+            "packed_response_length": len(packed_response3),
+            "iv": iv_resp3.hex(),
+            "token_data_hex": token_data_resp3.hex(),
+            "raw_packet_hex": raw_resp3.hex(),
+            "raw_packet_length": len(raw_resp3),
+        },
+        "step_6_initiator_decrypt": {
+            "response_request_id": unpacked_response3[0].hex(),
+            "response_request_id_matches": unpacked_response3[0] == request_id3,
+        },
+        "verified": True,
+    })
+
+    # Round-trip 3: Integer data
+    path4 = "/echo"
+    request_data4 = 42
+    response_data4 = 9999
+    fixed_timestamp4 = 1700000003.0
+
+    path_hash4 = truncated_hash(path4.encode("utf-8"))
+    unpacked_request4 = [fixed_timestamp4, path_hash4, request_data4]
+    packed_request4 = umsgpack.packb(unpacked_request4)
+    assert len(packed_request4) <= LINK_MDU
+
+    iv_req4 = deterministic_iv(62)
+    token_data_req4 = token_encrypt_deterministic(packed_request4, derived_key, iv_req4)
+    raw_req4 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req4)
+    hashable_part_req4 = get_hashable_part(raw_req4)
+    request_id4 = truncated_hash(hashable_part_req4)
+
+    decrypted_request4 = token_decrypt(token_data_req4, derived_key)
+    assert decrypted_request4 == packed_request4
+
+    packed_response4 = umsgpack.packb([request_id4, response_data4])
+    assert len(packed_response4) <= LINK_MDU
+
+    iv_resp4 = deterministic_iv(63)
+    token_data_resp4 = token_encrypt_deterministic(packed_response4, derived_key, iv_resp4)
+    raw_resp4 = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp4)
+
+    decrypted_response4 = token_decrypt(token_data_resp4, derived_key)
+    unpacked_response4 = umsgpack.unpackb(decrypted_response4)
+    assert unpacked_response4[0] == request_id4
+    assert unpacked_response4[1] == response_data4
+
+    vectors.append({
+        "index": 3,
+        "description": "Integer data request/response lifecycle",
+        "path": path4,
+        "timestamp": fixed_timestamp4,
+        "request_data": request_data4,
+        "response_data": response_data4,
+        "transport_mode": {"request": "inline", "response": "inline"},
+        "step_1_registration": {
+            "path": path4,
+            "path_hash": path_hash4.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_hex": packed_request4.hex(),
+            "packed_request_length": len(packed_request4),
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req4.hex(),
+            "token_data_hex": token_data_req4.hex(),
+            "raw_packet_hex": raw_req4.hex(),
+            "raw_packet_length": len(raw_req4),
+            "hashable_part_hex": hashable_part_req4.hex(),
+            "request_id": request_id4.hex(),
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response4.hex(),
+            "packed_response_length": len(packed_response4),
+            "iv": iv_resp4.hex(),
+            "token_data_hex": token_data_resp4.hex(),
+            "raw_packet_hex": raw_resp4.hex(),
+            "raw_packet_length": len(raw_resp4),
+        },
+        "step_6_initiator_decrypt": {
+            "response_request_id": unpacked_response4[0].hex(),
+            "response_request_id_matches": unpacked_response4[0] == request_id4,
+            "response_payload": unpacked_response4[1],
+            "payload_matches": unpacked_response4[1] == response_data4,
+        },
+        "verified": True,
+    })
+
+    # Round-trip 4: List data
+    path5 = "/echo"
+    request_data5 = [1, "two", b"\x03"]
+    response_data5 = ["ok", True]
+    fixed_timestamp5 = 1700000004.0
+
+    path_hash5 = truncated_hash(path5.encode("utf-8"))
+    unpacked_request5 = [fixed_timestamp5, path_hash5, request_data5]
+    packed_request5 = umsgpack.packb(unpacked_request5)
+    assert len(packed_request5) <= LINK_MDU
+
+    iv_req5 = deterministic_iv(64)
+    token_data_req5 = token_encrypt_deterministic(packed_request5, derived_key, iv_req5)
+    raw_req5 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req5)
+    hashable_part_req5 = get_hashable_part(raw_req5)
+    request_id5 = truncated_hash(hashable_part_req5)
+
+    decrypted_request5 = token_decrypt(token_data_req5, derived_key)
+    assert decrypted_request5 == packed_request5
+
+    packed_response5 = umsgpack.packb([request_id5, response_data5])
+    assert len(packed_response5) <= LINK_MDU
+
+    iv_resp5 = deterministic_iv(65)
+    token_data_resp5 = token_encrypt_deterministic(packed_response5, derived_key, iv_resp5)
+    raw_resp5 = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp5)
+
+    decrypted_response5 = token_decrypt(token_data_resp5, derived_key)
+    unpacked_response5 = umsgpack.unpackb(decrypted_response5)
+    assert unpacked_response5[0] == request_id5
+
+    vectors.append({
+        "index": 4,
+        "description": "List data request/response lifecycle",
+        "path": path5,
+        "timestamp": fixed_timestamp5,
+        "request_data_description": "[1, 'two', b'\\x03']",
+        "response_data_description": "['ok', True]",
+        "transport_mode": {"request": "inline", "response": "inline"},
+        "step_1_registration": {
+            "path": path5,
+            "path_hash": path_hash5.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_hex": packed_request5.hex(),
+            "packed_request_length": len(packed_request5),
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req5.hex(),
+            "token_data_hex": token_data_req5.hex(),
+            "raw_packet_hex": raw_req5.hex(),
+            "raw_packet_length": len(raw_req5),
+            "hashable_part_hex": hashable_part_req5.hex(),
+            "request_id": request_id5.hex(),
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response5.hex(),
+            "packed_response_length": len(packed_response5),
+            "iv": iv_resp5.hex(),
+            "token_data_hex": token_data_resp5.hex(),
+            "raw_packet_hex": raw_resp5.hex(),
+            "raw_packet_length": len(raw_resp5),
+        },
+        "step_6_initiator_decrypt": {
+            "response_request_id": unpacked_response5[0].hex(),
+            "response_request_id_matches": unpacked_response5[0] == request_id5,
+        },
+        "verified": True,
+    })
+
+    # Round-trip 5: Near-MDU request (inline), small response (inline)
+    path6 = "/echo"
+    fixed_timestamp6 = 1700000005.0
+    path_hash6 = truncated_hash(path6.encode("utf-8"))
+
+    # Size request data to make packed_request just fit in MDU
+    overhead_req6 = umsgpack.packb([fixed_timestamp6, path_hash6, b""])
+    overhead6 = len(overhead_req6) - 1
+    target_data_len6 = LINK_MDU - overhead6 - 2  # bin8 header
+    if target_data_len6 > 255:
+        target_data_len6 = LINK_MDU - overhead6 - 3  # bin16
+
+    near_mdu_data6 = deterministic_data(600, target_data_len6)
+    near_mdu_packed6 = umsgpack.packb([fixed_timestamp6, path_hash6, near_mdu_data6])
+
+    while len(near_mdu_packed6) > LINK_MDU:
+        target_data_len6 -= 1
+        near_mdu_data6 = deterministic_data(600, target_data_len6)
+        near_mdu_packed6 = umsgpack.packb([fixed_timestamp6, path_hash6, near_mdu_data6])
+
+    while len(near_mdu_packed6) < LINK_MDU:
+        target_data_len6 += 1
+        near_mdu_data6 = deterministic_data(600, target_data_len6)
+        near_mdu_packed6 = umsgpack.packb([fixed_timestamp6, path_hash6, near_mdu_data6])
+
+    if len(near_mdu_packed6) > LINK_MDU:
+        target_data_len6 -= 1
+        near_mdu_data6 = deterministic_data(600, target_data_len6)
+        near_mdu_packed6 = umsgpack.packb([fixed_timestamp6, path_hash6, near_mdu_data6])
+
+    assert len(near_mdu_packed6) == LINK_MDU
+
+    iv_req6 = deterministic_iv(66)
+    token_data_req6 = token_encrypt_deterministic(near_mdu_packed6, derived_key, iv_req6)
+    raw_req6 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req6)
+    hashable_part_req6 = get_hashable_part(raw_req6)
+    request_id6 = truncated_hash(hashable_part_req6)
+
+    decrypted_request6 = token_decrypt(token_data_req6, derived_key)
+    assert decrypted_request6 == near_mdu_packed6
+
+    response_data6 = b"ack"
+    packed_response6 = umsgpack.packb([request_id6, response_data6])
+    assert len(packed_response6) <= LINK_MDU
+
+    iv_resp6 = deterministic_iv(67)
+    token_data_resp6 = token_encrypt_deterministic(packed_response6, derived_key, iv_resp6)
+    raw_resp6 = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp6)
+
+    decrypted_response6 = token_decrypt(token_data_resp6, derived_key)
+    unpacked_response6 = umsgpack.unpackb(decrypted_response6)
+    assert unpacked_response6[0] == request_id6
+    assert unpacked_response6[1] == response_data6
+
+    vectors.append({
+        "index": 5,
+        "description": "Near-MDU request (exact fit) with small response",
+        "path": path6,
+        "timestamp": fixed_timestamp6,
+        "request_data_length": len(near_mdu_data6),
+        "response_data_hex": response_data6.hex(),
+        "transport_mode": {"request": "inline", "response": "inline"},
+        "step_1_registration": {
+            "path": path6,
+            "path_hash": path_hash6.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_hex": near_mdu_packed6.hex(),
+            "packed_request_length": len(near_mdu_packed6),
+            "fits_exactly_in_mdu": len(near_mdu_packed6) == LINK_MDU,
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req6.hex(),
+            "token_data_hex": token_data_req6.hex(),
+            "raw_packet_hex": raw_req6.hex(),
+            "raw_packet_length": len(raw_req6),
+            "hashable_part_hex": hashable_part_req6.hex(),
+            "request_id": request_id6.hex(),
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response6.hex(),
+            "packed_response_length": len(packed_response6),
+            "iv": iv_resp6.hex(),
+            "token_data_hex": token_data_resp6.hex(),
+            "raw_packet_hex": raw_resp6.hex(),
+            "raw_packet_length": len(raw_resp6),
+        },
+        "step_6_initiator_decrypt": {
+            "response_request_id": unpacked_response6[0].hex(),
+            "response_request_id_matches": unpacked_response6[0] == request_id6,
+            "response_payload_hex": unpacked_response6[1].hex(),
+            "payload_matches": unpacked_response6[1] == response_data6,
+        },
+        "verified": True,
+    })
+
+    # Round-trip 6: Over-MDU request (resource), small response (inline)
+    path7 = "/echo"
+    fixed_timestamp7 = 1700000006.0
+    path_hash7 = truncated_hash(path7.encode("utf-8"))
+
+    over_mdu_req_data7 = deterministic_data(700, LINK_MDU + 50)
+    unpacked_request7 = [fixed_timestamp7, path_hash7, over_mdu_req_data7]
+    packed_request7 = umsgpack.packb(unpacked_request7)
+    assert len(packed_request7) > LINK_MDU
+    request_id7 = truncated_hash(packed_request7)
+
+    response_data7 = b"received"
+    packed_response7 = umsgpack.packb([request_id7, response_data7])
+    assert len(packed_response7) <= LINK_MDU
+
+    iv_resp7 = deterministic_iv(68)
+    token_data_resp7 = token_encrypt_deterministic(packed_response7, derived_key, iv_resp7)
+    raw_resp7 = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp7)
+
+    decrypted_response7 = token_decrypt(token_data_resp7, derived_key)
+    unpacked_response7 = umsgpack.unpackb(decrypted_response7)
+    assert unpacked_response7[0] == request_id7
+    assert unpacked_response7[1] == response_data7
+
+    vectors.append({
+        "index": 6,
+        "description": "Over-MDU request (resource) with small inline response",
+        "path": path7,
+        "timestamp": fixed_timestamp7,
+        "request_data_length": len(over_mdu_req_data7),
+        "response_data_hex": response_data7.hex(),
+        "transport_mode": {"request": "resource", "response": "inline"},
+        "step_1_registration": {
+            "path": path7,
+            "path_hash": path_hash7.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_length": len(packed_request7),
+            "exceeds_mdu": True,
+            "request_id": request_id7.hex(),
+            "request_id_algorithm": "truncated_hash(packed_request) — large request sent as Resource",
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response7.hex(),
+            "packed_response_length": len(packed_response7),
+            "iv": iv_resp7.hex(),
+            "token_data_hex": token_data_resp7.hex(),
+            "raw_packet_hex": raw_resp7.hex(),
+            "raw_packet_length": len(raw_resp7),
+        },
+        "step_6_initiator_decrypt": {
+            "response_request_id": unpacked_response7[0].hex(),
+            "response_request_id_matches": unpacked_response7[0] == request_id7,
+            "response_payload_hex": unpacked_response7[1].hex(),
+            "payload_matches": unpacked_response7[1] == response_data7,
+        },
+        "verified": True,
+    })
+
+    # Round-trip 7: Small request (inline), over-MDU response (resource)
+    path8 = "/echo"
+    request_data8 = b"fetch"
+    fixed_timestamp8 = 1700000007.0
+    path_hash8 = truncated_hash(path8.encode("utf-8"))
+
+    unpacked_request8 = [fixed_timestamp8, path_hash8, request_data8]
+    packed_request8 = umsgpack.packb(unpacked_request8)
+    assert len(packed_request8) <= LINK_MDU
+
+    iv_req8 = deterministic_iv(69)
+    token_data_req8 = token_encrypt_deterministic(packed_request8, derived_key, iv_req8)
+    raw_req8 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req8)
+    hashable_part_req8 = get_hashable_part(raw_req8)
+    request_id8 = truncated_hash(hashable_part_req8)
+
+    decrypted_request8 = token_decrypt(token_data_req8, derived_key)
+    assert decrypted_request8 == packed_request8
+
+    over_mdu_resp_data8 = deterministic_data(800, LINK_MDU + 50)
+    packed_response8 = umsgpack.packb([request_id8, over_mdu_resp_data8])
+    assert len(packed_response8) > LINK_MDU
+
+    vectors.append({
+        "index": 7,
+        "description": "Small inline request with over-MDU response (resource)",
+        "path": path8,
+        "timestamp": fixed_timestamp8,
+        "request_data_hex": request_data8.hex(),
+        "response_data_length": len(over_mdu_resp_data8),
+        "transport_mode": {"request": "inline", "response": "resource"},
+        "step_1_registration": {
+            "path": path8,
+            "path_hash": path_hash8.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_hex": packed_request8.hex(),
+            "packed_request_length": len(packed_request8),
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req8.hex(),
+            "token_data_hex": token_data_req8.hex(),
+            "raw_packet_hex": raw_req8.hex(),
+            "raw_packet_length": len(raw_req8),
+            "hashable_part_hex": hashable_part_req8.hex(),
+            "request_id": request_id8.hex(),
+        },
+        "step_5_response_packing": {
+            "packed_response_length": len(packed_response8),
+            "exceeds_mdu": True,
+            "note": "Response sent as Resource with request_id and is_response=True",
+            "resource_params": {
+                "is_response": True,
+                "request_id": request_id8.hex(),
+            },
+        },
+        "verified": True,
+    })
+
+    # Round-trip 8: Both request and response over-MDU (resource)
+    path9 = "/echo"
+    fixed_timestamp9 = 1700000008.0
+    path_hash9 = truncated_hash(path9.encode("utf-8"))
+
+    over_mdu_req_data9 = deterministic_data(900, LINK_MDU + 100)
+    unpacked_request9 = [fixed_timestamp9, path_hash9, over_mdu_req_data9]
+    packed_request9 = umsgpack.packb(unpacked_request9)
+    assert len(packed_request9) > LINK_MDU
+    request_id9 = truncated_hash(packed_request9)
+
+    over_mdu_resp_data9 = deterministic_data(901, LINK_MDU + 100)
+    packed_response9 = umsgpack.packb([request_id9, over_mdu_resp_data9])
+    assert len(packed_response9) > LINK_MDU
+
+    vectors.append({
+        "index": 8,
+        "description": "Both request and response over-MDU (both as resource)",
+        "path": path9,
+        "timestamp": fixed_timestamp9,
+        "request_data_length": len(over_mdu_req_data9),
+        "response_data_length": len(over_mdu_resp_data9),
+        "transport_mode": {"request": "resource", "response": "resource"},
+        "step_1_registration": {
+            "path": path9,
+            "path_hash": path_hash9.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_length": len(packed_request9),
+            "exceeds_mdu": True,
+            "request_id": request_id9.hex(),
+            "request_id_algorithm": "truncated_hash(packed_request) — large request sent as Resource",
+        },
+        "step_5_response_packing": {
+            "packed_response_length": len(packed_response9),
+            "exceeds_mdu": True,
+            "note": "Response sent as Resource with request_id and is_response=True",
+            "resource_params": {
+                "is_response": True,
+                "request_id": request_id9.hex(),
+            },
+        },
+        "verified": True,
+    })
+
+    # Round-trip 9: Nested dict data
+    path10 = "/echo"
+    request_data10 = {"user": {"id": 1, "name": "alice", "roles": ["admin", "user"]}}
+    response_data10 = {"status": "ok", "user": {"id": 1, "active": True}}
+    fixed_timestamp10 = 1700000009.0
+
+    path_hash10 = truncated_hash(path10.encode("utf-8"))
+    unpacked_request10 = [fixed_timestamp10, path_hash10, request_data10]
+    packed_request10 = umsgpack.packb(unpacked_request10)
+    assert len(packed_request10) <= LINK_MDU
+
+    iv_req10 = deterministic_iv(70)
+    token_data_req10 = token_encrypt_deterministic(packed_request10, derived_key, iv_req10)
+    raw_req10 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req10)
+    hashable_part_req10 = get_hashable_part(raw_req10)
+    request_id10 = truncated_hash(hashable_part_req10)
+
+    decrypted_request10 = token_decrypt(token_data_req10, derived_key)
+    assert decrypted_request10 == packed_request10
+
+    packed_response10 = umsgpack.packb([request_id10, response_data10])
+    assert len(packed_response10) <= LINK_MDU
+
+    iv_resp10 = deterministic_iv(71)
+    token_data_resp10 = token_encrypt_deterministic(packed_response10, derived_key, iv_resp10)
+    raw_resp10 = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp10)
+
+    decrypted_response10 = token_decrypt(token_data_resp10, derived_key)
+    unpacked_response10 = umsgpack.unpackb(decrypted_response10)
+    assert unpacked_response10[0] == request_id10
+
+    vectors.append({
+        "index": 9,
+        "description": "Nested dict request/response lifecycle",
+        "path": path10,
+        "timestamp": fixed_timestamp10,
+        "request_data_json": request_data10,
+        "response_data_json": response_data10,
+        "transport_mode": {"request": "inline", "response": "inline"},
+        "step_1_registration": {
+            "path": path10,
+            "path_hash": path_hash10.hex(),
+        },
+        "step_2_request_packing": {
+            "packed_request_hex": packed_request10.hex(),
+            "packed_request_length": len(packed_request10),
+        },
+        "step_3_request_encryption": {
+            "iv": iv_req10.hex(),
+            "token_data_hex": token_data_req10.hex(),
+            "raw_packet_hex": raw_req10.hex(),
+            "raw_packet_length": len(raw_req10),
+            "hashable_part_hex": hashable_part_req10.hex(),
+            "request_id": request_id10.hex(),
+        },
+        "step_5_response_encryption": {
+            "packed_response_hex": packed_response10.hex(),
+            "packed_response_length": len(packed_response10),
+            "iv": iv_resp10.hex(),
+            "token_data_hex": token_data_resp10.hex(),
+            "raw_packet_hex": raw_resp10.hex(),
+            "raw_packet_length": len(raw_resp10),
+        },
+        "step_6_initiator_decrypt": {
+            "response_request_id": unpacked_response10[0].hex(),
+            "response_request_id_matches": unpacked_response10[0] == request_id10,
+        },
+        "verified": True,
+    })
+
+    return vectors
+
+
+def extract_receipt_lifecycle_vectors():
+    """Extract RequestReceipt state machine lifecycle vectors.
+
+    Documents the state transitions and callback invocations for different
+    request/response transport combinations.
+
+    Source: RNS/Link.py RequestReceipt class (lines 1356-1549)
+
+    States:
+      SENT (0x01) → initial state
+      DELIVERED (0x02) → request resource transfer completed
+      RECEIVING (0x03) → response resource transfer in progress
+      READY (0x04) → response received successfully
+      FAILED (0x00) → timeout or transfer failure
+
+    Callbacks:
+      response_callback(receipt) → called when status becomes READY
+      failed_callback(receipt) → called when status becomes FAILED
+      progress_callback(receipt) → called during response resource transfer
+    """
+    vectors = []
+
+    # Vector 0: Inline request + inline response
+    # Simplest path: SENT → READY
+    vectors.append({
+        "index": 0,
+        "description": "Inline request with inline response (simplest path)",
+        "request_transport": "inline",
+        "response_transport": "inline",
+        "round_trip_vector_index": 0,
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request packet sent"},
+            {"status": RECEIPT_READY, "status_name": "READY",
+             "trigger": "Response packet received and unpacked"},
+        ],
+        "callbacks_invoked": [
+            {"callback": "response_callback", "at_status": "READY",
+             "note": "Called with receipt; receipt.response contains response data"},
+        ],
+        "receipt_response": "Response data from unpacked response packet",
+        "progress_at_completion": 1.0,
+    })
+
+    # Vector 1: Inline request + resource response
+    # SENT → RECEIVING → READY
+    vectors.append({
+        "index": 1,
+        "description": "Inline request with resource response",
+        "request_transport": "inline",
+        "response_transport": "resource",
+        "round_trip_vector_index": 7,
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request packet sent"},
+            {"status": RECEIPT_RECEIVING, "status_name": "RECEIVING",
+             "trigger": "Response resource transfer begins (response_resource_progress called)"},
+            {"status": RECEIPT_READY, "status_name": "READY",
+             "trigger": "Response resource transfer completed (response_received called)"},
+        ],
+        "callbacks_invoked": [
+            {"callback": "progress_callback", "at_status": "RECEIVING",
+             "note": "Called multiple times as resource segments arrive; receipt.progress updated"},
+            {"callback": "progress_callback", "at_status": "READY",
+             "note": "Final progress_callback with progress=1.0"},
+            {"callback": "response_callback", "at_status": "READY",
+             "note": "Called with receipt; receipt.response contains response data"},
+        ],
+        "receipt_response": "Response data unpacked from completed resource",
+        "progress_at_completion": 1.0,
+    })
+
+    # Vector 2: Resource request + inline response
+    # SENT → DELIVERED → READY
+    vectors.append({
+        "index": 2,
+        "description": "Resource request with inline response",
+        "request_transport": "resource",
+        "response_transport": "inline",
+        "round_trip_vector_index": 6,
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request resource advertised"},
+            {"status": RECEIPT_DELIVERED, "status_name": "DELIVERED",
+             "trigger": "Request resource transfer completed (request_resource_concluded with success)"},
+            {"status": RECEIPT_READY, "status_name": "READY",
+             "trigger": "Response packet received and unpacked"},
+        ],
+        "callbacks_invoked": [
+            {"callback": "response_callback", "at_status": "READY",
+             "note": "Called with receipt; receipt.response contains response data"},
+        ],
+        "receipt_response": "Response data from unpacked response packet",
+        "progress_at_completion": 1.0,
+        "timeout_note": "Response timeout timer starts after DELIVERED state",
+    })
+
+    # Vector 3: Resource request + resource response
+    # SENT → DELIVERED → RECEIVING → READY
+    vectors.append({
+        "index": 3,
+        "description": "Resource request with resource response (full lifecycle)",
+        "request_transport": "resource",
+        "response_transport": "resource",
+        "round_trip_vector_index": 8,
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request resource advertised"},
+            {"status": RECEIPT_DELIVERED, "status_name": "DELIVERED",
+             "trigger": "Request resource transfer completed (request_resource_concluded with success)"},
+            {"status": RECEIPT_RECEIVING, "status_name": "RECEIVING",
+             "trigger": "Response resource transfer begins (response_resource_progress called)"},
+            {"status": RECEIPT_READY, "status_name": "READY",
+             "trigger": "Response resource transfer completed (response_received called)"},
+        ],
+        "callbacks_invoked": [
+            {"callback": "progress_callback", "at_status": "RECEIVING",
+             "note": "Called multiple times as response resource segments arrive"},
+            {"callback": "progress_callback", "at_status": "READY",
+             "note": "Final progress_callback with progress=1.0"},
+            {"callback": "response_callback", "at_status": "READY",
+             "note": "Called with receipt; receipt.response contains response data"},
+        ],
+        "receipt_response": "Response data unpacked from completed resource",
+        "progress_at_completion": 1.0,
+        "timeout_note": "Response timeout timer starts after DELIVERED state",
+    })
+
+    # Vector 4: Resource request + timeout (no response)
+    # SENT → DELIVERED → FAILED
+    vectors.append({
+        "index": 4,
+        "description": "Resource request with response timeout",
+        "request_transport": "resource",
+        "response_transport": "none (timeout)",
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request resource advertised"},
+            {"status": RECEIPT_DELIVERED, "status_name": "DELIVERED",
+             "trigger": "Request resource transfer completed (request_resource_concluded with success)"},
+            {"status": RECEIPT_FAILED, "status_name": "FAILED",
+             "trigger": "Response timeout expired (request_timed_out called)"},
+        ],
+        "callbacks_invoked": [
+            {"callback": "failed_callback", "at_status": "FAILED",
+             "note": "Called with receipt; receipt.response is None"},
+        ],
+        "receipt_response": None,
+        "timeout_formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+        "timeout_constants": {
+            "TRAFFIC_TIMEOUT_FACTOR": TRAFFIC_TIMEOUT_FACTOR,
+            "RESPONSE_MAX_GRACE_TIME": RESPONSE_MAX_GRACE_TIME,
+        },
+    })
+
+    # Vector 5: Resource request + transfer failure
+    # SENT → FAILED
+    vectors.append({
+        "index": 5,
+        "description": "Resource request with transfer failure",
+        "request_transport": "resource",
+        "response_transport": "none (transfer failed)",
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request resource advertised"},
+            {"status": RECEIPT_FAILED, "status_name": "FAILED",
+             "trigger": "Request resource transfer failed (request_resource_concluded with failure)"},
+        ],
+        "callbacks_invoked": [
+            {"callback": "failed_callback", "at_status": "FAILED",
+             "note": "Called with receipt; receipt.response is None"},
+        ],
+        "receipt_response": None,
+        "failure_note": "Resource transfer may fail due to link closure, timeout, or peer rejection",
+    })
+
     return vectors
 
 
@@ -1390,6 +2111,27 @@ def verify(output, derived_key):
     assert val["valid_policies"] == [ALLOW_NONE, ALLOW_ALL, ALLOW_LIST]
     print(f"    [OK] {len(val['vectors'])} handler validation vectors verified")
 
+    # 13. Receipt lifecycle vectors
+    valid_statuses = {RECEIPT_FAILED, RECEIPT_SENT, RECEIPT_DELIVERED, RECEIPT_RECEIVING, RECEIPT_READY}
+    terminal_statuses = {RECEIPT_READY, RECEIPT_FAILED}
+    rt_count = len(output["round_trip_vectors"])
+    for lv in output["receipt_lifecycle_vectors"]:
+        transitions = lv["state_transitions"]
+        assert len(transitions) >= 2, f"Lifecycle {lv['index']}: needs at least 2 transitions"
+        # First status must be SENT
+        assert transitions[0]["status"] == RECEIPT_SENT, f"Lifecycle {lv['index']}: must start with SENT"
+        # Last status must be READY or FAILED
+        assert transitions[-1]["status"] in terminal_statuses, f"Lifecycle {lv['index']}: must end with READY or FAILED"
+        # All statuses must be valid
+        for t in transitions:
+            assert t["status"] in valid_statuses, f"Lifecycle {lv['index']}: invalid status {t['status']}"
+        # Cross-reference indices must be valid
+        if "round_trip_vector_index" in lv:
+            assert lv["round_trip_vector_index"] < rt_count, f"Lifecycle {lv['index']}: invalid round_trip ref"
+        # Must have at least one callback
+        assert len(lv["callbacks_invoked"]) >= 1, f"Lifecycle {lv['index']}: needs at least 1 callback"
+    print(f"    [OK] {len(output['receipt_lifecycle_vectors'])} receipt lifecycle vectors verified")
+
     # JSON round-trip integrity
     json_str = json.dumps(output, indent=2)
     assert json.loads(json_str) == output, "JSON round-trip failed"
@@ -1480,6 +2222,10 @@ def main():
     rt_vectors = extract_round_trip_vectors(derived_key, link_id)
     print(f"  Extracted {len(rt_vectors)} round-trip vectors")
 
+    print("Extracting receipt lifecycle vectors...")
+    receipt_lifecycle_vectors = extract_receipt_lifecycle_vectors()
+    print(f"  Extracted {len(receipt_lifecycle_vectors)} receipt lifecycle vectors")
+
     print("Extracting handler registration vectors...")
     handler_reg_vectors = extract_handler_registration_vectors(keypairs)
     print(f"  Extracted {len(handler_reg_vectors['individual_vectors'])} handler registration vectors")
@@ -1510,6 +2256,7 @@ def main():
         "policy_vectors": policy_vectors,
         "timeout_vectors": timeout_vectors,
         "round_trip_vectors": rt_vectors,
+        "receipt_lifecycle_vectors": receipt_lifecycle_vectors,
         "handler_registration_vectors": handler_reg_vectors,
         "handler_deregistration_vectors": handler_dereg_vectors,
         "handler_invocation_vectors": handler_inv_vectors,

@@ -656,6 +656,557 @@
         "response_request_id_matches": true
       },
       "verified": true
+    },
+    {
+      "index": 2,
+      "description": "None data request/response lifecycle",
+      "path": "/echo",
+      "timestamp": 1700000002.0,
+      "request_data": null,
+      "response_data": null,
+      "transport_mode": {
+        "request": "inline",
+        "response": "inline"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_hex": "93cb41d954fc40800000c410cb9c1f54d8102d68b7a40c2376e1f0e8c0",
+        "packed_request_length": 29
+      },
+      "step_3_request_encryption": {
+        "iv": "d16a5689448c7f79c04c4ef2c3e66601",
+        "token_data_hex": "d16a5689448c7f79c04c4ef2c3e666017121a8a2d6d5efc1bc908d9b44e9b6877f0de9732e9f06e84ede4f990cee5980811fdd0c29ef1537d47a1cb7208114571861c2de6dea85ef0e4bf5cdfee9974d",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209d16a5689448c7f79c04c4ef2c3e666017121a8a2d6d5efc1bc908d9b44e9b6877f0de9732e9f06e84ede4f990cee5980811fdd0c29ef1537d47a1cb7208114571861c2de6dea85ef0e4bf5cdfee9974d",
+        "raw_packet_length": 99,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209d16a5689448c7f79c04c4ef2c3e666017121a8a2d6d5efc1bc908d9b44e9b6877f0de9732e9f06e84ede4f990cee5980811fdd0c29ef1537d47a1cb7208114571861c2de6dea85ef0e4bf5cdfee9974d",
+        "request_id": "ac59c40cc6937b082ecede1794cf2999"
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c410ac59c40cc6937b082ecede1794cf2999c0",
+        "packed_response_length": 20,
+        "iv": "d787aa9ad76be83e39e3d96e6b964e05",
+        "token_data_hex": "d787aa9ad76be83e39e3d96e6b964e057bf14d7174499aa9ea84943f8d04458d2068b38f2bcdb1fedcb8951f2180e7dc7a3b616e7a55185d445db278865a9a51b6e4c0dc9f8ec7452d3a2a82b0c1c38b",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220ad787aa9ad76be83e39e3d96e6b964e057bf14d7174499aa9ea84943f8d04458d2068b38f2bcdb1fedcb8951f2180e7dc7a3b616e7a55185d445db278865a9a51b6e4c0dc9f8ec7452d3a2a82b0c1c38b",
+        "raw_packet_length": 99
+      },
+      "step_6_initiator_decrypt": {
+        "response_request_id": "ac59c40cc6937b082ecede1794cf2999",
+        "response_request_id_matches": true
+      },
+      "verified": true
+    },
+    {
+      "index": 3,
+      "description": "Integer data request/response lifecycle",
+      "path": "/echo",
+      "timestamp": 1700000003.0,
+      "request_data": 42,
+      "response_data": 9999,
+      "transport_mode": {
+        "request": "inline",
+        "response": "inline"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_hex": "93cb41d954fc40c00000c410cb9c1f54d8102d68b7a40c2376e1f0e82a",
+        "packed_request_length": 29
+      },
+      "step_3_request_encryption": {
+        "iv": "287791727c12621b7af978589a6a4009",
+        "token_data_hex": "287791727c12621b7af978589a6a4009dd568786c9184f0b7fd2546361f5a02ebe3e5498dd55f69adf5ad78f946eb6c7c4ae45f064cc2f6f091848e848ecd2fd61f1d76a2c4b03b3e249751499a16678",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209287791727c12621b7af978589a6a4009dd568786c9184f0b7fd2546361f5a02ebe3e5498dd55f69adf5ad78f946eb6c7c4ae45f064cc2f6f091848e848ecd2fd61f1d76a2c4b03b3e249751499a16678",
+        "raw_packet_length": 99,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209287791727c12621b7af978589a6a4009dd568786c9184f0b7fd2546361f5a02ebe3e5498dd55f69adf5ad78f946eb6c7c4ae45f064cc2f6f091848e848ecd2fd61f1d76a2c4b03b3e249751499a16678",
+        "request_id": "7b7f881de79c7510bfb23cea6d929ada"
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c4107b7f881de79c7510bfb23cea6d929adacd270f",
+        "packed_response_length": 22,
+        "iv": "435550025ca559cd9bb6dd8ed320a939",
+        "token_data_hex": "435550025ca559cd9bb6dd8ed320a939ed987084fda05ed6c5cc7510c892c66694feb6595f385f3d3c24cc9db6be5e764dfb41d153fea66542e304409c22f46e804d128792fdc5dfc6a8476a4043f968",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220a435550025ca559cd9bb6dd8ed320a939ed987084fda05ed6c5cc7510c892c66694feb6595f385f3d3c24cc9db6be5e764dfb41d153fea66542e304409c22f46e804d128792fdc5dfc6a8476a4043f968",
+        "raw_packet_length": 99
+      },
+      "step_6_initiator_decrypt": {
+        "response_request_id": "7b7f881de79c7510bfb23cea6d929ada",
+        "response_request_id_matches": true,
+        "response_payload": 9999,
+        "payload_matches": true
+      },
+      "verified": true
+    },
+    {
+      "index": 4,
+      "description": "List data request/response lifecycle",
+      "path": "/echo",
+      "timestamp": 1700000004.0,
+      "request_data_description": "[1, 'two', b'\\x03']",
+      "response_data_description": "['ok', True]",
+      "transport_mode": {
+        "request": "inline",
+        "response": "inline"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_hex": "93cb41d954fc41000000c410cb9c1f54d8102d68b7a40c2376e1f0e89301a374776fc40103",
+        "packed_request_length": 37
+      },
+      "step_3_request_encryption": {
+        "iv": "17f14d4f82818ffc195203423f073f29",
+        "token_data_hex": "17f14d4f82818ffc195203423f073f2934fa6b469f9133a6ba4fd41d75ffa0e472814699a890f293bc801a70c792e85bed512f3f2f28ee9d0130a8d1ec9bf14b0ac799663c036ac7eed61f6e5fef8bab1e7e6bf9e16bc39acbf10799fb4f5934",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220917f14d4f82818ffc195203423f073f2934fa6b469f9133a6ba4fd41d75ffa0e472814699a890f293bc801a70c792e85bed512f3f2f28ee9d0130a8d1ec9bf14b0ac799663c036ac7eed61f6e5fef8bab1e7e6bf9e16bc39acbf10799fb4f5934",
+        "raw_packet_length": 115,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b220917f14d4f82818ffc195203423f073f2934fa6b469f9133a6ba4fd41d75ffa0e472814699a890f293bc801a70c792e85bed512f3f2f28ee9d0130a8d1ec9bf14b0ac799663c036ac7eed61f6e5fef8bab1e7e6bf9e16bc39acbf10799fb4f5934",
+        "request_id": "39e0319228e98f2eee52eb81498840d3"
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c41039e0319228e98f2eee52eb81498840d392a26f6bc3",
+        "packed_response_length": 24,
+        "iv": "dc205fa1e94c6e723ec0f546a14a1032",
+        "token_data_hex": "dc205fa1e94c6e723ec0f546a14a1032c120b493a63af7b9034975e5bc77c2cf88e4c0728c380e72a308e1da04b3a1b1af21d67d98aff8ba00b0eaaf6b6f4a14793addf75968c67e57335c042d7b6782",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220adc205fa1e94c6e723ec0f546a14a1032c120b493a63af7b9034975e5bc77c2cf88e4c0728c380e72a308e1da04b3a1b1af21d67d98aff8ba00b0eaaf6b6f4a14793addf75968c67e57335c042d7b6782",
+        "raw_packet_length": 99
+      },
+      "step_6_initiator_decrypt": {
+        "response_request_id": "39e0319228e98f2eee52eb81498840d3",
+        "response_request_id_matches": true
+      },
+      "verified": true
+    },
+    {
+      "index": 5,
+      "description": "Near-MDU request (exact fit) with small response",
+      "path": "/echo",
+      "timestamp": 1700000005.0,
+      "request_data_length": 400,
+      "response_data_hex": "61636b",
+      "transport_mode": {
+        "request": "inline",
+        "response": "inline"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_hex": "93cb41d954fc41400000c410cb9c1f54d8102d68b7a40c2376e1f0e8c501907dd371b0a650d0cabdea125d39d923ddd4352005689f8bf572bc176a7fd276316a74c30d8f83056dd7f9767b023a3c8c16e8a1e7ee35345fb0199c279285e8399939506086d0eec31d2425c537457f0d6de5c60f5c14a91fe8590a4f4562868961e2cdf5cd76b297c0652ab2b08408ff441381d5bf43e9218f6d3824276850947e85c4c5a43219b2e9a726767cd828b822cfdd77d457757ddd7f1695fab36377fb97060ca33cca80621a02d9f0bc2296f379717e1bba747f8eb4830871054b94e2f45d76a4eed59750d5815b474d05622be48624a6d1e21acc3ed9654bdba9ceacfcaa91db63e5d82855833d8291d549a396e84b62ee53bda3d5f687b4bd681fb242772dd20a2f3c4565c782a58af8a695af376ef1755b2a52ad8fc009617c02fd2b006aff4e4df0c7ab6698fdafb1274ea5f83af84613bd7779c5ba6fff3404ea2ac7313be142b37d4872655f47e428b91225c613bdc9fe98223636052c089828890110ed51742d62fe788c30709c3f6ee99246e441d2f85d0634c9021183794d71042b49763c1146eb6e03dfa2add5",
+        "packed_request_length": 431,
+        "fits_exactly_in_mdu": true
+      },
+      "step_3_request_encryption": {
+        "iv": "aef3708a38dc929f4c205b6acff87bd3",
+        "token_data_hex": "aef3708a38dc929f4c205b6acff87bd3f685075de2b49c7036d698a4be53034713fb9a36828034aaeae4fa6600c3746ce4d9c9625908955f91d60aae9fa4e7b78b335001bc182acb06b240e0572e6e10167fa7b5e9c5abbe88b72ac2a3905139adec94eaea6af51657ac09cd748ac7af13793e6267966f425edd144504f2a7540c4b8f952d4fa12ca352badf6b7bd1a9656a5889344e391347b79dd70a173df926510f7b3a7bdaf4ccd9885243b5c27ba7924a10a408418b3c75a1875de55aaa4615510d0c2e893637a6286769acddfeb1a6ad4f423298fe365dc1d190493da528a3f6de019c077446188f0ded9571fba59d813be39d99e9d61b53c3429d8191f09439c69e094ae700b085a9b310b6a44db4dba31009dda473f6bef09a21380f02756d45cb206d5c3eb4ccbb0413e67ba161fb748ea0472b30d51556de2fca968d6154da13af80168fea2f39d2c698a7f08497726c5efd5a23b4e3016f05ec5c84f66b0e8b36e90ffbdded7f9398ce41c3b20398cc81586d8429e290885c1fe6675696a16ceeffafcdd9063c6aac064f80ebd8ac1a8ad2c8b20b8920eecc76d243fc1d476af55da24145bc463c5efb710b0a984694e0da2ad1645f2664edc6dc431174bd0daf4049997a456bfd7302e193e1427397a9348ca77bb89bea1e6d66",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209aef3708a38dc929f4c205b6acff87bd3f685075de2b49c7036d698a4be53034713fb9a36828034aaeae4fa6600c3746ce4d9c9625908955f91d60aae9fa4e7b78b335001bc182acb06b240e0572e6e10167fa7b5e9c5abbe88b72ac2a3905139adec94eaea6af51657ac09cd748ac7af13793e6267966f425edd144504f2a7540c4b8f952d4fa12ca352badf6b7bd1a9656a5889344e391347b79dd70a173df926510f7b3a7bdaf4ccd9885243b5c27ba7924a10a408418b3c75a1875de55aaa4615510d0c2e893637a6286769acddfeb1a6ad4f423298fe365dc1d190493da528a3f6de019c077446188f0ded9571fba59d813be39d99e9d61b53c3429d8191f09439c69e094ae700b085a9b310b6a44db4dba31009dda473f6bef09a21380f02756d45cb206d5c3eb4ccbb0413e67ba161fb748ea0472b30d51556de2fca968d6154da13af80168fea2f39d2c698a7f08497726c5efd5a23b4e3016f05ec5c84f66b0e8b36e90ffbdded7f9398ce41c3b20398cc81586d8429e290885c1fe6675696a16ceeffafcdd9063c6aac064f80ebd8ac1a8ad2c8b20b8920eecc76d243fc1d476af55da24145bc463c5efb710b0a984694e0da2ad1645f2664edc6dc431174bd0daf4049997a456bfd7302e193e1427397a9348ca77bb89bea1e6d66",
+        "raw_packet_length": 499,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209aef3708a38dc929f4c205b6acff87bd3f685075de2b49c7036d698a4be53034713fb9a36828034aaeae4fa6600c3746ce4d9c9625908955f91d60aae9fa4e7b78b335001bc182acb06b240e0572e6e10167fa7b5e9c5abbe88b72ac2a3905139adec94eaea6af51657ac09cd748ac7af13793e6267966f425edd144504f2a7540c4b8f952d4fa12ca352badf6b7bd1a9656a5889344e391347b79dd70a173df926510f7b3a7bdaf4ccd9885243b5c27ba7924a10a408418b3c75a1875de55aaa4615510d0c2e893637a6286769acddfeb1a6ad4f423298fe365dc1d190493da528a3f6de019c077446188f0ded9571fba59d813be39d99e9d61b53c3429d8191f09439c69e094ae700b085a9b310b6a44db4dba31009dda473f6bef09a21380f02756d45cb206d5c3eb4ccbb0413e67ba161fb748ea0472b30d51556de2fca968d6154da13af80168fea2f39d2c698a7f08497726c5efd5a23b4e3016f05ec5c84f66b0e8b36e90ffbdded7f9398ce41c3b20398cc81586d8429e290885c1fe6675696a16ceeffafcdd9063c6aac064f80ebd8ac1a8ad2c8b20b8920eecc76d243fc1d476af55da24145bc463c5efb710b0a984694e0da2ad1645f2664edc6dc431174bd0daf4049997a456bfd7302e193e1427397a9348ca77bb89bea1e6d66",
+        "request_id": "71f67be7ebc1d3469a2176bc2dcb9680"
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c41071f67be7ebc1d3469a2176bc2dcb9680c40361636b",
+        "packed_response_length": 24,
+        "iv": "8f37d3bfa45ff429b488cc6a8e53ff8c",
+        "token_data_hex": "8f37d3bfa45ff429b488cc6a8e53ff8cb04a7579a729b49b991d06c249424c304633aa41a41d311a9a9bc0c05cf9b3e0630f2db7197beca3d86f30e207d65b845e616cba6f19c016d457c9d0fea8ea75",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220a8f37d3bfa45ff429b488cc6a8e53ff8cb04a7579a729b49b991d06c249424c304633aa41a41d311a9a9bc0c05cf9b3e0630f2db7197beca3d86f30e207d65b845e616cba6f19c016d457c9d0fea8ea75",
+        "raw_packet_length": 99
+      },
+      "step_6_initiator_decrypt": {
+        "response_request_id": "71f67be7ebc1d3469a2176bc2dcb9680",
+        "response_request_id_matches": true,
+        "response_payload_hex": "61636b",
+        "payload_matches": true
+      },
+      "verified": true
+    },
+    {
+      "index": 6,
+      "description": "Over-MDU request (resource) with small inline response",
+      "path": "/echo",
+      "timestamp": 1700000006.0,
+      "request_data_length": 481,
+      "response_data_hex": "7265636569766564",
+      "transport_mode": {
+        "request": "resource",
+        "response": "inline"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_length": 512,
+        "exceeds_mdu": true,
+        "request_id": "e202175887053fc862c3caf6fe7fb445",
+        "request_id_algorithm": "truncated_hash(packed_request) \u2014 large request sent as Resource"
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c410e202175887053fc862c3caf6fe7fb445c4087265636569766564",
+        "packed_response_length": 29,
+        "iv": "b875ca1a521c507dc13477c3dbef62c2",
+        "token_data_hex": "b875ca1a521c507dc13477c3dbef62c22e74d513f30b1d9ad896bdc5dee4696b48b1906f16d0557a491266856f8b3caae8986380930f8c8fc840a96dc13f8f66facc7793ba87fb905b07ca88deba18b3",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220ab875ca1a521c507dc13477c3dbef62c22e74d513f30b1d9ad896bdc5dee4696b48b1906f16d0557a491266856f8b3caae8986380930f8c8fc840a96dc13f8f66facc7793ba87fb905b07ca88deba18b3",
+        "raw_packet_length": 99
+      },
+      "step_6_initiator_decrypt": {
+        "response_request_id": "e202175887053fc862c3caf6fe7fb445",
+        "response_request_id_matches": true,
+        "response_payload_hex": "7265636569766564",
+        "payload_matches": true
+      },
+      "verified": true
+    },
+    {
+      "index": 7,
+      "description": "Small inline request with over-MDU response (resource)",
+      "path": "/echo",
+      "timestamp": 1700000007.0,
+      "request_data_hex": "6665746368",
+      "response_data_length": 481,
+      "transport_mode": {
+        "request": "inline",
+        "response": "resource"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_hex": "93cb41d954fc41c00000c410cb9c1f54d8102d68b7a40c2376e1f0e8c4056665746368",
+        "packed_request_length": 35
+      },
+      "step_3_request_encryption": {
+        "iv": "f51d0f1db297ccdbb7b4c4be0538aaee",
+        "token_data_hex": "f51d0f1db297ccdbb7b4c4be0538aaee8a7d5edb0f5fb3e3c4fbc8e05eed7bbd54957b010089a5647705f3f361be61741ca4ca8ae670fe11195b6d6e7bf7fa6e3efbcd3833c36e21e653439f58e534d56671a22f0135b9a85d577ad74ef7e2eb",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209f51d0f1db297ccdbb7b4c4be0538aaee8a7d5edb0f5fb3e3c4fbc8e05eed7bbd54957b010089a5647705f3f361be61741ca4ca8ae670fe11195b6d6e7bf7fa6e3efbcd3833c36e21e653439f58e534d56671a22f0135b9a85d577ad74ef7e2eb",
+        "raw_packet_length": 115,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b2209f51d0f1db297ccdbb7b4c4be0538aaee8a7d5edb0f5fb3e3c4fbc8e05eed7bbd54957b010089a5647705f3f361be61741ca4ca8ae670fe11195b6d6e7bf7fa6e3efbcd3833c36e21e653439f58e534d56671a22f0135b9a85d577ad74ef7e2eb",
+        "request_id": "c2b7870651c6d7d7818c14955e7568d7"
+      },
+      "step_5_response_packing": {
+        "packed_response_length": 503,
+        "exceeds_mdu": true,
+        "note": "Response sent as Resource with request_id and is_response=True",
+        "resource_params": {
+          "is_response": true,
+          "request_id": "c2b7870651c6d7d7818c14955e7568d7"
+        }
+      },
+      "verified": true
+    },
+    {
+      "index": 8,
+      "description": "Both request and response over-MDU (both as resource)",
+      "path": "/echo",
+      "timestamp": 1700000008.0,
+      "request_data_length": 531,
+      "response_data_length": 531,
+      "transport_mode": {
+        "request": "resource",
+        "response": "resource"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_length": 562,
+        "exceeds_mdu": true,
+        "request_id": "aa041907459a98c22d6a141662c28c0d",
+        "request_id_algorithm": "truncated_hash(packed_request) \u2014 large request sent as Resource"
+      },
+      "step_5_response_packing": {
+        "packed_response_length": 553,
+        "exceeds_mdu": true,
+        "note": "Response sent as Resource with request_id and is_response=True",
+        "resource_params": {
+          "is_response": true,
+          "request_id": "aa041907459a98c22d6a141662c28c0d"
+        }
+      },
+      "verified": true
+    },
+    {
+      "index": 9,
+      "description": "Nested dict request/response lifecycle",
+      "path": "/echo",
+      "timestamp": 1700000009.0,
+      "request_data_json": {
+        "user": {
+          "id": 1,
+          "name": "alice",
+          "roles": [
+            "admin",
+            "user"
+          ]
+        }
+      },
+      "response_data_json": {
+        "status": "ok",
+        "user": {
+          "id": 1,
+          "active": true
+        }
+      },
+      "transport_mode": {
+        "request": "inline",
+        "response": "inline"
+      },
+      "step_1_registration": {
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8"
+      },
+      "step_2_request_packing": {
+        "packed_request_hex": "93cb41d954fc42400000c410cb9c1f54d8102d68b7a40c2376e1f0e881a47573657283a2696401a46e616d65a5616c696365a5726f6c657392a561646d696ea475736572",
+        "packed_request_length": 68
+      },
+      "step_3_request_encryption": {
+        "iv": "9d0427ac3924510f9dad6c91d8ee0d1c",
+        "token_data_hex": "9d0427ac3924510f9dad6c91d8ee0d1ce62c55e1c30ee91a92a82923e52a8c1fabbc313f1875c69569639897593dc9f5df4aaa8740c82f9f5f51f8053490ef68a881617332767e03740235b0e5f735193549d09710ade8583c1869a137d86b2454b7fb720551d6f530628a7ad225ac62277c83f951099ac612b3a10f0f447fa3",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b22099d0427ac3924510f9dad6c91d8ee0d1ce62c55e1c30ee91a92a82923e52a8c1fabbc313f1875c69569639897593dc9f5df4aaa8740c82f9f5f51f8053490ef68a881617332767e03740235b0e5f735193549d09710ade8583c1869a137d86b2454b7fb720551d6f530628a7ad225ac62277c83f951099ac612b3a10f0f447fa3",
+        "raw_packet_length": 147,
+        "hashable_part_hex": "0c4daf0d8a4a8a3e0bfe8401b810467b22099d0427ac3924510f9dad6c91d8ee0d1ce62c55e1c30ee91a92a82923e52a8c1fabbc313f1875c69569639897593dc9f5df4aaa8740c82f9f5f51f8053490ef68a881617332767e03740235b0e5f735193549d09710ade8583c1869a137d86b2454b7fb720551d6f530628a7ad225ac62277c83f951099ac612b3a10f0f447fa3",
+        "request_id": "f59867e82b41f7cc125e5473835ebb9d"
+      },
+      "step_5_response_encryption": {
+        "packed_response_hex": "92c410f59867e82b41f7cc125e5473835ebb9d82a6737461747573a26f6ba47573657282a2696401a6616374697665c3",
+        "packed_response_length": 48,
+        "iv": "5c0c027d0b143ff2d9536038a844de42",
+        "token_data_hex": "5c0c027d0b143ff2d9536038a844de42f5094ab13fd14ebaa2a1843779f9d7bf104d9821b0fc79b46af149432b91c1678ce12a5e12d11297e877538e6c61c3819c0ca53cf0f1c7c0524b757726f784a0b22f648c0fd760994d1a23fdc697c4fc23b9405f9c340e93956f452779311829",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220a5c0c027d0b143ff2d9536038a844de42f5094ab13fd14ebaa2a1843779f9d7bf104d9821b0fc79b46af149432b91c1678ce12a5e12d11297e877538e6c61c3819c0ca53cf0f1c7c0524b757726f784a0b22f648c0fd760994d1a23fdc697c4fc23b9405f9c340e93956f452779311829",
+        "raw_packet_length": 131
+      },
+      "step_6_initiator_decrypt": {
+        "response_request_id": "f59867e82b41f7cc125e5473835ebb9d",
+        "response_request_id_matches": true
+      },
+      "verified": true
+    }
+  ],
+  "receipt_lifecycle_vectors": [
+    {
+      "index": 0,
+      "description": "Inline request with inline response (simplest path)",
+      "request_transport": "inline",
+      "response_transport": "inline",
+      "round_trip_vector_index": 0,
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request packet sent"
+        },
+        {
+          "status": 4,
+          "status_name": "READY",
+          "trigger": "Response packet received and unpacked"
+        }
+      ],
+      "callbacks_invoked": [
+        {
+          "callback": "response_callback",
+          "at_status": "READY",
+          "note": "Called with receipt; receipt.response contains response data"
+        }
+      ],
+      "receipt_response": "Response data from unpacked response packet",
+      "progress_at_completion": 1.0
+    },
+    {
+      "index": 1,
+      "description": "Inline request with resource response",
+      "request_transport": "inline",
+      "response_transport": "resource",
+      "round_trip_vector_index": 7,
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request packet sent"
+        },
+        {
+          "status": 3,
+          "status_name": "RECEIVING",
+          "trigger": "Response resource transfer begins (response_resource_progress called)"
+        },
+        {
+          "status": 4,
+          "status_name": "READY",
+          "trigger": "Response resource transfer completed (response_received called)"
+        }
+      ],
+      "callbacks_invoked": [
+        {
+          "callback": "progress_callback",
+          "at_status": "RECEIVING",
+          "note": "Called multiple times as resource segments arrive; receipt.progress updated"
+        },
+        {
+          "callback": "progress_callback",
+          "at_status": "READY",
+          "note": "Final progress_callback with progress=1.0"
+        },
+        {
+          "callback": "response_callback",
+          "at_status": "READY",
+          "note": "Called with receipt; receipt.response contains response data"
+        }
+      ],
+      "receipt_response": "Response data unpacked from completed resource",
+      "progress_at_completion": 1.0
+    },
+    {
+      "index": 2,
+      "description": "Resource request with inline response",
+      "request_transport": "resource",
+      "response_transport": "inline",
+      "round_trip_vector_index": 6,
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request resource advertised"
+        },
+        {
+          "status": 2,
+          "status_name": "DELIVERED",
+          "trigger": "Request resource transfer completed (request_resource_concluded with success)"
+        },
+        {
+          "status": 4,
+          "status_name": "READY",
+          "trigger": "Response packet received and unpacked"
+        }
+      ],
+      "callbacks_invoked": [
+        {
+          "callback": "response_callback",
+          "at_status": "READY",
+          "note": "Called with receipt; receipt.response contains response data"
+        }
+      ],
+      "receipt_response": "Response data from unpacked response packet",
+      "progress_at_completion": 1.0,
+      "timeout_note": "Response timeout timer starts after DELIVERED state"
+    },
+    {
+      "index": 3,
+      "description": "Resource request with resource response (full lifecycle)",
+      "request_transport": "resource",
+      "response_transport": "resource",
+      "round_trip_vector_index": 8,
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request resource advertised"
+        },
+        {
+          "status": 2,
+          "status_name": "DELIVERED",
+          "trigger": "Request resource transfer completed (request_resource_concluded with success)"
+        },
+        {
+          "status": 3,
+          "status_name": "RECEIVING",
+          "trigger": "Response resource transfer begins (response_resource_progress called)"
+        },
+        {
+          "status": 4,
+          "status_name": "READY",
+          "trigger": "Response resource transfer completed (response_received called)"
+        }
+      ],
+      "callbacks_invoked": [
+        {
+          "callback": "progress_callback",
+          "at_status": "RECEIVING",
+          "note": "Called multiple times as response resource segments arrive"
+        },
+        {
+          "callback": "progress_callback",
+          "at_status": "READY",
+          "note": "Final progress_callback with progress=1.0"
+        },
+        {
+          "callback": "response_callback",
+          "at_status": "READY",
+          "note": "Called with receipt; receipt.response contains response data"
+        }
+      ],
+      "receipt_response": "Response data unpacked from completed resource",
+      "progress_at_completion": 1.0,
+      "timeout_note": "Response timeout timer starts after DELIVERED state"
+    },
+    {
+      "index": 4,
+      "description": "Resource request with response timeout",
+      "request_transport": "resource",
+      "response_transport": "none (timeout)",
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request resource advertised"
+        },
+        {
+          "status": 2,
+          "status_name": "DELIVERED",
+          "trigger": "Request resource transfer completed (request_resource_concluded with success)"
+        },
+        {
+          "status": 0,
+          "status_name": "FAILED",
+          "trigger": "Response timeout expired (request_timed_out called)"
+        }
+      ],
+      "callbacks_invoked": [
+        {
+          "callback": "failed_callback",
+          "at_status": "FAILED",
+          "note": "Called with receipt; receipt.response is None"
+        }
+      ],
+      "receipt_response": null,
+      "timeout_formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+      "timeout_constants": {
+        "TRAFFIC_TIMEOUT_FACTOR": 6,
+        "RESPONSE_MAX_GRACE_TIME": 10
+      }
+    },
+    {
+      "index": 5,
+      "description": "Resource request with transfer failure",
+      "request_transport": "resource",
+      "response_transport": "none (transfer failed)",
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request resource advertised"
+        },
+        {
+          "status": 0,
+          "status_name": "FAILED",
+          "trigger": "Request resource transfer failed (request_resource_concluded with failure)"
+        }
+      ],
+      "callbacks_invoked": [
+        {
+          "callback": "failed_callback",
+          "at_status": "FAILED",
+          "note": "Called with receipt; receipt.response is None"
+        }
+      ],
+      "receipt_response": null,
+      "failure_note": "Resource transfer may fail due to link closure, timeout, or peer rejection"
     }
   ],
   "handler_registration_vectors": {
