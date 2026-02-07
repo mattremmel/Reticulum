@@ -1493,5 +1493,513 @@
       "ALLOW_LIST (0x02)"
     ],
     "note": "Validation occurs in order: path \u2192 response_generator \u2192 allow policy"
-  }
+  },
+  "policy_enforcement_wire_vectors": [
+    {
+      "index": 0,
+      "description": "ALLOW_ALL + identified peer",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000100.0,
+      "request_data_hex": "b4258cb6a1ea973a4fb039500c5e6d164edb5c48d10091c6f631ab6150814982",
+      "policy": 1,
+      "policy_name": "ALLOW_ALL",
+      "remote_identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": true,
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc59000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c420b4258cb6a1ea973a4fb039500c5e6d164edb5c48d10091c6f631ab6150814982",
+        "iv": "44b4217296178beb67d42ef33d77a734",
+        "token_data_hex": "44b4217296178beb67d42ef33d77a734af551a98db34791e5dd37636c6672112c2371719a0da2678b2a49a35cef1c8b7f31617687fe00fb0545cefb1496a5e044612afdcab0d4cb7ab18ec806ca9ef4d2107c88ab2171cf2f73db0e566758328296643ac7028cc51a9f50045a941a3c8",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220944b4217296178beb67d42ef33d77a734af551a98db34791e5dd37636c6672112c2371719a0da2678b2a49a35cef1c8b7f31617687fe00fb0545cefb1496a5e044612afdcab0d4cb7ab18ec806ca9ef4d2107c88ab2171cf2f73db0e566758328296643ac7028cc51a9f50045a941a3c8",
+        "request_id": "32e62bbef3e53bda6446c105124c345c"
+      },
+      "policy_trace": {
+        "step_1_check_allow_none": "policy (ALLOW_ALL) == ALLOW_NONE? False",
+        "step_2_check_allow_list": "policy == ALLOW_LIST? False",
+        "step_3_result": "allowed = True"
+      },
+      "response_wire": {
+        "response_data_hex": "6563686f5f7265706c79",
+        "packed_response_hex": "92c41032e62bbef3e53bda6446c105124c345cc40a6563686f5f7265706c79",
+        "iv": "abec835b243e067306d9aacd26ed4c2d",
+        "token_data_hex": "abec835b243e067306d9aacd26ed4c2dc6282e7651a66faf024bee73a0e9becd37aecbebd50fb3119a1ae712c1dc3e91cbf1fec366c91865dbbfe874715fd88bd3359a69655689eb83250d71da5bd669",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220aabec835b243e067306d9aacd26ed4c2dc6282e7651a66faf024bee73a0e9becd37aecbebd50fb3119a1ae712c1dc3e91cbf1fec366c91865dbbfe874715fd88bd3359a69655689eb83250d71da5bd669"
+      },
+      "server_behavior": "handler_invoked_and_response_sent"
+    },
+    {
+      "index": 1,
+      "description": "ALLOW_ALL + unidentified peer",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000101.0,
+      "request_data_hex": "baa14e9fb4218a71bd367147b6298a3c11f8edde712456de16de1effeb6d6b75",
+      "policy": 1,
+      "policy_name": "ALLOW_ALL",
+      "remote_identity_hash": null,
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": true,
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc59400000c410cb9c1f54d8102d68b7a40c2376e1f0e8c420baa14e9fb4218a71bd367147b6298a3c11f8edde712456de16de1effeb6d6b75",
+        "iv": "b0c9dcb5e5d49ebd8b098ca47eda1780",
+        "token_data_hex": "b0c9dcb5e5d49ebd8b098ca47eda17803c5815dc1b9248b679ff698e61fa14ecd438089e778b8090e54d51120f1f301b63868903f1cff428cc63f30c7861fdda5bfe52f35726c4dc8bfb706ed1aa022c66ad04bb8c8e80aa82bbb865717666b429ae438a02e7f8b6b6871a1eeca4d43a",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209b0c9dcb5e5d49ebd8b098ca47eda17803c5815dc1b9248b679ff698e61fa14ecd438089e778b8090e54d51120f1f301b63868903f1cff428cc63f30c7861fdda5bfe52f35726c4dc8bfb706ed1aa022c66ad04bb8c8e80aa82bbb865717666b429ae438a02e7f8b6b6871a1eeca4d43a",
+        "request_id": "c1b32736a798aa649659fe9e92a42b40"
+      },
+      "policy_trace": {
+        "step_1_check_allow_none": "policy (ALLOW_ALL) == ALLOW_NONE? False",
+        "step_2_check_allow_list": "policy == ALLOW_LIST? False",
+        "step_3_result": "allowed = True"
+      },
+      "response_wire": {
+        "response_data_hex": "6563686f5f7265706c79",
+        "packed_response_hex": "92c410c1b32736a798aa649659fe9e92a42b40c40a6563686f5f7265706c79",
+        "iv": "a1c964262c9c6f77c9b3473d209fccd5",
+        "token_data_hex": "a1c964262c9c6f77c9b3473d209fccd50e75a2e7ecc9c012a8e0b508a75dd625a0362ea038f4beef02cbc12a32654334547f326eee09d03733173b8caa3c626f2a04d07d649a20c1def0068a5f3fae3b",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220aa1c964262c9c6f77c9b3473d209fccd50e75a2e7ecc9c012a8e0b508a75dd625a0362ea038f4beef02cbc12a32654334547f326eee09d03733173b8caa3c626f2a04d07d649a20c1def0068a5f3fae3b"
+      },
+      "server_behavior": "handler_invoked_and_response_sent"
+    },
+    {
+      "index": 2,
+      "description": "ALLOW_NONE + identified peer",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000102.0,
+      "request_data_hex": "77340e933338db8727ffd0a75cd6ecadd5eb4487c508e13d193a0272d6c0fc14",
+      "policy": 0,
+      "policy_name": "ALLOW_NONE",
+      "remote_identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc59800000c410cb9c1f54d8102d68b7a40c2376e1f0e8c42077340e933338db8727ffd0a75cd6ecadd5eb4487c508e13d193a0272d6c0fc14",
+        "iv": "5d83f5b0c1bbe32cbefe60547e1e7c1c",
+        "token_data_hex": "5d83f5b0c1bbe32cbefe60547e1e7c1c9e78597175a5809a498af3feaeeaaf04d989ff6cdf9d7e808d74b9ea658b6db99c748352b02deb089056a33186646c250395bf10d2e5b5abc2b1a26c387a77f46fa59d1aff1e0473bebca60e5e7032e2f6fedd7fdb7f93c3be0f6da1d3b378c7",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b22095d83f5b0c1bbe32cbefe60547e1e7c1c9e78597175a5809a498af3feaeeaaf04d989ff6cdf9d7e808d74b9ea658b6db99c748352b02deb089056a33186646c250395bf10d2e5b5abc2b1a26c387a77f46fa59d1aff1e0473bebca60e5e7032e2f6fedd7fdb7f93c3be0f6da1d3b378c7",
+        "request_id": "1d06cb92bb46eb395b5c63bb52040075"
+      },
+      "policy_trace": {
+        "step_1_check_allow_none": "policy (ALLOW_NONE) == ALLOW_NONE? True",
+        "step_2_check_allow_list": "skipped (ALLOW_NONE)",
+        "step_3_result": "allowed = False"
+      },
+      "response_wire": null,
+      "server_behavior": "silent_drop",
+      "server_log": "Request <id> from <identity> not allowed for: <path>",
+      "client_consequence": {
+        "inline_request": "PacketReceipt is proved via link-layer implicit proof, so PacketReceipt.status becomes DELIVERED. However, no response arrives. PacketReceipt.check_timeout() only fires when status == SENT, so timeout never triggers. RequestReceipt stays at SENT indefinitely. failed_callback is never invoked.",
+        "resource_request": "Resource transfer completes, RequestReceipt transitions to DELIVERED. __response_timeout_job polls until timeout expires, then calls request_timed_out(). Since status == DELIVERED, failed_callback IS invoked."
+      }
+    },
+    {
+      "index": 3,
+      "description": "ALLOW_NONE + unidentified peer",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000103.0,
+      "request_data_hex": "1b7a7fad4b8281ce5928310dc2d854262d38ac4aae25f25e5cb3e042eb2afe64",
+      "policy": 0,
+      "policy_name": "ALLOW_NONE",
+      "remote_identity_hash": null,
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc59c00000c410cb9c1f54d8102d68b7a40c2376e1f0e8c4201b7a7fad4b8281ce5928310dc2d854262d38ac4aae25f25e5cb3e042eb2afe64",
+        "iv": "1fcd77c21413882fcf801b56e02fc31b",
+        "token_data_hex": "1fcd77c21413882fcf801b56e02fc31b692a6f9fe1eecbb393d31210147d89cc36a91456f8264917a761f1e245237b00fd0e1e8ea74ff3772824a5b89bfabc723d0527aa21f94ecc8b16048f9e6d3d746add74594c043ef11d01c7d5d953f016632e2eb63df8df44026262e5caee5918",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b22091fcd77c21413882fcf801b56e02fc31b692a6f9fe1eecbb393d31210147d89cc36a91456f8264917a761f1e245237b00fd0e1e8ea74ff3772824a5b89bfabc723d0527aa21f94ecc8b16048f9e6d3d746add74594c043ef11d01c7d5d953f016632e2eb63df8df44026262e5caee5918",
+        "request_id": "010892ca50d6772e6eb0a9f268851250"
+      },
+      "policy_trace": {
+        "step_1_check_allow_none": "policy (ALLOW_NONE) == ALLOW_NONE? True",
+        "step_2_check_allow_list": "skipped (ALLOW_NONE)",
+        "step_3_result": "allowed = False"
+      },
+      "response_wire": null,
+      "server_behavior": "silent_drop",
+      "server_log": "Request <id> from <identity> not allowed for: <path>",
+      "client_consequence": {
+        "inline_request": "PacketReceipt is proved via link-layer implicit proof, so PacketReceipt.status becomes DELIVERED. However, no response arrives. PacketReceipt.check_timeout() only fires when status == SENT, so timeout never triggers. RequestReceipt stays at SENT indefinitely. failed_callback is never invoked.",
+        "resource_request": "Resource transfer completes, RequestReceipt transitions to DELIVERED. __response_timeout_job polls until timeout expires, then calls request_timed_out(). Since status == DELIVERED, failed_callback IS invoked."
+      }
+    },
+    {
+      "index": 4,
+      "description": "ALLOW_LIST + authorized identity",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000104.0,
+      "request_data_hex": "04ba8094f71cefacc1a76dded8831dc67941cde621c9dc1a77fc9d0808a72569",
+      "policy": 2,
+      "policy_name": "ALLOW_LIST",
+      "remote_identity_hash": "650b5d76b6bec0390d1f8cfca5bd33f9",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": true,
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc5a000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c42004ba8094f71cefacc1a76dded8831dc67941cde621c9dc1a77fc9d0808a72569",
+        "iv": "e9969ebf655326f9d8d4d4f46b6a3143",
+        "token_data_hex": "e9969ebf655326f9d8d4d4f46b6a3143561fd4e7cce5aa565ccb5a59052dc76b9bcad89dcfb075d489f7b1b5d784fa97d25dd11fdf24a612e0e8a21696930fdabbf1fc3fcdb327e45bd7ed9dfde532ced1a6006f3b433cdd2d1e9958194fc7153de345986f502eb168f95a049480515e",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209e9969ebf655326f9d8d4d4f46b6a3143561fd4e7cce5aa565ccb5a59052dc76b9bcad89dcfb075d489f7b1b5d784fa97d25dd11fdf24a612e0e8a21696930fdabbf1fc3fcdb327e45bd7ed9dfde532ced1a6006f3b433cdd2d1e9958194fc7153de345986f502eb168f95a049480515e",
+        "request_id": "401dca6cbd7f674f0818d07656f98faf"
+      },
+      "policy_trace": {
+        "step_1_check_allow_none": "policy (ALLOW_LIST) == ALLOW_NONE? False",
+        "step_2_check_allow_list": "policy == ALLOW_LIST? True",
+        "step_3_result": "allowed = True"
+      },
+      "response_wire": {
+        "response_data_hex": "6563686f5f7265706c79",
+        "packed_response_hex": "92c410401dca6cbd7f674f0818d07656f98fafc40a6563686f5f7265706c79",
+        "iv": "7f7157cfcf139688e72681e60c13cab0",
+        "token_data_hex": "7f7157cfcf139688e72681e60c13cab0fe57579882aa5a14829bd066595541faf1cee3c3dbb1951a41756e46e278a1757c2da3337bfb33c7d7794dacd4f0a8872ac73c7b7c2382e6e62622a80ab47cb9",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220a7f7157cfcf139688e72681e60c13cab0fe57579882aa5a14829bd066595541faf1cee3c3dbb1951a41756e46e278a1757c2da3337bfb33c7d7794dacd4f0a8872ac73c7b7c2382e6e62622a80ab47cb9"
+      },
+      "server_behavior": "handler_invoked_and_response_sent"
+    },
+    {
+      "index": 5,
+      "description": "ALLOW_LIST + unauthorized identity",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000105.0,
+      "request_data_hex": "d21c95939f99c941fbeab0eacc468a33e70fd73aff77b9e36a7141c6f8816f01",
+      "policy": 2,
+      "policy_name": "ALLOW_LIST",
+      "remote_identity_hash": "1469e89450c361b253aefb0c606b6111",
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc5a400000c410cb9c1f54d8102d68b7a40c2376e1f0e8c420d21c95939f99c941fbeab0eacc468a33e70fd73aff77b9e36a7141c6f8816f01",
+        "iv": "e50a142944b69b73bd4ee1ac66930690",
+        "token_data_hex": "e50a142944b69b73bd4ee1ac669306908d452a5df61ea9904dc551d0f29f971dd68bb22fefa51976cb5d7152064cfb41e36ac6c9fd0d7fbbc6cded45741f38a03292cae71a19b566f5307a2efb259dac24185aaa02e414db92e097c2f1f664213d507d57922df3ed9409cfc058bab5d7",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209e50a142944b69b73bd4ee1ac669306908d452a5df61ea9904dc551d0f29f971dd68bb22fefa51976cb5d7152064cfb41e36ac6c9fd0d7fbbc6cded45741f38a03292cae71a19b566f5307a2efb259dac24185aaa02e414db92e097c2f1f664213d507d57922df3ed9409cfc058bab5d7",
+        "request_id": "f06d4e70495de5fc9a0aab4b2031173b"
+      },
+      "policy_trace": {
+        "step_1_check_allow_none": "policy (ALLOW_LIST) == ALLOW_NONE? False",
+        "step_2_check_allow_list": "policy == ALLOW_LIST? True",
+        "step_3_result": "allowed = False"
+      },
+      "response_wire": null,
+      "server_behavior": "silent_drop",
+      "server_log": "Request <id> from <identity> not allowed for: <path>",
+      "client_consequence": {
+        "inline_request": "PacketReceipt is proved via link-layer implicit proof, so PacketReceipt.status becomes DELIVERED. However, no response arrives. PacketReceipt.check_timeout() only fires when status == SENT, so timeout never triggers. RequestReceipt stays at SENT indefinitely. failed_callback is never invoked.",
+        "resource_request": "Resource transfer completes, RequestReceipt transitions to DELIVERED. __response_timeout_job polls until timeout expires, then calls request_timed_out(). Since status == DELIVERED, failed_callback IS invoked."
+      }
+    },
+    {
+      "index": 6,
+      "description": "ALLOW_LIST + unidentified peer",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000106.0,
+      "request_data_hex": "5b393af73eef5aebf6930771d537295cb5abc4f1ff8a7346a91546578cd9ed92",
+      "policy": 2,
+      "policy_name": "ALLOW_LIST",
+      "remote_identity_hash": null,
+      "allowed_list": [
+        "650b5d76b6bec0390d1f8cfca5bd33f9"
+      ],
+      "expected_allowed": false,
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc5a800000c410cb9c1f54d8102d68b7a40c2376e1f0e8c4205b393af73eef5aebf6930771d537295cb5abc4f1ff8a7346a91546578cd9ed92",
+        "iv": "439f57c51975740aa05b6489f5641eab",
+        "token_data_hex": "439f57c51975740aa05b6489f5641eab61cbcec2c9089c1c930951c09f8773624dbeb66bd282bce686901b6b16ddaa46a41adcb81fd903b7d74df9842851b64909d9604e200bb8e27f8f042a83ea5b7e186d36578167451de8f54f76e3287efef10ea70d8b7a703abbcc8594b67866d6",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209439f57c51975740aa05b6489f5641eab61cbcec2c9089c1c930951c09f8773624dbeb66bd282bce686901b6b16ddaa46a41adcb81fd903b7d74df9842851b64909d9604e200bb8e27f8f042a83ea5b7e186d36578167451de8f54f76e3287efef10ea70d8b7a703abbcc8594b67866d6",
+        "request_id": "b52255228ecbf30bed27d10ab444fc3e"
+      },
+      "policy_trace": {
+        "step_1_check_allow_none": "policy (ALLOW_LIST) == ALLOW_NONE? False",
+        "step_2_check_allow_list": "policy == ALLOW_LIST? True",
+        "step_3_result": "allowed = False"
+      },
+      "response_wire": null,
+      "server_behavior": "silent_drop",
+      "server_log": "Request <id> from <identity> not allowed for: <path>",
+      "client_consequence": {
+        "inline_request": "PacketReceipt is proved via link-layer implicit proof, so PacketReceipt.status becomes DELIVERED. However, no response arrives. PacketReceipt.check_timeout() only fires when status == SENT, so timeout never triggers. RequestReceipt stays at SENT indefinitely. failed_callback is never invoked.",
+        "resource_request": "Resource transfer completes, RequestReceipt transitions to DELIVERED. __response_timeout_job polls until timeout expires, then calls request_timed_out(). Since status == DELIVERED, failed_callback IS invoked."
+      }
+    }
+  ],
+  "failure_callback_vectors": [
+    {
+      "index": 0,
+      "description": "Resource transfer failure (request never delivered)",
+      "transport": "resource",
+      "request_id": "c7f859ef7ec9d8079c1d5ed99c7bc492",
+      "packed_request_length": 512,
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request resource advertised"
+        },
+        {
+          "status": 0,
+          "status_name": "FAILED",
+          "trigger": "request_resource_concluded() called with resource.status != COMPLETE"
+        }
+      ],
+      "callback_invoked": true,
+      "callback": "failed_callback",
+      "receipt_state_at_callback": {
+        "status": 0,
+        "status_name": "FAILED",
+        "response": null,
+        "concluded_at": "set to time.time()",
+        "progress": 0,
+        "get_response()": null,
+        "get_response_time()": null,
+        "concluded()": true
+      },
+      "source_reference": "Link.py:RequestReceipt.request_resource_concluded() lines 1413-1423"
+    },
+    {
+      "index": 1,
+      "description": "Response timeout after successful resource delivery",
+      "transport": "resource",
+      "request_id": "661f2221ae84ddc020ef9aa6a7c085d9",
+      "packed_request_length": 512,
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request resource advertised"
+        },
+        {
+          "status": 2,
+          "status_name": "DELIVERED",
+          "trigger": "request_resource_concluded() with resource.status == COMPLETE"
+        },
+        {
+          "status": 0,
+          "status_name": "FAILED",
+          "trigger": "__response_timeout_job() expired, calls request_timed_out(None)"
+        }
+      ],
+      "callback_invoked": true,
+      "callback": "failed_callback",
+      "timeout_mechanism": {
+        "description": "__response_timeout_job polls every 0.1s while status == DELIVERED",
+        "deadline": "time.time() + timeout at DELIVERED transition",
+        "timeout_formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125"
+      },
+      "receipt_state_at_callback": {
+        "status": 0,
+        "status_name": "FAILED",
+        "response": null,
+        "concluded_at": "set to time.time()",
+        "progress": 0,
+        "get_response()": null,
+        "get_response_time()": null,
+        "concluded()": true
+      },
+      "source_reference": "Link.py:RequestReceipt.__response_timeout_job() lines 1426-1433, request_timed_out() lines 1436-1445"
+    },
+    {
+      "index": 2,
+      "description": "Policy block on resource-transport request (times out)",
+      "transport": "resource",
+      "request_id": "1e0cbe7e2bfda9317e6d5bee8cc8266b",
+      "packed_request_length": 512,
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request resource advertised"
+        },
+        {
+          "status": 2,
+          "status_name": "DELIVERED",
+          "trigger": "request_resource_concluded() with resource.status == COMPLETE"
+        },
+        {
+          "status": 0,
+          "status_name": "FAILED",
+          "trigger": "Server silently drops (policy block). __response_timeout_job() expires."
+        }
+      ],
+      "callback_invoked": true,
+      "callback": "failed_callback",
+      "server_behavior": "silent_drop (policy denies, no response sent)",
+      "receipt_state_at_callback": {
+        "status": 0,
+        "status_name": "FAILED",
+        "response": null,
+        "concluded_at": "set to time.time()",
+        "progress": 0,
+        "get_response()": null,
+        "get_response_time()": null,
+        "concluded()": true
+      },
+      "note": "Indistinguishable from vector 1 at the client \u2014 both result in timeout after DELIVERED",
+      "source_reference": "Link.py:handle_request() lines 906-908 (silent drop), request_timed_out() lines 1436-1445"
+    },
+    {
+      "index": 3,
+      "description": "Inline request with no response (handler not found or server drops)",
+      "transport": "inline",
+      "request_id": "cf40b097cd091e152f3b063a1ba97bec",
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc72c00000c410cb9c1f54d8102d68b7a40c2376e1f0e8c40470696e67",
+        "iv": "703129d32854dc4dbf737e2ad39bf149",
+        "token_data_hex": "703129d32854dc4dbf737e2ad39bf149c0130f5a7e8a00f7ec6898774e8cebefc9fcaad673cb5cfc40999a466ed2110752c3d7931d6951f9d1c6abb817fd4b340c38afb64c7a58d8dc13b110d04e4b34a49c9c35f12f3ff9cffe0475cbeb4bb1",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209703129d32854dc4dbf737e2ad39bf149c0130f5a7e8a00f7ec6898774e8cebefc9fcaad673cb5cfc40999a466ed2110752c3d7931d6951f9d1c6abb817fd4b340c38afb64c7a58d8dc13b110d04e4b34a49c9c35f12f3ff9cffe0475cbeb4bb1"
+      },
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request packet sent"
+        }
+      ],
+      "callback_invoked": false,
+      "callback": null,
+      "stuck_state": {
+        "status": 1,
+        "status_name": "SENT",
+        "response": null,
+        "concluded_at": null,
+        "progress": 0,
+        "get_response()": null,
+        "get_response_time()": null,
+        "concluded()": false
+      },
+      "behavioral_gap": "PacketReceipt.set_timeout_callback(request_timed_out) is set in RequestReceipt.__init__. PacketReceipt.check_timeout() only fires when PacketReceipt.status == SENT. On a link with implicit proofs, the packet is proved delivered, so PacketReceipt.status becomes DELIVERED and check_timeout() never fires. RequestReceipt stays at SENT. failed_callback is never invoked.",
+      "source_reference": "Packet.py:PacketReceipt.check_timeout() line 560 (status==SENT guard), Link.py:RequestReceipt.request_timed_out() line 1437 (status==DELIVERED guard)"
+    },
+    {
+      "index": 4,
+      "description": "Inline request policy-blocked (packet delivered but no response)",
+      "transport": "inline",
+      "request_id": "31494343980b192bd99f9756950173bb",
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc73000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c407626c6f636b6564",
+        "iv": "feda8eeca35c59fe3930aa30227c68f4",
+        "token_data_hex": "feda8eeca35c59fe3930aa30227c68f4f46a5632be9872516dfde896749986a10ffd186c8f3a7e4247768a601389cae82039a79d6e55081b5b2b87af9eace0b41462eb13a9847168097c9f4b2cda680ad91422622e58a9d500c209a360f63926",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209feda8eeca35c59fe3930aa30227c68f4f46a5632be9872516dfde896749986a10ffd186c8f3a7e4247768a601389cae82039a79d6e55081b5b2b87af9eace0b41462eb13a9847168097c9f4b2cda680ad91422622e58a9d500c209a360f63926"
+      },
+      "state_transitions": [
+        {
+          "status": 1,
+          "status_name": "SENT",
+          "trigger": "Request packet sent"
+        }
+      ],
+      "callback_invoked": false,
+      "callback": null,
+      "server_behavior": "silent_drop (policy denies, no response sent)",
+      "stuck_state": {
+        "status": 1,
+        "status_name": "SENT",
+        "response": null,
+        "concluded_at": null,
+        "progress": 0,
+        "get_response()": null,
+        "get_response_time()": null,
+        "concluded()": false
+      },
+      "behavioral_gap": "Same as vector 3: packet is delivered (link implicit proof), but server silently drops due to policy. PacketReceipt timeout never fires because PacketReceipt.status is already DELIVERED. RequestReceipt stays at SENT. failed_callback never invoked.",
+      "note": "Client cannot distinguish policy-block from handler-not-found for inline requests",
+      "source_reference": "Link.py:handle_request() lines 906-908, Packet.py:check_timeout() line 560"
+    }
+  ],
+  "handler_error_vectors": [
+    {
+      "index": 0,
+      "description": "Handler with 4 parameters (too few)",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000300.0,
+      "request_id": "69ff53cb93029e4f5f8593c22edfa26f",
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc8b000000c410cb9c1f54d8102d68b7a40c2376e1f0e8c40b746573745f34706172616d",
+        "iv": "f554494ae2fecb8aadf3f1bdefa9f37f",
+        "token_data_hex": "f554494ae2fecb8aadf3f1bdefa9f37fa7f96a0fceded63f996c9976f1714d24f4ec37477efbc696aaea46b7c52ad306de13528221497a1bb6fb3e021a9ca1a206749e2197843dad16bd88012e5a6a328fc158f974a1b2569378d2f17096b95d",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b2209f554494ae2fecb8aadf3f1bdefa9f37fa7f96a0fceded63f996c9976f1714d24f4ec37477efbc696aaea46b7c52ad306de13528221497a1bb6fb3e021a9ca1a206749e2197843dad16bd88012e5a6a328fc158f974a1b2569378d2f17096b95d"
+      },
+      "handler_param_count": 4,
+      "expected_exception": "TypeError",
+      "expected_message": "Invalid signature for response generator callback",
+      "response_sent": false,
+      "server_behavior": "inspect.signature(response_generator).parameters has 4 entries. Neither == 5 nor == 6 branch matches. Raises TypeError. Exception propagates \u2014 no response sent.",
+      "source_reference": "Link.py:handle_request() lines 881-886"
+    },
+    {
+      "index": 1,
+      "description": "Handler with 7 parameters (too many)",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000301.0,
+      "request_id": "56ce07a3ea2d05f7da5f882638681e8d",
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc8b400000c410cb9c1f54d8102d68b7a40c2376e1f0e8c40b746573745f37706172616d",
+        "iv": "62e4588cbcbf45f0e6acf4d0c56db88f",
+        "token_data_hex": "62e4588cbcbf45f0e6acf4d0c56db88f06c0065f4a7dd36d39e694b68cf4d267c143c0b5bf6712b45167105e2a9d64d5434d695ac6ca2beae5731d44efe2628816a5e8455528bc5eaffdf2529d78886eb9f51c5eeff0b9e7826bc8cd0df5af53",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b220962e4588cbcbf45f0e6acf4d0c56db88f06c0065f4a7dd36d39e694b68cf4d267c143c0b5bf6712b45167105e2a9d64d5434d695ac6ca2beae5731d44efe2628816a5e8455528bc5eaffdf2529d78886eb9f51c5eeff0b9e7826bc8cd0df5af53"
+      },
+      "handler_param_count": 7,
+      "expected_exception": "TypeError",
+      "expected_message": "Invalid signature for response generator callback",
+      "response_sent": false,
+      "server_behavior": "inspect.signature(response_generator).parameters has 7 entries. Neither == 5 nor == 6 branch matches. Raises TypeError. Exception propagates \u2014 no response sent.",
+      "source_reference": "Link.py:handle_request() lines 881-886"
+    },
+    {
+      "index": 2,
+      "description": "Handler raises RuntimeError",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000302.0,
+      "request_id": "46ed2c468fa83cf13d3034a82288f67c",
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc8b800000c410cb9c1f54d8102d68b7a40c2376e1f0e8c40e746573745f657863657074696f6e",
+        "iv": "3c1c391b5b0ce8c1e642713cbca06978",
+        "token_data_hex": "3c1c391b5b0ce8c1e642713cbca06978e9d26a413ff9ffa1215dec7e4c9b042731040642eaa8a9e60820ea1cb048a2852b890a72fec27c0cc9b99572d8b575b47f17ffab9242954bc760502e312a534cf3408c8611536bd88a7f6381acb4b523",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b22093c1c391b5b0ce8c1e642713cbca06978e9d26a413ff9ffa1215dec7e4c9b042731040642eaa8a9e60820ea1cb048a2852b890a72fec27c0cc9b99572d8b575b47f17ffab9242954bc760502e312a534cf3408c8611536bd88a7f6381acb4b523"
+      },
+      "handler_param_count": 5,
+      "expected_exception": "RuntimeError",
+      "expected_message": "application-defined error",
+      "response_sent": false,
+      "server_behavior": "Handler is called with correct 5-param signature but raises RuntimeError during execution. Exception propagates from handle_request() \u2014 no try/except around the response_generator call. No response is sent.",
+      "source_reference": "Link.py:handle_request() lines 881-882 (no try/except around call)"
+    },
+    {
+      "index": 3,
+      "description": "Handler returns None (intentional no-response)",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000303.0,
+      "request_id": "760d507f869fe1ec3a1008a1257ef505",
+      "request_wire": {
+        "packed_request_hex": "93cb41d954fc8bc00000c410cb9c1f54d8102d68b7a40c2376e1f0e8c410746573745f6e6f6e655f72657475726e",
+        "iv": "3ccbb3d89e914e395b69232df11e7714",
+        "token_data_hex": "3ccbb3d89e914e395b69232df11e7714d250eb166b207c03e4da4792648ed1a91bada5ef74b5454773e8b1e05b1d4a18dfaa7f648d74eb1cc26eadf569141f6ecef4b783a694a7115f6798b1440217964480c2afaacd2035a360ccad9d276e50",
+        "raw_packet_hex": "2c004daf0d8a4a8a3e0bfe8401b810467b22093ccbb3d89e914e395b69232df11e7714d250eb166b207c03e4da4792648ed1a91bada5ef74b5454773e8b1e05b1d4a18dfaa7f648d74eb1cc26eadf569141f6ecef4b783a694a7115f6798b1440217964480c2afaacd2035a360ccad9d276e50"
+      },
+      "handler_param_count": 5,
+      "expected_exception": null,
+      "response_sent": false,
+      "server_behavior": "Handler returns None. Line 897: 'if response != None' check fails. No response packet or resource is created. This is intentional \u2014 handlers may return None to indicate no response should be sent.",
+      "note": "Not an error \u2014 this is a valid handler behavior",
+      "source_reference": "Link.py:handle_request() line 897 ('if response != None')"
+    }
+  ]
 }

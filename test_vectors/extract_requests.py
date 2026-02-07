@@ -1986,6 +1986,548 @@ def extract_handler_validation_vectors():
     }
 
 
+def extract_policy_enforcement_wire_vectors(derived_key, link_id, keypairs):
+    """Extract end-to-end wire-format vectors combining request + policy + response.
+
+    7 vectors showing the full flow for each policy/identity combination.
+    For allowed requests: full request AND response wire format.
+    For denied requests: full request wire format, response=null, silent drop.
+
+    IV range: 100-113 (2 IVs per vector that gets a response: req + resp)
+    Timestamps: 1700000100.0+
+    """
+    identity_hash_0 = bytes.fromhex(keypairs[0]["identity_hash"])
+    identity_hash_1 = bytes.fromhex(keypairs[1]["identity_hash"])
+    allowed_list = [identity_hash_0]
+
+    policy_names = {ALLOW_NONE: "ALLOW_NONE", ALLOW_ALL: "ALLOW_ALL", ALLOW_LIST: "ALLOW_LIST"}
+
+    cases = [
+        # (policy, remote_identity_hash, expected_allowed, iv_req, iv_resp, description)
+        (ALLOW_ALL,  identity_hash_0, True,  100, 101, "ALLOW_ALL + identified peer"),
+        (ALLOW_ALL,  None,            True,  102, 103, "ALLOW_ALL + unidentified peer"),
+        (ALLOW_NONE, identity_hash_0, False, 104, None, "ALLOW_NONE + identified peer"),
+        (ALLOW_NONE, None,            False, 105, None, "ALLOW_NONE + unidentified peer"),
+        (ALLOW_LIST, identity_hash_0, True,  106, 107, "ALLOW_LIST + authorized identity"),
+        (ALLOW_LIST, identity_hash_1, False, 108, None, "ALLOW_LIST + unauthorized identity"),
+        (ALLOW_LIST, None,            False, 109, None, "ALLOW_LIST + unidentified peer"),
+    ]
+
+    path = "/echo"
+    path_hash = truncated_hash(path.encode("utf-8"))
+    response_data = b"echo_reply"
+
+    vectors = []
+    for idx, (policy, remote_hash, expected_allowed, iv_req_idx, iv_resp_idx, desc) in enumerate(cases):
+        timestamp = 1700000100.0 + idx
+        request_data = deterministic_data(1000 + idx, 32)
+
+        # Build request wire format
+        unpacked_request = [timestamp, path_hash, request_data]
+        packed_request = umsgpack.packb(unpacked_request)
+        assert len(packed_request) <= LINK_MDU
+
+        iv_req = deterministic_iv(iv_req_idx)
+        token_data_req = token_encrypt_deterministic(packed_request, derived_key, iv_req)
+        raw_req = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_req)
+        hashable_part_req = get_hashable_part(raw_req)
+        request_id = truncated_hash(hashable_part_req)
+
+        # Verify request decryption round-trip
+        decrypted = token_decrypt(token_data_req, derived_key)
+        assert decrypted == packed_request
+
+        # Reproduce policy logic from Link.handle_request() (Link.py:871-877)
+        allowed = False
+        if not policy == ALLOW_NONE:
+            if policy == ALLOW_LIST:
+                if remote_hash is not None and remote_hash in allowed_list:
+                    allowed = True
+            elif policy == ALLOW_ALL:
+                allowed = True
+        assert allowed == expected_allowed
+
+        vector = {
+            "index": idx,
+            "description": desc,
+            "path": path,
+            "path_hash": path_hash.hex(),
+            "timestamp": timestamp,
+            "request_data_hex": request_data.hex(),
+            "policy": policy,
+            "policy_name": policy_names[policy],
+            "remote_identity_hash": remote_hash.hex() if remote_hash else None,
+            "allowed_list": [h.hex() for h in allowed_list],
+            "expected_allowed": expected_allowed,
+            "request_wire": {
+                "packed_request_hex": packed_request.hex(),
+                "iv": iv_req.hex(),
+                "token_data_hex": token_data_req.hex(),
+                "raw_packet_hex": raw_req.hex(),
+                "request_id": request_id.hex(),
+            },
+            "policy_trace": {
+                "step_1_check_allow_none": f"policy ({policy_names[policy]}) == ALLOW_NONE? {policy == ALLOW_NONE}",
+                "step_2_check_allow_list": f"policy == ALLOW_LIST? {policy == ALLOW_LIST}" if policy != ALLOW_NONE else "skipped (ALLOW_NONE)",
+                "step_3_result": f"allowed = {allowed}",
+            },
+        }
+
+        if expected_allowed:
+            # Build response wire format
+            packed_response = umsgpack.packb([request_id, response_data])
+            assert len(packed_response) <= LINK_MDU
+
+            iv_resp = deterministic_iv(iv_resp_idx)
+            token_data_resp = token_encrypt_deterministic(packed_response, derived_key, iv_resp)
+            raw_resp = build_raw_packet(link_id, CONTEXT_RESPONSE, token_data_resp)
+
+            # Verify response round-trip
+            decrypted_resp = token_decrypt(token_data_resp, derived_key)
+            assert decrypted_resp == packed_response
+            unpacked_resp = umsgpack.unpackb(decrypted_resp)
+            assert unpacked_resp[0] == request_id
+
+            vector["response_wire"] = {
+                "response_data_hex": response_data.hex(),
+                "packed_response_hex": packed_response.hex(),
+                "iv": iv_resp.hex(),
+                "token_data_hex": token_data_resp.hex(),
+                "raw_packet_hex": raw_resp.hex(),
+            }
+            vector["server_behavior"] = "handler_invoked_and_response_sent"
+        else:
+            vector["response_wire"] = None
+            vector["server_behavior"] = "silent_drop"
+            vector["server_log"] = "Request <id> from <identity> not allowed for: <path>"
+            vector["client_consequence"] = {
+                "inline_request": (
+                    "PacketReceipt is proved via link-layer implicit proof, so "
+                    "PacketReceipt.status becomes DELIVERED. However, no response "
+                    "arrives. PacketReceipt.check_timeout() only fires when status "
+                    "== SENT, so timeout never triggers. RequestReceipt stays at "
+                    "SENT indefinitely. failed_callback is never invoked."
+                ),
+                "resource_request": (
+                    "Resource transfer completes, RequestReceipt transitions to "
+                    "DELIVERED. __response_timeout_job polls until timeout expires, "
+                    "then calls request_timed_out(). Since status == DELIVERED, "
+                    "failed_callback IS invoked."
+                ),
+            }
+
+        vectors.append(vector)
+
+    return vectors
+
+
+def extract_failure_callback_vectors(derived_key, link_id):
+    """Extract receipt state vectors at failed_callback invocation time.
+
+    5 vectors covering every failure path in the request/response protocol.
+
+    For resource-transport requests (vectors 0-2): failed_callback IS invoked
+    because request_timed_out() or request_resource_concluded() correctly
+    transitions the receipt to FAILED.
+
+    For inline-transport requests (vectors 3-4): failed_callback is NOT invoked
+    due to the PacketReceipt/RequestReceipt status interaction described in the
+    client_consequence notes.
+
+    IV range: 114-123
+    Timestamps: 1700000200.0+
+    """
+    path = "/echo"
+    path_hash = truncated_hash(path.encode("utf-8"))
+    vectors = []
+
+    # --- Vector 0: Resource transfer failure (SENT -> FAILED) ---
+    timestamp_0 = 1700000200.0
+    data_0 = deterministic_data(2000, LINK_MDU + 50)
+    unpacked_0 = [timestamp_0, path_hash, data_0]
+    packed_0 = umsgpack.packb(unpacked_0)
+    assert len(packed_0) > LINK_MDU
+    request_id_0 = truncated_hash(packed_0)
+
+    vectors.append({
+        "index": 0,
+        "description": "Resource transfer failure (request never delivered)",
+        "transport": "resource",
+        "request_id": request_id_0.hex(),
+        "packed_request_length": len(packed_0),
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request resource advertised"},
+            {"status": RECEIPT_FAILED, "status_name": "FAILED",
+             "trigger": "request_resource_concluded() called with resource.status != COMPLETE"},
+        ],
+        "callback_invoked": True,
+        "callback": "failed_callback",
+        "receipt_state_at_callback": {
+            "status": RECEIPT_FAILED,
+            "status_name": "FAILED",
+            "response": None,
+            "concluded_at": "set to time.time()",
+            "progress": 0,
+            "get_response()": None,
+            "get_response_time()": None,
+            "concluded()": True,
+        },
+        "source_reference": "Link.py:RequestReceipt.request_resource_concluded() lines 1413-1423",
+    })
+
+    # --- Vector 1: Response timeout after resource delivery (SENT -> DELIVERED -> FAILED) ---
+    timestamp_1 = 1700000201.0
+    data_1 = deterministic_data(2001, LINK_MDU + 50)
+    unpacked_1 = [timestamp_1, path_hash, data_1]
+    packed_1 = umsgpack.packb(unpacked_1)
+    assert len(packed_1) > LINK_MDU
+    request_id_1 = truncated_hash(packed_1)
+
+    vectors.append({
+        "index": 1,
+        "description": "Response timeout after successful resource delivery",
+        "transport": "resource",
+        "request_id": request_id_1.hex(),
+        "packed_request_length": len(packed_1),
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request resource advertised"},
+            {"status": RECEIPT_DELIVERED, "status_name": "DELIVERED",
+             "trigger": "request_resource_concluded() with resource.status == COMPLETE"},
+            {"status": RECEIPT_FAILED, "status_name": "FAILED",
+             "trigger": "__response_timeout_job() expired, calls request_timed_out(None)"},
+        ],
+        "callback_invoked": True,
+        "callback": "failed_callback",
+        "timeout_mechanism": {
+            "description": "__response_timeout_job polls every 0.1s while status == DELIVERED",
+            "deadline": "time.time() + timeout at DELIVERED transition",
+            "timeout_formula": "rtt * TRAFFIC_TIMEOUT_FACTOR + RESPONSE_MAX_GRACE_TIME * 1.125",
+        },
+        "receipt_state_at_callback": {
+            "status": RECEIPT_FAILED,
+            "status_name": "FAILED",
+            "response": None,
+            "concluded_at": "set to time.time()",
+            "progress": 0,
+            "get_response()": None,
+            "get_response_time()": None,
+            "concluded()": True,
+        },
+        "source_reference": "Link.py:RequestReceipt.__response_timeout_job() lines 1426-1433, request_timed_out() lines 1436-1445",
+    })
+
+    # --- Vector 2: Policy block on resource request (SENT -> DELIVERED -> FAILED) ---
+    timestamp_2 = 1700000202.0
+    data_2 = deterministic_data(2002, LINK_MDU + 50)
+    unpacked_2 = [timestamp_2, path_hash, data_2]
+    packed_2 = umsgpack.packb(unpacked_2)
+    assert len(packed_2) > LINK_MDU
+    request_id_2 = truncated_hash(packed_2)
+
+    vectors.append({
+        "index": 2,
+        "description": "Policy block on resource-transport request (times out)",
+        "transport": "resource",
+        "request_id": request_id_2.hex(),
+        "packed_request_length": len(packed_2),
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request resource advertised"},
+            {"status": RECEIPT_DELIVERED, "status_name": "DELIVERED",
+             "trigger": "request_resource_concluded() with resource.status == COMPLETE"},
+            {"status": RECEIPT_FAILED, "status_name": "FAILED",
+             "trigger": "Server silently drops (policy block). __response_timeout_job() expires."},
+        ],
+        "callback_invoked": True,
+        "callback": "failed_callback",
+        "server_behavior": "silent_drop (policy denies, no response sent)",
+        "receipt_state_at_callback": {
+            "status": RECEIPT_FAILED,
+            "status_name": "FAILED",
+            "response": None,
+            "concluded_at": "set to time.time()",
+            "progress": 0,
+            "get_response()": None,
+            "get_response_time()": None,
+            "concluded()": True,
+        },
+        "note": "Indistinguishable from vector 1 at the client — both result in timeout after DELIVERED",
+        "source_reference": "Link.py:handle_request() lines 906-908 (silent drop), request_timed_out() lines 1436-1445",
+    })
+
+    # --- Vector 3: Inline packet never gets application response (SENT -> stuck) ---
+    timestamp_3 = 1700000203.0
+    data_3 = b"ping"
+    unpacked_3 = [timestamp_3, path_hash, data_3]
+    packed_3 = umsgpack.packb(unpacked_3)
+    assert len(packed_3) <= LINK_MDU
+
+    iv_3 = deterministic_iv(114)
+    token_data_3 = token_encrypt_deterministic(packed_3, derived_key, iv_3)
+    raw_3 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_3)
+    request_id_3 = get_truncated_hash(raw_3)
+
+    vectors.append({
+        "index": 3,
+        "description": "Inline request with no response (handler not found or server drops)",
+        "transport": "inline",
+        "request_id": request_id_3.hex(),
+        "request_wire": {
+            "packed_request_hex": packed_3.hex(),
+            "iv": iv_3.hex(),
+            "token_data_hex": token_data_3.hex(),
+            "raw_packet_hex": raw_3.hex(),
+        },
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request packet sent"},
+        ],
+        "callback_invoked": False,
+        "callback": None,
+        "stuck_state": {
+            "status": RECEIPT_SENT,
+            "status_name": "SENT",
+            "response": None,
+            "concluded_at": None,
+            "progress": 0,
+            "get_response()": None,
+            "get_response_time()": None,
+            "concluded()": False,
+        },
+        "behavioral_gap": (
+            "PacketReceipt.set_timeout_callback(request_timed_out) is set in "
+            "RequestReceipt.__init__. PacketReceipt.check_timeout() only fires "
+            "when PacketReceipt.status == SENT. On a link with implicit proofs, "
+            "the packet is proved delivered, so PacketReceipt.status becomes "
+            "DELIVERED and check_timeout() never fires. RequestReceipt stays "
+            "at SENT. failed_callback is never invoked."
+        ),
+        "source_reference": (
+            "Packet.py:PacketReceipt.check_timeout() line 560 (status==SENT guard), "
+            "Link.py:RequestReceipt.request_timed_out() line 1437 (status==DELIVERED guard)"
+        ),
+    })
+
+    # --- Vector 4: Inline request policy blocked (same outcome as vector 3) ---
+    timestamp_4 = 1700000204.0
+    data_4 = b"blocked"
+    unpacked_4 = [timestamp_4, path_hash, data_4]
+    packed_4 = umsgpack.packb(unpacked_4)
+    assert len(packed_4) <= LINK_MDU
+
+    iv_4 = deterministic_iv(115)
+    token_data_4 = token_encrypt_deterministic(packed_4, derived_key, iv_4)
+    raw_4 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_4)
+    request_id_4 = get_truncated_hash(raw_4)
+
+    vectors.append({
+        "index": 4,
+        "description": "Inline request policy-blocked (packet delivered but no response)",
+        "transport": "inline",
+        "request_id": request_id_4.hex(),
+        "request_wire": {
+            "packed_request_hex": packed_4.hex(),
+            "iv": iv_4.hex(),
+            "token_data_hex": token_data_4.hex(),
+            "raw_packet_hex": raw_4.hex(),
+        },
+        "state_transitions": [
+            {"status": RECEIPT_SENT, "status_name": "SENT",
+             "trigger": "Request packet sent"},
+        ],
+        "callback_invoked": False,
+        "callback": None,
+        "server_behavior": "silent_drop (policy denies, no response sent)",
+        "stuck_state": {
+            "status": RECEIPT_SENT,
+            "status_name": "SENT",
+            "response": None,
+            "concluded_at": None,
+            "progress": 0,
+            "get_response()": None,
+            "get_response_time()": None,
+            "concluded()": False,
+        },
+        "behavioral_gap": (
+            "Same as vector 3: packet is delivered (link implicit proof), "
+            "but server silently drops due to policy. PacketReceipt timeout "
+            "never fires because PacketReceipt.status is already DELIVERED. "
+            "RequestReceipt stays at SENT. failed_callback never invoked."
+        ),
+        "note": "Client cannot distinguish policy-block from handler-not-found for inline requests",
+        "source_reference": "Link.py:handle_request() lines 906-908, Packet.py:check_timeout() line 560",
+    })
+
+    return vectors
+
+
+def extract_handler_error_vectors(derived_key, link_id):
+    """Extract server-side handler error vectors.
+
+    4 vectors documenting what happens when the response_generator has
+    wrong signature or raises an exception.
+
+    IV range: 124-127
+    Timestamps: 1700000300.0+
+    """
+    path = "/echo"
+    path_hash = truncated_hash(path.encode("utf-8"))
+    vectors = []
+
+    # --- Vector 0: Wrong param count (4 params) ---
+    timestamp_0 = 1700000300.0
+    data_0 = b"test_4param"
+    unpacked_0 = [timestamp_0, path_hash, data_0]
+    packed_0 = umsgpack.packb(unpacked_0)
+    assert len(packed_0) <= LINK_MDU
+
+    iv_0 = deterministic_iv(124)
+    token_data_0 = token_encrypt_deterministic(packed_0, derived_key, iv_0)
+    raw_0 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_0)
+    request_id_0 = get_truncated_hash(raw_0)
+
+    vectors.append({
+        "index": 0,
+        "description": "Handler with 4 parameters (too few)",
+        "path": path,
+        "path_hash": path_hash.hex(),
+        "timestamp": timestamp_0,
+        "request_id": request_id_0.hex(),
+        "request_wire": {
+            "packed_request_hex": packed_0.hex(),
+            "iv": iv_0.hex(),
+            "token_data_hex": token_data_0.hex(),
+            "raw_packet_hex": raw_0.hex(),
+        },
+        "handler_param_count": 4,
+        "expected_exception": "TypeError",
+        "expected_message": "Invalid signature for response generator callback",
+        "response_sent": False,
+        "server_behavior": (
+            "inspect.signature(response_generator).parameters has 4 entries. "
+            "Neither == 5 nor == 6 branch matches. Raises TypeError. "
+            "Exception propagates — no response sent."
+        ),
+        "source_reference": "Link.py:handle_request() lines 881-886",
+    })
+
+    # --- Vector 1: Wrong param count (7 params) ---
+    timestamp_1 = 1700000301.0
+    data_1 = b"test_7param"
+    unpacked_1 = [timestamp_1, path_hash, data_1]
+    packed_1 = umsgpack.packb(unpacked_1)
+    assert len(packed_1) <= LINK_MDU
+
+    iv_1 = deterministic_iv(125)
+    token_data_1 = token_encrypt_deterministic(packed_1, derived_key, iv_1)
+    raw_1 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_1)
+    request_id_1 = get_truncated_hash(raw_1)
+
+    vectors.append({
+        "index": 1,
+        "description": "Handler with 7 parameters (too many)",
+        "path": path,
+        "path_hash": path_hash.hex(),
+        "timestamp": timestamp_1,
+        "request_id": request_id_1.hex(),
+        "request_wire": {
+            "packed_request_hex": packed_1.hex(),
+            "iv": iv_1.hex(),
+            "token_data_hex": token_data_1.hex(),
+            "raw_packet_hex": raw_1.hex(),
+        },
+        "handler_param_count": 7,
+        "expected_exception": "TypeError",
+        "expected_message": "Invalid signature for response generator callback",
+        "response_sent": False,
+        "server_behavior": (
+            "inspect.signature(response_generator).parameters has 7 entries. "
+            "Neither == 5 nor == 6 branch matches. Raises TypeError. "
+            "Exception propagates — no response sent."
+        ),
+        "source_reference": "Link.py:handle_request() lines 881-886",
+    })
+
+    # --- Vector 2: Handler raises exception ---
+    timestamp_2 = 1700000302.0
+    data_2 = b"test_exception"
+    unpacked_2 = [timestamp_2, path_hash, data_2]
+    packed_2 = umsgpack.packb(unpacked_2)
+    assert len(packed_2) <= LINK_MDU
+
+    iv_2 = deterministic_iv(126)
+    token_data_2 = token_encrypt_deterministic(packed_2, derived_key, iv_2)
+    raw_2 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_2)
+    request_id_2 = get_truncated_hash(raw_2)
+
+    vectors.append({
+        "index": 2,
+        "description": "Handler raises RuntimeError",
+        "path": path,
+        "path_hash": path_hash.hex(),
+        "timestamp": timestamp_2,
+        "request_id": request_id_2.hex(),
+        "request_wire": {
+            "packed_request_hex": packed_2.hex(),
+            "iv": iv_2.hex(),
+            "token_data_hex": token_data_2.hex(),
+            "raw_packet_hex": raw_2.hex(),
+        },
+        "handler_param_count": 5,
+        "expected_exception": "RuntimeError",
+        "expected_message": "application-defined error",
+        "response_sent": False,
+        "server_behavior": (
+            "Handler is called with correct 5-param signature but raises "
+            "RuntimeError during execution. Exception propagates from "
+            "handle_request() — no try/except around the response_generator "
+            "call. No response is sent."
+        ),
+        "source_reference": "Link.py:handle_request() lines 881-882 (no try/except around call)",
+    })
+
+    # --- Vector 3: Handler returns None ---
+    timestamp_3 = 1700000303.0
+    data_3 = b"test_none_return"
+    unpacked_3 = [timestamp_3, path_hash, data_3]
+    packed_3 = umsgpack.packb(unpacked_3)
+    assert len(packed_3) <= LINK_MDU
+
+    iv_3 = deterministic_iv(127)
+    token_data_3 = token_encrypt_deterministic(packed_3, derived_key, iv_3)
+    raw_3 = build_raw_packet(link_id, CONTEXT_REQUEST, token_data_3)
+    request_id_3 = get_truncated_hash(raw_3)
+
+    vectors.append({
+        "index": 3,
+        "description": "Handler returns None (intentional no-response)",
+        "path": path,
+        "path_hash": path_hash.hex(),
+        "timestamp": timestamp_3,
+        "request_id": request_id_3.hex(),
+        "request_wire": {
+            "packed_request_hex": packed_3.hex(),
+            "iv": iv_3.hex(),
+            "token_data_hex": token_data_3.hex(),
+            "raw_packet_hex": raw_3.hex(),
+        },
+        "handler_param_count": 5,
+        "expected_exception": None,
+        "response_sent": False,
+        "server_behavior": (
+            "Handler returns None. Line 897: 'if response != None' check fails. "
+            "No response packet or resource is created. This is intentional — "
+            "handlers may return None to indicate no response should be sent."
+        ),
+        "note": "Not an error — this is a valid handler behavior",
+        "source_reference": "Link.py:handle_request() line 897 ('if response != None')",
+    })
+
+    return vectors
+
+
 # ============================================================
 # Verification
 # ============================================================
@@ -2132,6 +2674,95 @@ def verify(output, derived_key):
         assert len(lv["callbacks_invoked"]) >= 1, f"Lifecycle {lv['index']}: needs at least 1 callback"
     print(f"    [OK] {len(output['receipt_lifecycle_vectors'])} receipt lifecycle vectors verified")
 
+    # 14. Policy enforcement wire vectors
+    for pv in output["policy_enforcement_wire_vectors"]:
+        # Verify request wire format decrypt/round-trip
+        req_wire = pv["request_wire"]
+        token_data = bytes.fromhex(req_wire["token_data_hex"])
+        decrypted = token_decrypt(token_data, derived_key)
+        packed_request = bytes.fromhex(req_wire["packed_request_hex"])
+        assert decrypted == packed_request, f"Policy enforcement {pv['index']}: request decrypt mismatch"
+
+        # Verify request_id derivation
+        raw = bytes.fromhex(req_wire["raw_packet_hex"])
+        computed_id = get_truncated_hash(raw)
+        assert computed_id.hex() == req_wire["request_id"], f"Policy enforcement {pv['index']}: request_id mismatch"
+
+        # Reproduce policy logic
+        policy = pv["policy"]
+        remote_hash = bytes.fromhex(pv["remote_identity_hash"]) if pv["remote_identity_hash"] else None
+        al = [bytes.fromhex(h) for h in pv["allowed_list"]]
+        allowed = False
+        if not policy == ALLOW_NONE:
+            if policy == ALLOW_LIST:
+                if remote_hash is not None and remote_hash in al:
+                    allowed = True
+            elif policy == ALLOW_ALL:
+                allowed = True
+        assert allowed == pv["expected_allowed"], f"Policy enforcement {pv['index']}: policy mismatch"
+
+        # Verify response wire for allowed vectors
+        if pv["expected_allowed"]:
+            assert pv["response_wire"] is not None, f"Policy enforcement {pv['index']}: missing response"
+            resp_token = bytes.fromhex(pv["response_wire"]["token_data_hex"])
+            decrypted_resp = token_decrypt(resp_token, derived_key)
+            packed_resp = bytes.fromhex(pv["response_wire"]["packed_response_hex"])
+            assert decrypted_resp == packed_resp, f"Policy enforcement {pv['index']}: response decrypt mismatch"
+        else:
+            assert pv["response_wire"] is None, f"Policy enforcement {pv['index']}: should have no response"
+            assert pv["server_behavior"] == "silent_drop"
+    print(f"    [OK] {len(output['policy_enforcement_wire_vectors'])} policy enforcement wire vectors verified")
+
+    # 15. Failure callback vectors
+    for fv in output["failure_callback_vectors"]:
+        transitions = fv["state_transitions"]
+        assert len(transitions) >= 1, f"Failure callback {fv['index']}: needs at least 1 transition"
+        # First status must be SENT
+        assert transitions[0]["status"] == RECEIPT_SENT, f"Failure callback {fv['index']}: must start at SENT"
+
+        if fv["callback_invoked"]:
+            # Must end at FAILED
+            assert transitions[-1]["status"] == RECEIPT_FAILED, f"Failure callback {fv['index']}: must end at FAILED"
+            assert fv["callback"] == "failed_callback"
+            state = fv["receipt_state_at_callback"]
+            assert state["status"] == RECEIPT_FAILED
+            assert state["response"] is None
+            assert state["get_response()"] is None
+            assert state["get_response_time()"] is None
+            assert state["concluded()"] is True
+        else:
+            # Stuck at SENT
+            assert transitions[-1]["status"] == RECEIPT_SENT, f"Failure callback {fv['index']}: should stay at SENT"
+            assert fv["callback"] is None
+            state = fv["stuck_state"]
+            assert state["status"] == RECEIPT_SENT
+            assert state["response"] is None
+            assert state["concluded()"] is False
+
+        # Verify wire format for inline vectors
+        if "request_wire" in fv:
+            req_wire = fv["request_wire"]
+            token_data = bytes.fromhex(req_wire["token_data_hex"])
+            decrypted = token_decrypt(token_data, derived_key)
+            packed = bytes.fromhex(req_wire["packed_request_hex"])
+            assert decrypted == packed, f"Failure callback {fv['index']}: decrypt mismatch"
+    print(f"    [OK] {len(output['failure_callback_vectors'])} failure callback vectors verified")
+
+    # 16. Handler error vectors
+    for hv in output["handler_error_vectors"]:
+        assert hv["response_sent"] is False, f"Handler error {hv['index']}: should not send response"
+        # Verify wire format construction
+        req_wire = hv["request_wire"]
+        token_data = bytes.fromhex(req_wire["token_data_hex"])
+        decrypted = token_decrypt(token_data, derived_key)
+        packed = bytes.fromhex(req_wire["packed_request_hex"])
+        assert decrypted == packed, f"Handler error {hv['index']}: decrypt mismatch"
+
+        raw = bytes.fromhex(req_wire["raw_packet_hex"])
+        computed_id = get_truncated_hash(raw)
+        assert computed_id.hex() == hv["request_id"], f"Handler error {hv['index']}: request_id mismatch"
+    print(f"    [OK] {len(output['handler_error_vectors'])} handler error vectors verified")
+
     # JSON round-trip integrity
     json_str = json.dumps(output, indent=2)
     assert json.loads(json_str) == output, "JSON round-trip failed"
@@ -2242,6 +2873,18 @@ def main():
     handler_val_vectors = extract_handler_validation_vectors()
     print(f"  Extracted {len(handler_val_vectors['vectors'])} handler validation vectors")
 
+    print("Extracting policy enforcement wire vectors...")
+    policy_enforcement_vectors = extract_policy_enforcement_wire_vectors(derived_key, link_id, keypairs)
+    print(f"  Extracted {len(policy_enforcement_vectors)} policy enforcement wire vectors")
+
+    print("Extracting failure callback vectors...")
+    failure_callback_vectors = extract_failure_callback_vectors(derived_key, link_id)
+    print(f"  Extracted {len(failure_callback_vectors)} failure callback vectors")
+
+    print("Extracting handler error vectors...")
+    handler_error_vectors = extract_handler_error_vectors(derived_key, link_id)
+    print(f"  Extracted {len(handler_error_vectors)} handler error vectors")
+
     output = {
         "description": "Reticulum v1.1.3 - request/response protocol test vectors",
         "source": "RNS/Link.py, RNS/Destination.py, RNS/Packet.py, RNS/Resource.py",
@@ -2261,6 +2904,9 @@ def main():
         "handler_deregistration_vectors": handler_dereg_vectors,
         "handler_invocation_vectors": handler_inv_vectors,
         "handler_validation_vectors": handler_val_vectors,
+        "policy_enforcement_wire_vectors": policy_enforcement_vectors,
+        "failure_callback_vectors": failure_callback_vectors,
+        "handler_error_vectors": handler_error_vectors,
     }
 
     verify(output, derived_key)
