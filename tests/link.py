@@ -719,9 +719,50 @@ class TestLink(unittest.TestCase):
             received = []
 
             def handle_data(ready_bytes: int):
+                # Race condition workaround:
+                #
+                # RawChannelReader._handle_message() (Buffer.py:148-161) spawns a
+                # NEW daemon thread for each listener callback on every incoming
+                # StreamDataMessage. When messages arrive in quick succession, multiple
+                # callback threads race on the same BufferedReader. The first thread's
+                # buffer.read() drains the RawChannelReader._buffer; the second thread
+                # finds it empty. RawChannelReader._read() (Buffer.py:164-168) returns
+                # None when the buffer is empty and EOF has not been reached, which
+                # propagates through readinto() → BufferedReader.read() → here.
+                #
+                # No data is lost: whichever thread wins the race consumes the bytes
+                # and appends them to `received`. The losing thread simply gets None.
+                # After concatenation the full byte stream is intact, just with
+                # different chunk boundaries than if callbacks were serialized.
+                # CPython's BufferedReader (C implementation) uses an internal lock,
+                # so concurrent read() calls do not corrupt its state.
+                #
+                # The proper fix in the reference implementation would be to serialize
+                # callbacks in RawChannelReader._handle_message() so that only one
+                # callback thread can invoke a listener at a time, e.g.:
+                #
+                #   def __init__(self, ...):
+                #       self._callback_lock = Lock()
+                #
+                #   def _handle_message(self, message):
+                #       ...
+                #       with self._lock:
+                #           # append to buffer, snapshot listeners and length
+                #           ready = len(self._buffer)
+                #           listeners = list(self._listeners)
+                #       def _notify():
+                #           with self._callback_lock:
+                #               for listener in listeners:
+                #                   listener(ready)
+                #       threading.Thread(target=_notify, daemon=True).start()
+                #
+                # This ensures each listener's buffer.read() sees the data that
+                # triggered it, while still running callbacks off the message-
+                # handling thread to avoid blocking channel processing.
                 global received_bytes
                 data = buffer.read(ready_bytes)
-                received.append(data)
+                if data is not None:
+                    received.append(data)
 
             channel = l1.get_channel()
             buffer = RNS.Buffer.create_bidirectional_buffer(0, 0, channel, handle_data)
