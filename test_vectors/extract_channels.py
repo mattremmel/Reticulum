@@ -1237,6 +1237,361 @@ def extract_send_receive_vectors():
     return vectors
 
 
+def extract_handler_chaining_vectors():
+    """Generate handler chaining behavioral vectors for _run_callbacks().
+
+    From Channel._run_callbacks():
+        cbs = self._message_callbacks.copy()
+        for cb in cbs:
+            try:
+                if cb(message):
+                    return
+            except Exception as e:
+                RNS.log(...)
+
+    Behavior:
+      - Handlers called in registration order
+      - If handler returns truthy → short-circuit (stop calling further handlers)
+      - If handler returns falsy or None → continue to next handler
+      - If handler raises → exception is caught, continue to next handler
+      - Duplicate handlers (same callable) are prevented by add_message_handler()
+
+    All vectors share a single reference envelope (Alpha MSGTYPE=0xABCD, sequence=0).
+    """
+    from RNS.vendor import umsgpack
+
+    # Pre-compute reference envelope for all vectors
+    ref_msgtype = 0xABCD
+    ref_sequence = 0
+    ref_packed = umsgpack.packb(("handler-chain-test", "test data"))
+    ref_envelope = envelope_pack(ref_msgtype, ref_sequence, ref_packed)
+
+    vectors = []
+
+    # Vector 0: Single handler returns True → short-circuit at h0
+    vectors.append({
+        "index": 0,
+        "description": "Single handler returns True — short-circuits at handler_0",
+        "handlers": [{"name": "handler_0", "returns": True, "raises": None}],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0"],
+        "expected_call_count": 1,
+        "short_circuited": True,
+        "short_circuit_handler": "handler_0",
+    })
+
+    # Vector 1: Single handler returns False → no short-circuit
+    vectors.append({
+        "index": 1,
+        "description": "Single handler returns False — no short-circuit",
+        "handlers": [{"name": "handler_0", "returns": False, "raises": None}],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0"],
+        "expected_call_count": 1,
+        "short_circuited": False,
+        "short_circuit_handler": None,
+    })
+
+    # Vector 2: Single handler returns None → no short-circuit
+    vectors.append({
+        "index": 2,
+        "description": "Single handler returns None — no short-circuit (None is falsy)",
+        "handlers": [{"name": "handler_0", "returns": None, "raises": None}],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0"],
+        "expected_call_count": 1,
+        "short_circuited": False,
+        "short_circuit_handler": None,
+    })
+
+    # Vector 3: Two handlers, first returns True → short-circuit at h0
+    vectors.append({
+        "index": 3,
+        "description": "Two handlers, first returns True — short-circuits at handler_0, handler_1 not called",
+        "handlers": [
+            {"name": "handler_0", "returns": True, "raises": None},
+            {"name": "handler_1", "returns": False, "raises": None},
+        ],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0"],
+        "expected_call_count": 1,
+        "short_circuited": True,
+        "short_circuit_handler": "handler_0",
+    })
+
+    # Vector 4: Two handlers, first False, second True → short-circuit at h1
+    vectors.append({
+        "index": 4,
+        "description": "Two handlers, first returns False, second returns True — short-circuits at handler_1",
+        "handlers": [
+            {"name": "handler_0", "returns": False, "raises": None},
+            {"name": "handler_1", "returns": True, "raises": None},
+        ],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0", "handler_1"],
+        "expected_call_count": 2,
+        "short_circuited": True,
+        "short_circuit_handler": "handler_1",
+    })
+
+    # Vector 5: Two handlers, both False → no short-circuit
+    vectors.append({
+        "index": 5,
+        "description": "Two handlers, both return False — no short-circuit, all called",
+        "handlers": [
+            {"name": "handler_0", "returns": False, "raises": None},
+            {"name": "handler_1", "returns": False, "raises": None},
+        ],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0", "handler_1"],
+        "expected_call_count": 2,
+        "short_circuited": False,
+        "short_circuit_handler": None,
+    })
+
+    # Vector 6: Three handlers, middle returns True → short-circuit at h1
+    vectors.append({
+        "index": 6,
+        "description": "Three handlers, middle returns True — short-circuits at handler_1, handler_2 not called",
+        "handlers": [
+            {"name": "handler_0", "returns": False, "raises": None},
+            {"name": "handler_1", "returns": True, "raises": None},
+            {"name": "handler_2", "returns": False, "raises": None},
+        ],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0", "handler_1"],
+        "expected_call_count": 2,
+        "short_circuited": True,
+        "short_circuit_handler": "handler_1",
+    })
+
+    # Vector 7: First raises exception, second returns True → exception caught, h1 short-circuits
+    vectors.append({
+        "index": 7,
+        "description": "First handler raises exception (caught), second returns True — short-circuits at handler_1",
+        "handlers": [
+            {"name": "handler_0", "returns": None, "raises": "ValueError"},
+            {"name": "handler_1", "returns": True, "raises": None},
+        ],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0", "handler_1"],
+        "expected_call_count": 2,
+        "short_circuited": True,
+        "short_circuit_handler": "handler_1",
+    })
+
+    # Vector 8: Only handler raises exception → exception caught, no short-circuit
+    vectors.append({
+        "index": 8,
+        "description": "Only handler raises exception — caught and logged, no short-circuit",
+        "handlers": [
+            {"name": "handler_0", "returns": None, "raises": "RuntimeError"},
+        ],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0"],
+        "expected_call_count": 1,
+        "short_circuited": False,
+        "short_circuit_handler": None,
+    })
+
+    # Vector 9: Duplicate handler prevention — h0 added twice, h1 once
+    # add_message_handler checks "if callback not in self._message_callbacks"
+    # so duplicate is silently ignored; effective list is [h0, h1]
+    vectors.append({
+        "index": 9,
+        "description": "Duplicate handler prevention — handler_0 added twice (second ignored), handler_1 returns True",
+        "handlers": [
+            {"name": "handler_0", "returns": False, "raises": None},
+            {"name": "handler_0_duplicate", "returns": False, "raises": None,
+             "note": "Same callable as handler_0; add_message_handler silently ignores duplicate"},
+            {"name": "handler_1", "returns": True, "raises": None},
+        ],
+        "effective_handlers": ["handler_0", "handler_1"],
+        "message_envelope_hex": ref_envelope.hex(),
+        "message_msgtype": ref_msgtype,
+        "message_msgtype_hex": f"0x{ref_msgtype:04x}",
+        "expected_calls": ["handler_0", "handler_1"],
+        "expected_call_count": 2,
+        "short_circuited": True,
+        "short_circuit_handler": "handler_1",
+    })
+
+    return vectors
+
+
+def extract_registration_validation_vectors():
+    """Generate registration validation vectors for _register_message_type().
+
+    From Channel._register_message_type():
+        Gate 1 (subclass):    if not issubclass(message_class, MessageBase) → CE ME_INVALID_MSG_TYPE
+        Gate 2 (msgtype_none): if message_class.MSGTYPE is None → CE ME_INVALID_MSG_TYPE
+        Gate 3 (system_type): if MSGTYPE >= 0xf000 and not is_system_type → CE ME_INVALID_MSG_TYPE
+        Gate 4 (constructor): try message_class() except → CE ME_INVALID_MSG_TYPE
+        Success:              self._message_factories[message_class.MSGTYPE] = message_class
+
+    All CE types are ME_INVALID_MSG_TYPE (value 1).
+    """
+    CE_INVALID = 1  # CEType.ME_INVALID_MSG_TYPE
+
+    vectors = []
+
+    # Vector 0: Valid user type (0xABCD) — all gates pass
+    vectors.append({
+        "index": 0,
+        "description": "Valid user type (0xABCD) — all validation gates pass",
+        "msgtype": 0xABCD,
+        "msgtype_hex": "0xabcd",
+        "is_subclass_of_message_base": True,
+        "msgtype_is_none": False,
+        "constructor_succeeds": True,
+        "use_internal_api": False,
+        "is_system_type_flag": False,
+        "expected_result": "success",
+        "validation_gate": None,
+        "ce_type": None,
+        "factory_registered": True,
+    })
+
+    # Vector 1: MSGTYPE is None — fails at gate 2
+    vectors.append({
+        "index": 1,
+        "description": "MSGTYPE is None — fails msgtype_none gate",
+        "msgtype": None,
+        "msgtype_hex": None,
+        "is_subclass_of_message_base": True,
+        "msgtype_is_none": True,
+        "constructor_succeeds": True,
+        "use_internal_api": False,
+        "is_system_type_flag": False,
+        "expected_result": "raises",
+        "validation_gate": "msgtype_none",
+        "ce_type": CE_INVALID,
+        "factory_registered": False,
+    })
+
+    # Vector 2: Not a MessageBase subclass — fails at gate 1
+    vectors.append({
+        "index": 2,
+        "description": "Not a MessageBase subclass — fails subclass gate",
+        "msgtype": 0xABCD,
+        "msgtype_hex": "0xabcd",
+        "is_subclass_of_message_base": False,
+        "msgtype_is_none": False,
+        "constructor_succeeds": True,
+        "use_internal_api": False,
+        "is_system_type_flag": False,
+        "expected_result": "raises",
+        "validation_gate": "subclass",
+        "ce_type": CE_INVALID,
+        "factory_registered": False,
+    })
+
+    # Vector 3: System type (0xF000) via public API — fails at gate 3
+    vectors.append({
+        "index": 3,
+        "description": "System type (0xF000) via public register_message_type — fails system_type gate",
+        "msgtype": 0xF000,
+        "msgtype_hex": "0xf000",
+        "is_subclass_of_message_base": True,
+        "msgtype_is_none": False,
+        "constructor_succeeds": True,
+        "use_internal_api": False,
+        "is_system_type_flag": False,
+        "expected_result": "raises",
+        "validation_gate": "system_type",
+        "ce_type": CE_INVALID,
+        "factory_registered": False,
+    })
+
+    # Vector 4: System type (0xF000) via internal API with is_system_type=True — succeeds
+    vectors.append({
+        "index": 4,
+        "description": "System type (0xF000) via _register_message_type with is_system_type=True — succeeds",
+        "msgtype": 0xF000,
+        "msgtype_hex": "0xf000",
+        "is_subclass_of_message_base": True,
+        "msgtype_is_none": False,
+        "constructor_succeeds": True,
+        "use_internal_api": True,
+        "is_system_type_flag": True,
+        "expected_result": "success",
+        "validation_gate": None,
+        "ce_type": None,
+        "factory_registered": True,
+    })
+
+    # Vector 5: System type (0xFFFF) via public API — fails at gate 3
+    vectors.append({
+        "index": 5,
+        "description": "System type (0xFFFF) via public register_message_type — fails system_type gate",
+        "msgtype": 0xFFFF,
+        "msgtype_hex": "0xffff",
+        "is_subclass_of_message_base": True,
+        "msgtype_is_none": False,
+        "constructor_succeeds": True,
+        "use_internal_api": False,
+        "is_system_type_flag": False,
+        "expected_result": "raises",
+        "validation_gate": "system_type",
+        "ce_type": CE_INVALID,
+        "factory_registered": False,
+    })
+
+    # Vector 6: Max user type (0xEFFF) — all gates pass
+    vectors.append({
+        "index": 6,
+        "description": "Max user type (0xEFFF) — just below system boundary, all gates pass",
+        "msgtype": 0xEFFF,
+        "msgtype_hex": "0xefff",
+        "is_subclass_of_message_base": True,
+        "msgtype_is_none": False,
+        "constructor_succeeds": True,
+        "use_internal_api": False,
+        "is_system_type_flag": False,
+        "expected_result": "success",
+        "validation_gate": None,
+        "ce_type": None,
+        "factory_registered": True,
+    })
+
+    # Vector 7: No-arg constructor raises — fails at gate 4
+    vectors.append({
+        "index": 7,
+        "description": "No-arg constructor raises exception — fails constructor gate",
+        "msgtype": 0xBBBB,
+        "msgtype_hex": "0xbbbb",
+        "is_subclass_of_message_base": True,
+        "msgtype_is_none": False,
+        "constructor_succeeds": False,
+        "use_internal_api": False,
+        "is_system_type_flag": False,
+        "expected_result": "raises",
+        "validation_gate": "constructor",
+        "ce_type": CE_INVALID,
+        "factory_registered": False,
+    })
+
+    return vectors
+
+
 # ============================================================
 # Verification
 # ============================================================
@@ -1382,6 +1737,69 @@ def verify(output):
 
     print(f"    [OK] {len(output['send_receive_vectors'])} send/receive vectors verified")
 
+    # 11. Handler chaining vectors
+    for hv in output["handler_chaining_vectors"]:
+        # Verify envelope bytes decode correctly
+        env_raw = bytes.fromhex(hv["message_envelope_hex"])
+        dec_mt, dec_seq, dec_len, dec_data = envelope_unpack(env_raw)
+        assert dec_mt == hv["message_msgtype"], f"Handler chain {hv['index']}: msgtype mismatch"
+
+        # Verify expected_calls are in registration order (subset of handler names)
+        handler_names = []
+        for h in hv["handlers"]:
+            if "duplicate" not in h["name"]:
+                handler_names.append(h["name"])
+        effective = hv.get("effective_handlers", handler_names)
+        for i, call in enumerate(hv["expected_calls"]):
+            assert call in effective, f"Handler chain {hv['index']}: expected call {call} not in effective handlers"
+            if i > 0:
+                prev_idx = effective.index(hv["expected_calls"][i - 1])
+                curr_idx = effective.index(call)
+                assert curr_idx > prev_idx, f"Handler chain {hv['index']}: calls not in registration order"
+
+        # Verify short_circuit_handler consistency
+        if hv["short_circuited"]:
+            assert hv["short_circuit_handler"] is not None, f"Handler chain {hv['index']}: short-circuited but no handler"
+            assert hv["short_circuit_handler"] == hv["expected_calls"][-1], \
+                f"Handler chain {hv['index']}: short_circuit_handler should be last called handler"
+            # The short-circuit handler must return truthy (True) — not raises
+            sc_handler = next(h for h in hv["handlers"] if h["name"] == hv["short_circuit_handler"])
+            assert sc_handler["returns"] is True, f"Handler chain {hv['index']}: short_circuit_handler must return True"
+        else:
+            assert hv["short_circuit_handler"] is None, f"Handler chain {hv['index']}: not short-circuited but has handler"
+
+        assert hv["expected_call_count"] == len(hv["expected_calls"]), \
+            f"Handler chain {hv['index']}: call count mismatch"
+    print(f"    [OK] {len(output['handler_chaining_vectors'])} handler chaining vectors verified")
+
+    # 12. Registration validation vectors
+    for rv in output["registration_validation_vectors"]:
+        if rv["expected_result"] == "success":
+            assert rv["factory_registered"] is True, f"Reg validation {rv['index']}: success should register factory"
+            assert rv["validation_gate"] is None, f"Reg validation {rv['index']}: success should have no gate"
+            assert rv["ce_type"] is None, f"Reg validation {rv['index']}: success should have no ce_type"
+        else:
+            assert rv["expected_result"] == "raises", f"Reg validation {rv['index']}: unexpected result"
+            assert rv["factory_registered"] is False, f"Reg validation {rv['index']}: raises should not register factory"
+            assert rv["validation_gate"] is not None, f"Reg validation {rv['index']}: raises should have a gate"
+            assert rv["ce_type"] == 1, f"Reg validation {rv['index']}: CE type should be ME_INVALID_MSG_TYPE (1)"
+            assert rv["validation_gate"] in ("subclass", "msgtype_none", "system_type", "constructor"), \
+                f"Reg validation {rv['index']}: unknown gate {rv['validation_gate']}"
+
+        # Verify system_type gate logic
+        if rv["msgtype"] is not None and rv["msgtype"] >= SYSTEM_MSG_BOUNDARY:
+            if not rv["is_system_type_flag"]:
+                # Should fail at system_type gate (unless earlier gate fails first)
+                if rv["is_subclass_of_message_base"] and not rv["msgtype_is_none"]:
+                    assert rv["validation_gate"] == "system_type", \
+                        f"Reg validation {rv['index']}: system type via public API should fail at system_type gate"
+            else:
+                # is_system_type=True bypasses the gate
+                if rv["is_subclass_of_message_base"] and not rv["msgtype_is_none"] and rv["constructor_succeeds"]:
+                    assert rv["expected_result"] == "success", \
+                        f"Reg validation {rv['index']}: system type with is_system_type=True should succeed"
+    print(f"    [OK] {len(output['registration_validation_vectors'])} registration validation vectors verified")
+
     # JSON round-trip
     json_str = json.dumps(output, indent=2)
     assert json.loads(json_str) == output, "JSON round-trip failed"
@@ -1474,6 +1892,14 @@ def main():
     sr_vectors = extract_send_receive_vectors()
     print(f"  Extracted {len(sr_vectors)} send/receive vectors")
 
+    print("Extracting handler chaining vectors...")
+    hc_vectors = extract_handler_chaining_vectors()
+    print(f"  Extracted {len(hc_vectors)} handler chaining vectors")
+
+    print("Extracting registration validation vectors...")
+    rv_vectors = extract_registration_validation_vectors()
+    print(f"  Extracted {len(rv_vectors)} registration validation vectors")
+
     output = {
         "description": "Reticulum v1.1.3 - channel/buffer protocol test vectors",
         "source": "RNS/Channel.py, RNS/Buffer.py",
@@ -1489,6 +1915,8 @@ def main():
         "system_message_vectors": sys_msg_vectors,
         "round_trip_vectors": rt_vectors,
         "send_receive_vectors": sr_vectors,
+        "handler_chaining_vectors": hc_vectors,
+        "registration_validation_vectors": rv_vectors,
     }
 
     verify(output)

@@ -1109,5 +1109,379 @@
       "decoded_payload_hex": "cafebabe00ff0102",
       "verified": true
     }
+  ],
+  "handler_chaining_vectors": [
+    {
+      "index": 0,
+      "description": "Single handler returns True \u2014 short-circuits at handler_0",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": true,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0"
+      ],
+      "expected_call_count": 1,
+      "short_circuited": true,
+      "short_circuit_handler": "handler_0"
+    },
+    {
+      "index": 1,
+      "description": "Single handler returns False \u2014 no short-circuit",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": false,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0"
+      ],
+      "expected_call_count": 1,
+      "short_circuited": false,
+      "short_circuit_handler": null
+    },
+    {
+      "index": 2,
+      "description": "Single handler returns None \u2014 no short-circuit (None is falsy)",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": null,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0"
+      ],
+      "expected_call_count": 1,
+      "short_circuited": false,
+      "short_circuit_handler": null
+    },
+    {
+      "index": 3,
+      "description": "Two handlers, first returns True \u2014 short-circuits at handler_0, handler_1 not called",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": true,
+          "raises": null
+        },
+        {
+          "name": "handler_1",
+          "returns": false,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0"
+      ],
+      "expected_call_count": 1,
+      "short_circuited": true,
+      "short_circuit_handler": "handler_0"
+    },
+    {
+      "index": 4,
+      "description": "Two handlers, first returns False, second returns True \u2014 short-circuits at handler_1",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": false,
+          "raises": null
+        },
+        {
+          "name": "handler_1",
+          "returns": true,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0",
+        "handler_1"
+      ],
+      "expected_call_count": 2,
+      "short_circuited": true,
+      "short_circuit_handler": "handler_1"
+    },
+    {
+      "index": 5,
+      "description": "Two handlers, both return False \u2014 no short-circuit, all called",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": false,
+          "raises": null
+        },
+        {
+          "name": "handler_1",
+          "returns": false,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0",
+        "handler_1"
+      ],
+      "expected_call_count": 2,
+      "short_circuited": false,
+      "short_circuit_handler": null
+    },
+    {
+      "index": 6,
+      "description": "Three handlers, middle returns True \u2014 short-circuits at handler_1, handler_2 not called",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": false,
+          "raises": null
+        },
+        {
+          "name": "handler_1",
+          "returns": true,
+          "raises": null
+        },
+        {
+          "name": "handler_2",
+          "returns": false,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0",
+        "handler_1"
+      ],
+      "expected_call_count": 2,
+      "short_circuited": true,
+      "short_circuit_handler": "handler_1"
+    },
+    {
+      "index": 7,
+      "description": "First handler raises exception (caught), second returns True \u2014 short-circuits at handler_1",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": null,
+          "raises": "ValueError"
+        },
+        {
+          "name": "handler_1",
+          "returns": true,
+          "raises": null
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0",
+        "handler_1"
+      ],
+      "expected_call_count": 2,
+      "short_circuited": true,
+      "short_circuit_handler": "handler_1"
+    },
+    {
+      "index": 8,
+      "description": "Only handler raises exception \u2014 caught and logged, no short-circuit",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": null,
+          "raises": "RuntimeError"
+        }
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0"
+      ],
+      "expected_call_count": 1,
+      "short_circuited": false,
+      "short_circuit_handler": null
+    },
+    {
+      "index": 9,
+      "description": "Duplicate handler prevention \u2014 handler_0 added twice (second ignored), handler_1 returns True",
+      "handlers": [
+        {
+          "name": "handler_0",
+          "returns": false,
+          "raises": null
+        },
+        {
+          "name": "handler_0_duplicate",
+          "returns": false,
+          "raises": null,
+          "note": "Same callable as handler_0; add_message_handler silently ignores duplicate"
+        },
+        {
+          "name": "handler_1",
+          "returns": true,
+          "raises": null
+        }
+      ],
+      "effective_handlers": [
+        "handler_0",
+        "handler_1"
+      ],
+      "message_envelope_hex": "abcd0000001e92b268616e646c65722d636861696e2d74657374a9746573742064617461",
+      "message_msgtype": 43981,
+      "message_msgtype_hex": "0xabcd",
+      "expected_calls": [
+        "handler_0",
+        "handler_1"
+      ],
+      "expected_call_count": 2,
+      "short_circuited": true,
+      "short_circuit_handler": "handler_1"
+    }
+  ],
+  "registration_validation_vectors": [
+    {
+      "index": 0,
+      "description": "Valid user type (0xABCD) \u2014 all validation gates pass",
+      "msgtype": 43981,
+      "msgtype_hex": "0xabcd",
+      "is_subclass_of_message_base": true,
+      "msgtype_is_none": false,
+      "constructor_succeeds": true,
+      "use_internal_api": false,
+      "is_system_type_flag": false,
+      "expected_result": "success",
+      "validation_gate": null,
+      "ce_type": null,
+      "factory_registered": true
+    },
+    {
+      "index": 1,
+      "description": "MSGTYPE is None \u2014 fails msgtype_none gate",
+      "msgtype": null,
+      "msgtype_hex": null,
+      "is_subclass_of_message_base": true,
+      "msgtype_is_none": true,
+      "constructor_succeeds": true,
+      "use_internal_api": false,
+      "is_system_type_flag": false,
+      "expected_result": "raises",
+      "validation_gate": "msgtype_none",
+      "ce_type": 1,
+      "factory_registered": false
+    },
+    {
+      "index": 2,
+      "description": "Not a MessageBase subclass \u2014 fails subclass gate",
+      "msgtype": 43981,
+      "msgtype_hex": "0xabcd",
+      "is_subclass_of_message_base": false,
+      "msgtype_is_none": false,
+      "constructor_succeeds": true,
+      "use_internal_api": false,
+      "is_system_type_flag": false,
+      "expected_result": "raises",
+      "validation_gate": "subclass",
+      "ce_type": 1,
+      "factory_registered": false
+    },
+    {
+      "index": 3,
+      "description": "System type (0xF000) via public register_message_type \u2014 fails system_type gate",
+      "msgtype": 61440,
+      "msgtype_hex": "0xf000",
+      "is_subclass_of_message_base": true,
+      "msgtype_is_none": false,
+      "constructor_succeeds": true,
+      "use_internal_api": false,
+      "is_system_type_flag": false,
+      "expected_result": "raises",
+      "validation_gate": "system_type",
+      "ce_type": 1,
+      "factory_registered": false
+    },
+    {
+      "index": 4,
+      "description": "System type (0xF000) via _register_message_type with is_system_type=True \u2014 succeeds",
+      "msgtype": 61440,
+      "msgtype_hex": "0xf000",
+      "is_subclass_of_message_base": true,
+      "msgtype_is_none": false,
+      "constructor_succeeds": true,
+      "use_internal_api": true,
+      "is_system_type_flag": true,
+      "expected_result": "success",
+      "validation_gate": null,
+      "ce_type": null,
+      "factory_registered": true
+    },
+    {
+      "index": 5,
+      "description": "System type (0xFFFF) via public register_message_type \u2014 fails system_type gate",
+      "msgtype": 65535,
+      "msgtype_hex": "0xffff",
+      "is_subclass_of_message_base": true,
+      "msgtype_is_none": false,
+      "constructor_succeeds": true,
+      "use_internal_api": false,
+      "is_system_type_flag": false,
+      "expected_result": "raises",
+      "validation_gate": "system_type",
+      "ce_type": 1,
+      "factory_registered": false
+    },
+    {
+      "index": 6,
+      "description": "Max user type (0xEFFF) \u2014 just below system boundary, all gates pass",
+      "msgtype": 61439,
+      "msgtype_hex": "0xefff",
+      "is_subclass_of_message_base": true,
+      "msgtype_is_none": false,
+      "constructor_succeeds": true,
+      "use_internal_api": false,
+      "is_system_type_flag": false,
+      "expected_result": "success",
+      "validation_gate": null,
+      "ce_type": null,
+      "factory_registered": true
+    },
+    {
+      "index": 7,
+      "description": "No-arg constructor raises exception \u2014 fails constructor gate",
+      "msgtype": 48059,
+      "msgtype_hex": "0xbbbb",
+      "is_subclass_of_message_base": true,
+      "msgtype_is_none": false,
+      "constructor_succeeds": false,
+      "use_internal_api": false,
+      "is_system_type_flag": false,
+      "expected_result": "raises",
+      "validation_gate": "constructor",
+      "ce_type": 1,
+      "factory_registered": false
+    }
   ]
 }
