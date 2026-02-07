@@ -19,6 +19,12 @@ Covers:
   - Mini resource (256KB) multi-part transfer sequence:
     552 parts, 8 hashmap segments, 7 HMU packets, 62 transfer rounds
     with windowed request/response and hashmap exhaustion handling
+  - Small resource (1MB) multi-part transfer sequence:
+    2156 parts, 30 hashmap segments, 29 HMU packets, ~235 transfer rounds
+    validating windowing at scale
+  - Medium resource (5MB) multi-segment (5 segments) transfer sequence:
+    ~10,777 total parts across 5 segments with segment chaining
+    (split=True, flags 0x05)
   - Data integrity verification
   - Callback and state machine sequence
   - Cancellation payload vectors (ICL, RCL)
@@ -491,7 +497,9 @@ def build_transfer_sequence(derived_key):
 
     micro_vector = vector
     mini_vector = build_mini_transfer_sequence(derived_key)
-    return [micro_vector, mini_vector]
+    small_vector = build_small_transfer_sequence(derived_key)
+    medium_vector = build_medium_transfer_sequence(derived_key)
+    return [micro_vector, mini_vector, small_vector, medium_vector]
 
 
 def build_mini_transfer_sequence(derived_key):
@@ -888,6 +896,774 @@ def build_mini_transfer_sequence(derived_key):
     return vector
 
 
+def build_small_transfer_sequence(derived_key):
+    """Build the 1MB (1,000,000 bytes) single-segment resource transfer sequence.
+
+    Simulates the full windowed transfer protocol at scale:
+      - 2156 parts, 30 hashmap segments, 29 HMU packets
+      - ~235 transfer rounds with window growing from 4 to 10
+      - Full assembly, proof, and validation
+    """
+    from RNS.vendor import umsgpack
+
+    idx = 2  # Case 2: small resource, 1MB
+
+    # --- Phase A: Prepare & encrypt ---
+    print("    Generating 1MB deterministic data...")
+    input_data = deterministic_data(idx, 1_000_000)
+    input_sha256 = full_hash(input_data).hex()
+
+    # Attempt compression (SHA-256 expanded data is incompressible)
+    compressed_data = bz2.compress(input_data)
+    compression_helps = len(compressed_data) < len(input_data)
+    assert not compression_helps, "Expected incompressible data"
+
+    random_hash = deterministic_random_hash(idx)
+    iv = deterministic_iv(idx)
+
+    data_with_metadata = input_data  # no metadata
+
+    # Pre-encryption data: random_hash(4) + payload
+    pre_encryption_data = random_hash + data_with_metadata
+
+    # Encrypt
+    print("    Encrypting 1MB data...")
+    encrypted_data = token_encrypt_deterministic(pre_encryption_data, derived_key, iv)
+    encrypted_size = len(encrypted_data)
+    encrypted_sha256 = full_hash(encrypted_data).hex()
+
+    # --- Phase B: Segment into parts & compute hashmap ---
+    sdu = RESOURCE_SDU
+    num_parts = int(math.ceil(encrypted_size / float(sdu)))
+    assert num_parts == 2156, f"Expected 2156 parts, got {num_parts}"
+
+    parts = []
+    hashmap_raw = b""
+    for i in range(num_parts):
+        part_data = encrypted_data[i * sdu:(i + 1) * sdu]
+        parts.append(part_data)
+        map_hash = get_map_hash(part_data, random_hash)
+        hashmap_raw += map_hash
+
+    total_hashmap_bytes = len(hashmap_raw)
+    assert total_hashmap_bytes == num_parts * MAPHASH_LEN
+
+    # Verify last part size
+    last_part_size = len(parts[-1])
+    assert last_part_size == 144, f"Expected last part 144 bytes, got {last_part_size}"
+
+    # Organize hashmap by segment
+    num_segments = int(math.ceil(num_parts / HASHMAP_MAX_LEN))
+    assert num_segments == 30, f"Expected 30 hashmap segments, got {num_segments}"
+
+    hashmap_by_segment = []
+    for seg in range(num_segments):
+        seg_start = seg * HASHMAP_MAX_LEN
+        seg_end = min((seg + 1) * HASHMAP_MAX_LEN, num_parts)
+        seg_hash_count = seg_end - seg_start
+        seg_hashmap = hashmap_raw[seg_start * MAPHASH_LEN:seg_end * MAPHASH_LEN]
+        entry = {
+            "segment": seg,
+            "hash_count": seg_hash_count,
+        }
+        # Full hex for first and last segment, SHA256 for middle segments
+        if seg == 0 or seg == num_segments - 1:
+            entry["hashmap_hex"] = seg_hashmap.hex()
+        else:
+            entry["hashmap_sha256"] = full_hash(seg_hashmap).hex()
+        hashmap_by_segment.append(entry)
+
+    # --- Phase C: Compute resource hash & expected proof ---
+    resource_hash = full_hash(data_with_metadata + random_hash)
+    original_hash = resource_hash
+    expected_proof = full_hash(data_with_metadata + resource_hash)
+
+    # --- Phase D: Build 5-step transfer vector ---
+
+    # Flags: encrypted=True, compressed=False, split=False
+    flags = 0x01
+
+    # Step 1: Advertisement
+    adv_hashmap = hashmap_raw[:HASHMAP_MAX_LEN * MAPHASH_LEN]
+    adv_dict = {
+        "t": encrypted_size,
+        "d": len(data_with_metadata),
+        "n": num_parts,
+        "h": resource_hash,
+        "r": random_hash,
+        "o": original_hash,
+        "i": 1,
+        "l": 1,
+        "q": None,
+        "f": flags,
+        "m": adv_hashmap,
+    }
+    adv_packed = umsgpack.packb(adv_dict)
+
+    step_1 = {
+        "step": 1,
+        "name": "sender_prepare_advertisement",
+        "advertisement_packed_hex": adv_packed.hex(),
+        "advertisement_packed_length": len(adv_packed),
+        "advertisement_dict": {
+            "t": encrypted_size,
+            "d": len(data_with_metadata),
+            "n": num_parts,
+            "h": resource_hash.hex(),
+            "r": random_hash.hex(),
+            "o": original_hash.hex(),
+            "i": 1,
+            "l": 1,
+            "q": None,
+            "f": flags,
+            "m": adv_hashmap.hex(),
+        },
+        "resource_hash_hex": resource_hash.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "hashmap_hex": adv_hashmap.hex(),
+        "num_parts": num_parts,
+        "encrypted_data_length": encrypted_size,
+        "flags": flags,
+        "flags_hex": f"0x{flags:02x}",
+        "expected_proof_hex": expected_proof.hex(),
+        "sender_state_before": "QUEUED",
+        "sender_state_after": "ADVERTISED",
+        "packet_context": f"RESOURCE_ADV (0x{CONTEXT_RESOURCE_ADV:02x})",
+    }
+
+    # Step 2: Simulate windowed transfer protocol
+    print("    Simulating 1MB transfer protocol...")
+    window = WINDOW  # 4
+    window_max = WINDOW_MAX_SLOW  # 10
+    window_min = WINDOW_MIN  # 2
+    window_flexibility = WINDOW_FLEXIBILITY  # 4
+    hashmap_height = HASHMAP_MAX_LEN  # 74 hashes from advertisement
+    received_count = 0
+    consecutive_completed = -1
+    receiver_parts = [None] * num_parts
+
+    rounds_summary = []
+    hmu_packets = []
+    total_rounds = 0
+
+    while received_count < num_parts:
+        total_rounds += 1
+
+        # --- Request phase (request_next logic) ---
+        search_start = consecutive_completed + 1
+        hashmap_exhausted = False
+        requested_hashes = b""
+        requested_indices = []
+        outstanding = 0
+
+        pn = search_start
+        for _ in range(window):
+            if pn >= num_parts:
+                break
+            if pn < hashmap_height:
+                part_hash = hashmap_raw[pn * MAPHASH_LEN:(pn + 1) * MAPHASH_LEN]
+                requested_hashes += part_hash
+                requested_indices.append(pn)
+                outstanding += 1
+            else:
+                hashmap_exhausted = True
+                break
+            pn += 1
+
+        # Build request payload
+        if hashmap_exhausted:
+            hmu_flag = bytes([HASHMAP_IS_EXHAUSTED])
+            last_map_hash = hashmap_raw[(hashmap_height - 1) * MAPHASH_LEN:hashmap_height * MAPHASH_LEN]
+            hmu_part = hmu_flag + last_map_hash
+        else:
+            hmu_part = bytes([HASHMAP_IS_NOT_EXHAUSTED])
+
+        request_payload = hmu_part + resource_hash + requested_hashes
+
+        # --- Receive phase (sender sends parts) ---
+        for pi in requested_indices:
+            receiver_parts[pi] = parts[pi]
+            received_count += 1
+            if pi == consecutive_completed + 1:
+                consecutive_completed = pi
+            cp = consecutive_completed + 1
+            while cp < num_parts and receiver_parts[cp] is not None:
+                consecutive_completed = cp
+                cp += 1
+
+        # Build round summary
+        round_info = {
+            "round": total_rounds,
+            "window": window,
+            "parts_requested": len(requested_indices),
+            "parts_requested_indices_first": requested_indices[0] if requested_indices else None,
+            "parts_requested_indices_last": requested_indices[-1] if requested_indices else None,
+            "received_total": received_count,
+            "consecutive_completed": consecutive_completed,
+            "hashmap_exhausted": hashmap_exhausted,
+            "hashmap_height": hashmap_height,
+        }
+
+        # Handle HMU if hashmap exhausted
+        if hashmap_exhausted:
+            segment = hashmap_height // HASHMAP_MAX_LEN
+            seg_start = segment * HASHMAP_MAX_LEN
+            seg_end = min((segment + 1) * HASHMAP_MAX_LEN, num_parts)
+            seg_hashmap = hashmap_raw[seg_start * MAPHASH_LEN:seg_end * MAPHASH_LEN]
+            hmu_payload = resource_hash + umsgpack.packb([segment, seg_hashmap])
+
+            hmu_packets.append({
+                "hmu_index": len(hmu_packets),
+                "triggered_at_round": total_rounds,
+                "segment": segment,
+                "hash_count": seg_end - seg_start,
+                "payload_hex": hmu_payload.hex(),
+                "payload_length": len(hmu_payload),
+                "format": f"resource_hash({HASHLENGTH_BYTES}) + msgpack([segment, hashmap])",
+                "packet_context": f"RESOURCE_HMU (0x{CONTEXT_RESOURCE_HMU:02x})",
+            })
+
+            round_info["hmu_segment"] = segment
+            hashmap_height += (seg_end - seg_start)
+
+        rounds_summary.append(round_info)
+
+        # Window growth
+        if window < window_max:
+            window += 1
+            if (window - window_min) > (window_flexibility - 1):
+                window_min += 1
+
+    assert len(hmu_packets) == 29, f"Expected 29 HMU packets, got {len(hmu_packets)}"
+    assert received_count == num_parts
+    print(f"    1MB transfer: {total_rounds} rounds, {len(hmu_packets)} HMU packets")
+
+    # Representative rounds: 1, 10, 50, 100, 200, last
+    rep_round_numbers = [1, 10, 50, 100, 200, total_rounds]
+    representative_rounds = []
+    for rn in rep_round_numbers:
+        r = rounds_summary[rn - 1]
+        ri_first = r["parts_requested_indices_first"]
+        ri_last = r["parts_requested_indices_last"]
+        rep = dict(r)
+        if ri_first is not None:
+            rep["first_part_hex"] = hex_prefix(parts[ri_first], 32)
+            rep["first_part_length"] = len(parts[ri_first])
+            rep["last_part_hex"] = hex_prefix(parts[ri_last], 32)
+            rep["last_part_length"] = len(parts[ri_last])
+        representative_rounds.append(rep)
+
+    step_2 = {
+        "step": 2,
+        "name": "transfer_protocol_simulation",
+        "total_rounds": total_rounds,
+        "final_window": window,
+        "initial_window": WINDOW,
+        "window_max": WINDOW_MAX_SLOW,
+        "receiver_state": "TRANSFERRING",
+        "packet_context_req": f"RESOURCE_REQ (0x{CONTEXT_RESOURCE_REQ:02x})",
+        "packet_context_data": f"RESOURCE (0x{CONTEXT_RESOURCE:02x})",
+    }
+
+    transfer_protocol = {
+        "total_rounds": total_rounds,
+        "initial_window": WINDOW,
+        "final_window": window,
+        "window_max": WINDOW_MAX_SLOW,
+        "rounds_summary": rounds_summary,
+        "representative_rounds": representative_rounds,
+        "hmu_packets": hmu_packets,
+    }
+
+    # Step 3: Assembly
+    print("    Assembling and verifying 1MB transfer...")
+    joined_parts = b"".join(receiver_parts)
+    assert len(joined_parts) == encrypted_size
+
+    decrypted = token_decrypt(joined_parts, derived_key)
+    stripped_data = decrypted[RANDOM_HASH_SIZE:]
+
+    calculated_hash = full_hash(stripped_data + random_hash)
+    hash_verified = calculated_hash == resource_hash
+    assert hash_verified, "Assembly hash verification failed"
+    assert stripped_data == input_data, "Assembled data doesn't match input"
+
+    step_3 = {
+        "step": 3,
+        "name": "receiver_assemble",
+        "assembly": {
+            "joined_parts_length": len(joined_parts),
+            "joined_parts_sha256": full_hash(joined_parts).hex(),
+            "decrypted_length": len(decrypted),
+            "stripped_data_length": len(stripped_data),
+            "stripped_data_sha256": full_hash(stripped_data).hex(),
+            "hash_verified": hash_verified,
+            "calculated_hash_hex": calculated_hash.hex(),
+        },
+        "receiver_state_sequence": ["TRANSFERRING", "ASSEMBLING", "COMPLETE"],
+    }
+
+    # Step 4: Proof
+    proof = full_hash(stripped_data + resource_hash)
+    proof_data = resource_hash + proof
+    assert proof == expected_proof, "Proof doesn't match expected"
+
+    step_4 = {
+        "step": 4,
+        "name": "receiver_prove",
+        "proof_payload_hex": proof_data.hex(),
+        "proof_payload_length": len(proof_data),
+        "proof_breakdown": {
+            "resource_hash_hex": resource_hash.hex(),
+            "proof_hex": proof.hex(),
+        },
+        "proof_layout": f"resource_hash({HASHLENGTH_BYTES}) + proof({HASHLENGTH_BYTES}) = {len(proof_data)}",
+        "packet_context": f"RESOURCE_PRF (0x{CONTEXT_RESOURCE_PRF:02x})",
+    }
+
+    # Step 5: Validation
+    proof_valid = (
+        len(proof_data) == HASHLENGTH_BYTES * 2
+        and proof_data[HASHLENGTH_BYTES:] == expected_proof
+    )
+    assert proof_valid, "Proof validation failed"
+
+    step_5 = {
+        "step": 5,
+        "name": "sender_validate_proof",
+        "proof_valid": proof_valid,
+        "validation": {
+            "proof_data_length_check": f"len({len(proof_data)}) == HASHLENGTH_BYTES*2({HASHLENGTH_BYTES * 2})",
+            "proof_hash_check": f"proof_data[{HASHLENGTH_BYTES}:] == expected_proof",
+        },
+        "sender_state": "COMPLETE",
+        "callbacks_fired": ["completion_callback"],
+    }
+
+    # Representative parts: 0, 73, 74, 1000, 2000, 2155
+    rep_part_indices = [0, 73, 74, 1000, 2000, 2155]
+    representative_parts = []
+    for pi in rep_part_indices:
+        representative_parts.append({
+            "part_index": pi,
+            "part_data_hex": hex_prefix(parts[pi], 64),
+            "part_data_length": len(parts[pi]),
+            "map_hash_hex": hashmap_raw[pi * MAPHASH_LEN:(pi + 1) * MAPHASH_LEN].hex(),
+        })
+
+    reconstructed_sha256 = full_hash(stripped_data).hex()
+
+    vector = {
+        "index": 2,
+        "description": "Small resource (1MB) multi-part transfer with windowed request/response and hashmap updates",
+        "input_data_length": 1_000_000,
+        "input_sha256": input_sha256,
+        "encrypted_data_length": encrypted_size,
+        "encrypted_data_sha256": encrypted_sha256,
+        "num_parts": num_parts,
+        "sdu": sdu,
+        "last_part_size": last_part_size,
+        "compression_attempted": True,
+        "compression_used": False,
+        "hashmap_by_segment": hashmap_by_segment,
+        "total_hashmap_sha256": full_hash(hashmap_raw).hex(),
+        "representative_parts": representative_parts,
+        "derived_key_hex": derived_key.hex(),
+        "deterministic_iv_hex": iv.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "resource_hash_hex": resource_hash.hex(),
+        "expected_proof_hex": expected_proof.hex(),
+        "steps": [step_1, step_2, step_3, step_4, step_5],
+        "transfer_protocol": transfer_protocol,
+        "data_integrity": {
+            "original_sha256": input_sha256,
+            "reconstructed_sha256": reconstructed_sha256,
+            "match": input_sha256 == reconstructed_sha256,
+        },
+        "state_machine_sequence": [
+            {"side": "sender",   "event": "prepare_advertisement", "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "receiver", "event": "accept_advertisement",  "state_before": "NONE",         "state_after": "TRANSFERRING", "callback": "resource_started"},
+            {"side": "receiver", "event": "request_parts",         "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": None},
+            {"side": "sender",   "event": "send_parts",            "state_before": "ADVERTISED",   "state_after": "TRANSFERRING", "callback": None},
+            {"side": "both",     "event": "transfer_rounds",       "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": "progress_callback",
+             "details": f"{total_rounds} rounds, {len(hmu_packets)} HMU updates"},
+            {"side": "receiver", "event": "assemble",              "state_before": "TRANSFERRING", "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "verify_and_prove",      "state_before": "ASSEMBLING",   "state_after": "COMPLETE",     "callback": "resource_concluded"},
+            {"side": "sender",   "event": "validate_proof",        "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": "completion_callback"},
+        ],
+    }
+
+    return vector
+
+
+def build_medium_transfer_sequence(derived_key):
+    """Build the 5MB (5,000,000 bytes) multi-segment (5 segments) resource transfer sequence.
+
+    Simulates the full segment chaining mechanism:
+      - 5 segments, each transferred independently
+      - Segments 1-4: 1,048,575 bytes each, 2260 parts
+      - Segment 5: 805,700 bytes, 1737 parts
+      - Total: 10,777 parts across all segments
+      - Each segment gets its own encryption, hashmap, resource_hash, proof
+      - original_hash from segment 1 propagated to all segments
+    """
+    from RNS.vendor import umsgpack
+
+    idx = 3  # Case 3: medium resource, 5MB
+
+    # --- Phase A: Generate all 5MB of input data ---
+    print("    Generating 5MB deterministic data...")
+    total_data_size = 5_000_000
+    input_data = deterministic_data(idx, total_data_size)
+    input_sha256 = full_hash(input_data).hex()
+
+    # --- Phase B: Compute segmentation ---
+    metadata_size = 0
+    total_size = total_data_size + metadata_size  # 5,000,000
+    total_segments = ((total_size - 1) // MAX_EFFICIENT_SIZE) + 1
+    assert total_segments == 5, f"Expected 5 segments, got {total_segments}"
+
+    first_read_size = MAX_EFFICIENT_SIZE - metadata_size  # 1,048,575
+
+    # Compute segment boundaries (matching Resource.py lines 297-311)
+    segment_data = []
+    segment_sizes = []
+    for seg_idx in range(1, total_segments + 1):
+        if seg_idx == 1:
+            seek_position = 0
+            segment_read_size = first_read_size
+        else:
+            seek_position = first_read_size + ((seg_idx - 2) * MAX_EFFICIENT_SIZE)
+            segment_read_size = MAX_EFFICIENT_SIZE
+
+        seg_data = input_data[seek_position:seek_position + segment_read_size]
+        # Last segment may be shorter
+        if seg_idx == total_segments:
+            seg_data = input_data[seek_position:]
+        segment_data.append(seg_data)
+        segment_sizes.append(len(seg_data))
+
+    # Verify segmentation
+    assert sum(segment_sizes) == total_data_size, \
+        f"Segment sizes sum {sum(segment_sizes)} != {total_data_size}"
+    assert segment_sizes == [1_048_575, 1_048_575, 1_048_575, 1_048_575, 805_700], \
+        f"Unexpected segment sizes: {segment_sizes}"
+    assert b"".join(segment_data) == input_data, "Segmented data doesn't reconstruct input"
+
+    # --- Phase C: Process each segment ---
+    print("    Processing 5 segments...")
+    segments_output = []
+    original_hash = None  # Set from segment 1
+    split = True
+    flags = 0x05  # encrypted=True, split=True
+
+    for seg_idx in range(1, total_segments + 1):
+        seg_data_bytes = segment_data[seg_idx - 1]
+        data_with_metadata = seg_data_bytes  # no metadata
+
+        # Per-segment deterministic crypto
+        seg_random_hash = deterministic_random_hash(300 + seg_idx - 1)
+        seg_iv = deterministic_iv(300 + seg_idx - 1)
+
+        # Pre-encryption data: random_hash(4) + payload
+        pre_encryption_data = seg_random_hash + data_with_metadata
+
+        # Encrypt
+        print(f"      Encrypting segment {seg_idx} ({len(seg_data_bytes)} bytes)...")
+        encrypted_data = token_encrypt_deterministic(pre_encryption_data, derived_key, seg_iv)
+        encrypted_size = len(encrypted_data)
+        encrypted_sha256 = full_hash(encrypted_data).hex()
+
+        # Segment into parts
+        sdu = RESOURCE_SDU
+        num_parts = int(math.ceil(encrypted_size / float(sdu)))
+
+        parts = []
+        hashmap_raw = b""
+        for i in range(num_parts):
+            part_data = encrypted_data[i * sdu:(i + 1) * sdu]
+            parts.append(part_data)
+            map_hash = get_map_hash(part_data, seg_random_hash)
+            hashmap_raw += map_hash
+
+        last_part_size = len(parts[-1])
+
+        # Hashmap segments
+        num_hashmap_segments = int(math.ceil(num_parts / HASHMAP_MAX_LEN))
+
+        hashmap_summary = {
+            "total_hashmap_sha256": full_hash(hashmap_raw).hex(),
+            "num_hashmap_segments": num_hashmap_segments,
+        }
+        if num_hashmap_segments > 0:
+            # First segment hashmap detail
+            first_seg_end = min(HASHMAP_MAX_LEN, num_parts)
+            first_seg_hashmap = hashmap_raw[:first_seg_end * MAPHASH_LEN]
+            hashmap_summary["first_segment_hash_count"] = first_seg_end
+            # Last segment hashmap detail
+            last_seg_start = (num_hashmap_segments - 1) * HASHMAP_MAX_LEN
+            last_seg_end = num_parts
+            last_seg_hash_count = last_seg_end - last_seg_start
+            hashmap_summary["last_segment_hash_count"] = last_seg_hash_count
+
+        # Compute resource hash & expected proof
+        resource_hash = full_hash(data_with_metadata + seg_random_hash)
+        expected_proof = full_hash(data_with_metadata + resource_hash)
+
+        # Set original_hash from segment 1
+        if seg_idx == 1:
+            original_hash = resource_hash
+
+        # Build advertisement dict for this segment
+        adv_hashmap = hashmap_raw[:HASHMAP_MAX_LEN * MAPHASH_LEN]
+        adv_dict = {
+            "t": encrypted_size,
+            "d": total_size,  # Always the full file size
+            "n": num_parts,
+            "h": resource_hash,
+            "r": seg_random_hash,
+            "o": original_hash,
+            "i": seg_idx,
+            "l": total_segments,
+            "q": None,
+            "f": flags,
+            "m": adv_hashmap,
+        }
+
+        # --- Transfer simulation ---
+        print(f"      Simulating segment {seg_idx} transfer ({num_parts} parts)...")
+        window = WINDOW  # 4, cold-start each segment
+        window_max = WINDOW_MAX_SLOW  # 10
+        window_min = WINDOW_MIN  # 2
+        window_flexibility = WINDOW_FLEXIBILITY  # 4
+        hashmap_height = HASHMAP_MAX_LEN
+        received_count = 0
+        consecutive_completed = -1
+        receiver_parts = [None] * num_parts
+
+        rounds_summary = []
+        hmu_packets_seg = []
+        seg_total_rounds = 0
+
+        while received_count < num_parts:
+            seg_total_rounds += 1
+
+            # Request phase
+            search_start = consecutive_completed + 1
+            hashmap_exhausted = False
+            requested_hashes = b""
+            requested_indices = []
+
+            pn = search_start
+            for _ in range(window):
+                if pn >= num_parts:
+                    break
+                if pn < hashmap_height:
+                    part_hash = hashmap_raw[pn * MAPHASH_LEN:(pn + 1) * MAPHASH_LEN]
+                    requested_hashes += part_hash
+                    requested_indices.append(pn)
+                else:
+                    hashmap_exhausted = True
+                    break
+                pn += 1
+
+            # Receive phase
+            for pi in requested_indices:
+                receiver_parts[pi] = parts[pi]
+                received_count += 1
+                if pi == consecutive_completed + 1:
+                    consecutive_completed = pi
+                cp = consecutive_completed + 1
+                while cp < num_parts and receiver_parts[cp] is not None:
+                    consecutive_completed = cp
+                    cp += 1
+
+            round_info = {
+                "round": seg_total_rounds,
+                "window": window,
+                "parts_requested": len(requested_indices),
+                "parts_requested_indices_first": requested_indices[0] if requested_indices else None,
+                "parts_requested_indices_last": requested_indices[-1] if requested_indices else None,
+                "received_total": received_count,
+                "consecutive_completed": consecutive_completed,
+                "hashmap_exhausted": hashmap_exhausted,
+                "hashmap_height": hashmap_height,
+            }
+
+            # Handle HMU
+            if hashmap_exhausted:
+                hm_segment = hashmap_height // HASHMAP_MAX_LEN
+                hm_seg_start = hm_segment * HASHMAP_MAX_LEN
+                hm_seg_end = min((hm_segment + 1) * HASHMAP_MAX_LEN, num_parts)
+                seg_hashmap_data = hashmap_raw[hm_seg_start * MAPHASH_LEN:hm_seg_end * MAPHASH_LEN]
+                hmu_payload = resource_hash + umsgpack.packb([hm_segment, seg_hashmap_data])
+
+                hmu_packets_seg.append({
+                    "hmu_index": len(hmu_packets_seg),
+                    "triggered_at_round": seg_total_rounds,
+                    "segment": hm_segment,
+                    "hash_count": hm_seg_end - hm_seg_start,
+                    "payload_length": len(hmu_payload),
+                    "packet_context": f"RESOURCE_HMU (0x{CONTEXT_RESOURCE_HMU:02x})",
+                })
+
+                round_info["hmu_segment"] = hm_segment
+                hashmap_height += (hm_seg_end - hm_seg_start)
+
+            rounds_summary.append(round_info)
+
+            # Window growth
+            if window < window_max:
+                window += 1
+                if (window - window_min) > (window_flexibility - 1):
+                    window_min += 1
+
+        assert received_count == num_parts
+        print(f"      Segment {seg_idx}: {seg_total_rounds} rounds, {len(hmu_packets_seg)} HMU packets")
+
+        # Assembly verification
+        joined_parts = b"".join(receiver_parts)
+        assert len(joined_parts) == encrypted_size
+
+        decrypted = token_decrypt(joined_parts, derived_key)
+        stripped_data = decrypted[RANDOM_HASH_SIZE:]
+
+        calculated_hash = full_hash(stripped_data + seg_random_hash)
+        hash_verified = calculated_hash == resource_hash
+        assert hash_verified, f"Segment {seg_idx}: assembly hash verification failed"
+        assert stripped_data == data_with_metadata, f"Segment {seg_idx}: assembled data doesn't match"
+
+        # Proof
+        proof = full_hash(stripped_data + resource_hash)
+        proof_data = resource_hash + proof
+        assert proof == expected_proof, f"Segment {seg_idx}: proof doesn't match expected"
+
+        proof_valid = (
+            len(proof_data) == HASHLENGTH_BYTES * 2
+            and proof_data[HASHLENGTH_BYTES:] == expected_proof
+        )
+        assert proof_valid, f"Segment {seg_idx}: proof validation failed"
+
+        # Build segment output
+        is_detail_segment = (seg_idx == 1 or seg_idx == total_segments)
+
+        # Representative rounds for detail segments
+        if is_detail_segment:
+            rep_round_numbers = [1, 10, 50, 100, min(200, seg_total_rounds), seg_total_rounds]
+            # Deduplicate while preserving order
+            seen = set()
+            rep_round_numbers = [x for x in rep_round_numbers if not (x in seen or seen.add(x))]
+            rep_rounds = []
+            for rn in rep_round_numbers:
+                r = rounds_summary[rn - 1]
+                ri_first = r["parts_requested_indices_first"]
+                ri_last = r["parts_requested_indices_last"]
+                rep = dict(r)
+                if ri_first is not None:
+                    rep["first_part_hex"] = hex_prefix(parts[ri_first], 32)
+                    rep["first_part_length"] = len(parts[ri_first])
+                    rep["last_part_hex"] = hex_prefix(parts[ri_last], 32)
+                    rep["last_part_length"] = len(parts[ri_last])
+                rep_rounds.append(rep)
+
+        seg_output = {
+            "segment_index": seg_idx,
+            "segment_data_length": len(seg_data_bytes),
+            "segment_data_sha256": full_hash(seg_data_bytes).hex(),
+            "encrypted_data_length": encrypted_size,
+            "encrypted_data_sha256": encrypted_sha256,
+            "num_parts": num_parts,
+            "last_part_size": last_part_size,
+            "random_hash_hex": seg_random_hash.hex(),
+            "deterministic_iv_hex": seg_iv.hex(),
+            "resource_hash_hex": resource_hash.hex(),
+            "expected_proof_hex": expected_proof.hex(),
+            "hashmap_summary": hashmap_summary,
+            "transfer_protocol": {
+                "total_rounds": seg_total_rounds,
+                "initial_window": WINDOW,
+                "final_window": window,
+                "window_max": WINDOW_MAX_SLOW,
+                "hmu_count": len(hmu_packets_seg),
+            },
+            "assembly": {
+                "joined_parts_length": len(joined_parts),
+                "joined_parts_sha256": full_hash(joined_parts).hex(),
+                "decrypted_length": len(decrypted),
+                "stripped_data_length": len(stripped_data),
+                "stripped_data_sha256": full_hash(stripped_data).hex(),
+                "hash_verified": hash_verified,
+            },
+            "proof": {
+                "proof_payload_hex": proof_data.hex(),
+                "proof_valid": proof_valid,
+            },
+            "advertisement_dict": {
+                "t": encrypted_size,
+                "d": total_size,
+                "n": num_parts,
+                "h": resource_hash.hex(),
+                "r": seg_random_hash.hex(),
+                "o": original_hash.hex(),
+                "i": seg_idx,
+                "l": total_segments,
+                "q": None,
+                "f": flags,
+            },
+        }
+
+        # Add detail for segments 1 and 5
+        if is_detail_segment:
+            seg_output["transfer_protocol"]["rounds_summary"] = rounds_summary
+            seg_output["transfer_protocol"]["representative_rounds"] = rep_rounds
+            seg_output["transfer_protocol"]["hmu_packets"] = hmu_packets_seg
+
+        segments_output.append(seg_output)
+
+    # --- Phase D: Cross-segment verification ---
+    reconstructed_data = b"".join(segment_data)
+    assert reconstructed_data == input_data, "Cross-segment reconstruction failed"
+
+    vector = {
+        "index": 3,
+        "description": "Medium resource (5MB) multi-segment (5 segments) transfer with segment chaining",
+        "input_data_length": total_data_size,
+        "input_sha256": input_sha256,
+        "total_segments": total_segments,
+        "split": split,
+        "flags": flags,
+        "flags_hex": f"0x{flags:02x}",
+        "original_hash_hex": original_hash.hex(),
+        "derived_key_hex": derived_key.hex(),
+        "segment_sizes": segment_sizes,
+        "segments": segments_output,
+        "cross_segment_verification": {
+            "reconstructed_input_sha256": full_hash(reconstructed_data).hex(),
+            "match": full_hash(reconstructed_data).hex() == input_sha256,
+        },
+        "state_machine_sequence": [
+            {"side": "sender",   "event": "prepare_segment_1",     "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "receiver", "event": "accept_advertisement",  "state_before": "NONE",         "state_after": "TRANSFERRING", "callback": "resource_started"},
+            {"side": "both",     "event": "transfer_segment_1",    "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": "progress_callback"},
+            {"side": "receiver", "event": "assemble_segment_1",    "state_before": "TRANSFERRING", "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "prove_segment_1",       "state_before": "ASSEMBLING",   "state_after": "COMPLETE",     "callback": None},
+            {"side": "sender",   "event": "validate_proof_1",      "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": None,
+             "details": "Triggers next segment advertisement"},
+            {"side": "sender",   "event": "advertise_segment_2",   "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "both",     "event": "transfer_segments_2_4", "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": "progress_callback",
+             "details": "Segments 2-4 follow same pattern as segment 1"},
+            {"side": "sender",   "event": "advertise_segment_5",   "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "both",     "event": "transfer_segment_5",    "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": "progress_callback"},
+            {"side": "receiver", "event": "assemble_segment_5",    "state_before": "TRANSFERRING", "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "prove_segment_5",       "state_before": "ASSEMBLING",   "state_after": "COMPLETE",     "callback": None},
+            {"side": "sender",   "event": "validate_proof_5",      "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": "completion_callback",
+             "details": "Last segment, triggers completion_callback"},
+        ],
+    }
+
+    return vector
+
+
 def build_cancellation_vectors():
     """Build cancellation payload vectors for ICL and RCL."""
     # Use the resource_hash from case 0 (deterministic)
@@ -1086,6 +1862,153 @@ def verify(output, derived_key):
     assert mini_vec["hashmap_by_segment"][7]["hash_count"] == 34, "Mini vector: last segment expected 34 hashes"
     print("    [OK] Mini vector: hashmap segment structure verified")
 
+    # --- Small vector (1MB) verification ---
+    small_vec = output["transfer_sequence_vectors"][2]
+
+    # 17. Verify encrypted data independently
+    s_idx = 2
+    small_input = deterministic_data(s_idx, 1_000_000)
+    small_random_hash = deterministic_random_hash(s_idx)
+    small_iv = deterministic_iv(s_idx)
+    small_pre = small_random_hash + small_input
+    small_encrypted = token_encrypt_deterministic(small_pre, derived_key, small_iv)
+    assert full_hash(small_encrypted).hex() == small_vec["encrypted_data_sha256"], \
+        "Small vector: encrypted data SHA256 mismatch"
+    assert len(small_encrypted) == small_vec["encrypted_data_length"], \
+        "Small vector: encrypted data length mismatch"
+    print("    [OK] Small vector: encrypted data independently verified")
+
+    # 18. Verify hashmap independently
+    small_num_parts = small_vec["num_parts"]
+    assert small_num_parts == 2156
+    regen_hashmap_small = b""
+    for i in range(small_num_parts):
+        part = small_encrypted[i * sdu:(i + 1) * sdu]
+        regen_hashmap_small += get_map_hash(part, small_random_hash)
+    assert full_hash(regen_hashmap_small).hex() == small_vec["total_hashmap_sha256"], \
+        "Small vector: hashmap SHA256 mismatch"
+    print("    [OK] Small vector: hashmap independently verified")
+
+    # 19. Verify resource hash and expected proof
+    small_resource_hash = full_hash(small_input + small_random_hash)
+    assert small_resource_hash.hex() == small_vec["resource_hash_hex"], \
+        "Small vector: resource hash mismatch"
+    small_expected_proof = full_hash(small_input + small_resource_hash)
+    assert small_expected_proof.hex() == small_vec["expected_proof_hex"], \
+        "Small vector: expected proof mismatch"
+    print("    [OK] Small vector: resource hash and expected proof verified")
+
+    # 20. Verify assembly round-trip
+    small_decrypted = token_decrypt(small_encrypted, derived_key)
+    small_stripped = small_decrypted[RANDOM_HASH_SIZE:]
+    assert small_stripped == small_input, "Small vector: assembly round-trip data mismatch"
+    assert small_vec["data_integrity"]["match"] is True, "Small vector: data integrity check failed"
+    print("    [OK] Small vector: assembly round-trip verified")
+
+    # 21. Verify transfer protocol counts
+    tp_s = small_vec["transfer_protocol"]
+    assert tp_s["total_rounds"] > 200, f"Small vector: expected >200 rounds, got {tp_s['total_rounds']}"
+    assert len(tp_s["hmu_packets"]) == 29, f"Small vector: expected 29 HMU packets, got {len(tp_s['hmu_packets'])}"
+    print(f"    [OK] Small vector: {tp_s['total_rounds']} rounds, 29 HMU packets verified")
+
+    # 22. Verify hashmap segment structure (29 full of 74 + 1 of remainder)
+    assert len(small_vec["hashmap_by_segment"]) == 30, "Small vector: expected 30 hashmap segments"
+    for seg_info in small_vec["hashmap_by_segment"][:29]:
+        assert seg_info["hash_count"] == 74, f"Small vector: segment {seg_info['segment']} expected 74 hashes"
+    last_seg = small_vec["hashmap_by_segment"][29]
+    assert last_seg["hash_count"] == 2156 - 29 * 74, \
+        f"Small vector: last segment expected {2156 - 29 * 74} hashes, got {last_seg['hash_count']}"
+    print("    [OK] Small vector: hashmap segment structure verified")
+
+    # --- Medium vector (5MB) verification ---
+    med_vec = output["transfer_sequence_vectors"][3]
+
+    # 23. Verify segment data sizes
+    assert med_vec["total_segments"] == 5, "Medium vector: expected 5 segments"
+    assert sum(med_vec["segment_sizes"]) == 5_000_000, \
+        f"Medium vector: segment sizes sum {sum(med_vec['segment_sizes'])} != 5000000"
+    assert med_vec["segment_sizes"] == [1_048_575, 1_048_575, 1_048_575, 1_048_575, 805_700], \
+        f"Medium vector: unexpected segment sizes"
+    print("    [OK] Medium vector: segment sizes verified")
+
+    # 24. Verify split flag and flags byte
+    assert med_vec["split"] is True, "Medium vector: expected split=True"
+    assert med_vec["flags"] == 0x05, f"Medium vector: expected flags 0x05, got {med_vec['flags']}"
+    print("    [OK] Medium vector: split flag and flags byte verified")
+
+    # 25. Verify per-segment encrypted data and crypto
+    med_input = deterministic_data(3, 5_000_000)
+    assert full_hash(med_input).hex() == med_vec["input_sha256"], \
+        "Medium vector: input data SHA256 mismatch"
+    first_read_size = MAX_EFFICIENT_SIZE  # no metadata
+    all_stripped = b""
+    for seg_info in med_vec["segments"]:
+        si = seg_info["segment_index"]
+        if si == 1:
+            seek = 0
+            read_size = first_read_size
+        else:
+            seek = first_read_size + ((si - 2) * MAX_EFFICIENT_SIZE)
+            read_size = MAX_EFFICIENT_SIZE
+        if si == med_vec["total_segments"]:
+            seg_data_expected = med_input[seek:]
+        else:
+            seg_data_expected = med_input[seek:seek + read_size]
+
+        assert len(seg_data_expected) == seg_info["segment_data_length"], \
+            f"Medium vector segment {si}: data length mismatch"
+        assert full_hash(seg_data_expected).hex() == seg_info["segment_data_sha256"], \
+            f"Medium vector segment {si}: data SHA256 mismatch"
+
+        # Verify encryption independently
+        seg_rh = deterministic_random_hash(300 + si - 1)
+        seg_iv = deterministic_iv(300 + si - 1)
+        seg_pre = seg_rh + seg_data_expected
+        seg_enc = token_encrypt_deterministic(seg_pre, derived_key, seg_iv)
+        assert full_hash(seg_enc).hex() == seg_info["encrypted_data_sha256"], \
+            f"Medium vector segment {si}: encrypted data SHA256 mismatch"
+
+        # Verify resource hash and proof
+        seg_resource_hash = full_hash(seg_data_expected + seg_rh)
+        assert seg_resource_hash.hex() == seg_info["resource_hash_hex"], \
+            f"Medium vector segment {si}: resource hash mismatch"
+        seg_expected_proof = full_hash(seg_data_expected + seg_resource_hash)
+        assert seg_expected_proof.hex() == seg_info["expected_proof_hex"], \
+            f"Medium vector segment {si}: expected proof mismatch"
+
+        # Verify assembly round-trip
+        seg_dec = token_decrypt(seg_enc, derived_key)
+        seg_stripped = seg_dec[RANDOM_HASH_SIZE:]
+        assert seg_stripped == seg_data_expected, \
+            f"Medium vector segment {si}: assembly round-trip mismatch"
+        all_stripped += seg_stripped
+
+        # Verify advertisement d field = total_size (5,000,000 for all segments)
+        assert seg_info["advertisement_dict"]["d"] == 5_000_000, \
+            f"Medium vector segment {si}: advertisement d != 5000000"
+        assert seg_info["advertisement_dict"]["i"] == si, \
+            f"Medium vector segment {si}: advertisement i mismatch"
+        assert seg_info["advertisement_dict"]["l"] == 5, \
+            f"Medium vector segment {si}: advertisement l != 5"
+
+    print("    [OK] Medium vector: per-segment crypto independently verified")
+
+    # 26. Verify original_hash consistency
+    seg1_hash = med_vec["segments"][0]["resource_hash_hex"]
+    assert med_vec["original_hash_hex"] == seg1_hash, \
+        "Medium vector: original_hash != segment 1 resource_hash"
+    for seg_info in med_vec["segments"]:
+        assert seg_info["advertisement_dict"]["o"] == seg1_hash, \
+            f"Medium vector segment {seg_info['segment_index']}: original_hash mismatch in advertisement"
+    # Note: o field is original_hash.hex() which was set from segment 1's resource_hash
+    print("    [OK] Medium vector: original_hash consistency verified")
+
+    # 27. Cross-segment reassembly
+    assert all_stripped == med_input, "Medium vector: cross-segment reassembly mismatch"
+    assert med_vec["cross_segment_verification"]["match"] is True, \
+        "Medium vector: cross-segment verification flag is False"
+    print("    [OK] Medium vector: cross-segment reassembly verified")
+
 
 def verify_library_constants():
     """Verify our local constants match the actual RNS library values."""
@@ -1147,7 +2070,7 @@ def main():
     print("Extracting constants...")
     constants = extract_constants()
 
-    print("Building transfer sequence vectors...")
+    print("Building transfer sequence vectors (micro 128B, mini 256KB, small 1MB, medium 5MB)...")
     transfer_vectors = build_transfer_sequence(derived_key)
     print(f"  Built {len(transfer_vectors)} transfer sequence vector(s)")
 
