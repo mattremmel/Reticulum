@@ -953,6 +953,318 @@ def extract_round_trip_vectors(derived_key, link_id):
     return vectors
 
 
+def extract_handler_registration_vectors(keypairs):
+    """Extract handler registration storage structure vectors.
+
+    Documents what register_request_handler() stores in self.request_handlers:
+      path_hash = SHA256(path.encode('utf-8'))[:16]
+      request_handlers[path_hash] = [path, response_generator, allow, allowed_list, auto_compress]
+    """
+    identity_hash_0 = bytes.fromhex(keypairs[0]["identity_hash"])
+
+    test_cases = [
+        # (path, allow, allowed_list, auto_compress, description)
+        ("/echo", ALLOW_ALL, None, True, "Basic with defaults"),
+        ("/api/v1/status", ALLOW_NONE, None, True, "Default deny policy"),
+        ("/upload", ALLOW_LIST, [identity_hash_0], False, "With allow list"),
+        ("/config", ALLOW_ALL, None, 4096, "Integer auto_compress threshold"),
+    ]
+
+    policy_names = {ALLOW_NONE: "ALLOW_NONE", ALLOW_ALL: "ALLOW_ALL", ALLOW_LIST: "ALLOW_LIST"}
+
+    vectors = []
+    all_handlers = {}
+
+    for idx, (path, allow, allowed_list, auto_compress, desc) in enumerate(test_cases):
+        path_hash = truncated_hash(path.encode("utf-8"))
+        stored = [path, "response_generator", allow, allowed_list, auto_compress]
+        all_handlers[path_hash] = stored
+
+        vector = {
+            "index": idx,
+            "description": desc,
+            "path": path,
+            "path_hash": path_hash.hex(),
+            "stored_structure": {
+                "index_0_path": path,
+                "index_1_response_generator": "callable (not serializable)",
+                "index_2_allow": allow,
+                "index_2_allow_name": policy_names[allow],
+                "index_3_allowed_list": [h.hex() for h in allowed_list] if allowed_list else None,
+                "index_4_auto_compress": auto_compress,
+            },
+            "dict_key": path_hash.hex(),
+            "algorithm": "SHA256(path.encode('utf-8'))[:16]",
+        }
+        vectors.append(vector)
+
+    # Multi-handler vector: final dict state after registering all 4
+    multi_handler = {
+        "description": "Final dict state after registering all 4 handlers",
+        "dict_size": len(all_handlers),
+        "keys": [ph.hex() for ph in all_handlers.keys()],
+        "paths": [all_handlers[ph][0] for ph in all_handlers],
+    }
+
+    return {"individual_vectors": vectors, "multi_handler": multi_handler}
+
+
+def extract_handler_deregistration_vectors():
+    """Extract handler deregistration behavior vectors.
+
+    Simulates dict operations matching Destination.deregister_request_handler()
+    (Destination.py:399-411). Sequential scenarios building on previous state.
+    """
+    # Start with 2 registered handlers
+    path_echo = "/echo"
+    path_status = "/api/v1/status"
+    hash_echo = truncated_hash(path_echo.encode("utf-8"))
+    hash_status = truncated_hash(path_status.encode("utf-8"))
+
+    handlers = {
+        hash_echo: [path_echo, "generator", ALLOW_ALL, None, True],
+        hash_status: [path_status, "generator", ALLOW_NONE, None, True],
+    }
+
+    initial_state = {
+        "dict_size": len(handlers),
+        "keys": [h.hex() for h in handlers.keys()],
+    }
+
+    steps = []
+
+    # Step 1: Deregister /echo → True, size=1
+    path_hash = truncated_hash(path_echo.encode("utf-8"))
+    if path_hash in handlers:
+        handlers.pop(path_hash)
+        result = True
+    else:
+        result = False
+    steps.append({
+        "step": 1,
+        "action": f"deregister '{path_echo}'",
+        "path": path_echo,
+        "path_hash": path_hash.hex(),
+        "expected_return": result,
+        "dict_size_after": len(handlers),
+        "remaining_keys": [h.hex() for h in handlers.keys()],
+    })
+
+    # Step 2: Deregister /echo again → False, size=1
+    path_hash = truncated_hash(path_echo.encode("utf-8"))
+    if path_hash in handlers:
+        handlers.pop(path_hash)
+        result = True
+    else:
+        result = False
+    steps.append({
+        "step": 2,
+        "action": f"deregister '{path_echo}' again (already removed)",
+        "path": path_echo,
+        "path_hash": path_hash.hex(),
+        "expected_return": result,
+        "dict_size_after": len(handlers),
+        "remaining_keys": [h.hex() for h in handlers.keys()],
+    })
+
+    # Step 3: Deregister /nonexistent → False, size=1
+    path_nonexistent = "/nonexistent"
+    path_hash = truncated_hash(path_nonexistent.encode("utf-8"))
+    if path_hash in handlers:
+        handlers.pop(path_hash)
+        result = True
+    else:
+        result = False
+    steps.append({
+        "step": 3,
+        "action": f"deregister '{path_nonexistent}' (never registered)",
+        "path": path_nonexistent,
+        "path_hash": path_hash.hex(),
+        "expected_return": result,
+        "dict_size_after": len(handlers),
+        "remaining_keys": [h.hex() for h in handlers.keys()],
+    })
+
+    # Step 4: Deregister /api/v1/status → True, size=0
+    path_hash = truncated_hash(path_status.encode("utf-8"))
+    if path_hash in handlers:
+        handlers.pop(path_hash)
+        result = True
+    else:
+        result = False
+    steps.append({
+        "step": 4,
+        "action": f"deregister '{path_status}'",
+        "path": path_status,
+        "path_hash": path_hash.hex(),
+        "expected_return": result,
+        "dict_size_after": len(handlers),
+        "remaining_keys": [h.hex() for h in handlers.keys()],
+    })
+
+    return {
+        "initial_state": initial_state,
+        "steps": steps,
+        "note": "Steps are sequential — each builds on the previous dict state",
+    }
+
+
+def extract_handler_invocation_vectors(derived_key, link_id, keypairs):
+    """Extract handler invocation dispatch vectors.
+
+    Documents how Link.handle_request() (Link.py:857-886) dispatches to the
+    response_generator based on inspect.signature parameter count.
+
+    5-param: response_generator(path, request_data, request_id, remote_identity, requested_at)
+    6-param: response_generator(path, request_data, request_id, link_id, remote_identity, requested_at)
+    """
+    identity_hash_0 = bytes.fromhex(keypairs[0]["identity_hash"])
+    fixed_timestamp = 1700000000.0
+
+    # Build request packets to derive request_ids (reusing small_request_wire logic)
+    test_cases = [
+        # (path, data, param_count, remote_identity_hash, iv_index, description)
+        ("/echo", b"hello", 5, identity_hash_0, 20, "5-param dispatch"),
+        ("/echo", b"hello", 6, identity_hash_0, 21, "6-param dispatch (with link_id)"),
+        ("/api/v1/status", {"query": "test"}, 6, None, 22, "6-param, no remote identity"),
+    ]
+
+    vectors = []
+    for idx, (path, data, param_count, remote_identity_hash, iv_index, desc) in enumerate(test_cases):
+        path_hash = truncated_hash(path.encode("utf-8"))
+        unpacked_request = [fixed_timestamp, path_hash, data]
+        packed_request = umsgpack.packb(unpacked_request)
+
+        iv = deterministic_iv(iv_index)
+        token_data = token_encrypt_deterministic(packed_request, derived_key, iv)
+        raw = build_raw_packet(link_id, CONTEXT_REQUEST, token_data)
+        hashable_part = get_hashable_part(raw)
+        request_id = truncated_hash(hashable_part)
+
+        if param_count == 5:
+            dispatch_args = {
+                "arg_0_path": path,
+                "arg_1_request_data": data.hex() if isinstance(data, bytes) else data,
+                "arg_2_request_id": request_id.hex(),
+                "arg_3_remote_identity": remote_identity_hash.hex() if remote_identity_hash else None,
+                "arg_4_requested_at": fixed_timestamp,
+            }
+        else:
+            dispatch_args = {
+                "arg_0_path": path,
+                "arg_1_request_data": data.hex() if isinstance(data, bytes) else data,
+                "arg_2_request_id": request_id.hex(),
+                "arg_3_link_id": link_id.hex(),
+                "arg_4_remote_identity": remote_identity_hash.hex() if remote_identity_hash else None,
+                "arg_5_requested_at": fixed_timestamp,
+            }
+
+        vector = {
+            "index": idx,
+            "description": desc,
+            "path": path,
+            "path_hash": path_hash.hex(),
+            "timestamp": fixed_timestamp,
+            "request_id": request_id.hex(),
+            "param_count": param_count,
+            "dispatch_args": dispatch_args,
+            "dispatch_algorithm": (
+                "if len(inspect.signature(response_generator).parameters) == 5: "
+                "response_generator(path, request_data, request_id, remote_identity, requested_at); "
+                "elif == 6: response_generator(path, request_data, request_id, link_id, remote_identity, requested_at)"
+            ),
+            "unpacked_request_indices": {
+                "0": "requested_at (float timestamp)",
+                "1": "path_hash (16 bytes, used for handler lookup)",
+                "2": "request_data (arbitrary msgpack-serializable data)",
+            },
+        }
+        vectors.append(vector)
+
+    # Handler not found vector
+    unknown_path = "/unknown"
+    unknown_path_hash = truncated_hash(unknown_path.encode("utf-8"))
+    vectors.append({
+        "index": len(vectors),
+        "description": "Handler not found (path_hash not in request_handlers dict)",
+        "path": unknown_path,
+        "path_hash": unknown_path_hash.hex(),
+        "handler_found": False,
+        "behavior": "Request silently ignored — no response sent, no error raised",
+    })
+
+    return vectors
+
+
+def extract_handler_validation_vectors():
+    """Extract handler registration validation (error condition) vectors.
+
+    Documents error conditions from Destination.register_request_handler()
+    (Destination.py:391-393).
+    """
+    valid_policies = [ALLOW_NONE, ALLOW_ALL, ALLOW_LIST]
+
+    vectors = [
+        {
+            "index": 0,
+            "path": None,
+            "response_generator": "callable",
+            "allow": ALLOW_ALL,
+            "expected_error": "ValueError",
+            "error_message": "Invalid path specified",
+            "description": "path is None",
+            "validation_rule": "path == None or path == ''",
+        },
+        {
+            "index": 1,
+            "path": "",
+            "response_generator": "callable",
+            "allow": ALLOW_ALL,
+            "expected_error": "ValueError",
+            "error_message": "Invalid path specified",
+            "description": "path is empty string",
+            "validation_rule": "path == None or path == ''",
+        },
+        {
+            "index": 2,
+            "path": "/echo",
+            "response_generator": None,
+            "allow": ALLOW_ALL,
+            "expected_error": "ValueError",
+            "error_message": "Invalid response generator specified",
+            "description": "response_generator is None (not callable)",
+            "validation_rule": "not callable(response_generator)",
+        },
+        {
+            "index": 3,
+            "path": "/echo",
+            "response_generator": "a string",
+            "allow": ALLOW_ALL,
+            "expected_error": "ValueError",
+            "error_message": "Invalid response generator specified",
+            "description": "response_generator is a string (not callable)",
+            "validation_rule": "not callable(response_generator)",
+        },
+        {
+            "index": 4,
+            "path": "/echo",
+            "response_generator": "callable",
+            "allow": 0xFF,
+            "expected_error": "ValueError",
+            "error_message": "Invalid request policy",
+            "description": "invalid allow policy value (0xFF)",
+            "validation_rule": "not allow in [ALLOW_NONE, ALLOW_ALL, ALLOW_LIST]",
+        },
+    ]
+
+    return {
+        "vectors": vectors,
+        "valid_policies": valid_policies,
+        "valid_policy_names": ["ALLOW_NONE (0x00)", "ALLOW_ALL (0x01)", "ALLOW_LIST (0x02)"],
+        "note": "Validation occurs in order: path → response_generator → allow policy",
+    }
+
+
 # ============================================================
 # Verification
 # ============================================================
@@ -1029,6 +1341,54 @@ def verify(output, derived_key):
     for rv in output["round_trip_vectors"]:
         assert rv["verified"] is True, f"Round-trip {rv['index']}: verification failed"
     print(f"    [OK] {len(output['round_trip_vectors'])} round-trip vectors verified")
+
+    # 9. Handler registration vectors
+    reg = output["handler_registration_vectors"]
+    for rv in reg["individual_vectors"]:
+        path_hash = truncated_hash(rv["path"].encode("utf-8"))
+        assert path_hash.hex() == rv["path_hash"], f"Handler reg {rv['index']}: path_hash mismatch"
+        assert path_hash.hex() == rv["dict_key"], f"Handler reg {rv['index']}: dict_key mismatch"
+    assert reg["multi_handler"]["dict_size"] == len(reg["individual_vectors"])
+    print(f"    [OK] {len(reg['individual_vectors'])} handler registration vectors verified")
+
+    # 10. Handler deregistration vectors
+    dereg = output["handler_deregistration_vectors"]
+    # Replay the deregistration sequence
+    hash_echo = truncated_hash("/echo".encode("utf-8"))
+    hash_status = truncated_hash("/api/v1/status".encode("utf-8"))
+    sim_handlers = {hash_echo.hex(): True, hash_status.hex(): True}
+    for step in dereg["steps"]:
+        ph = step["path_hash"]
+        if ph in sim_handlers:
+            del sim_handlers[ph]
+            assert step["expected_return"] is True, f"Deregistration step {step['step']}: expected True"
+        else:
+            assert step["expected_return"] is False, f"Deregistration step {step['step']}: expected False"
+        assert step["dict_size_after"] == len(sim_handlers), f"Deregistration step {step['step']}: size mismatch"
+    print(f"    [OK] {len(dereg['steps'])} handler deregistration steps verified")
+
+    # 11. Handler invocation vectors
+    inv = output["handler_invocation_vectors"]
+    for iv_vec in inv:
+        if "handler_found" in iv_vec and iv_vec["handler_found"] is False:
+            continue
+        path_hash = truncated_hash(iv_vec["path"].encode("utf-8"))
+        assert path_hash.hex() == iv_vec["path_hash"], f"Invocation {iv_vec['index']}: path_hash mismatch"
+        assert iv_vec["param_count"] in (5, 6), f"Invocation {iv_vec['index']}: invalid param_count"
+        if iv_vec["param_count"] == 5:
+            assert "arg_3_remote_identity" in iv_vec["dispatch_args"]
+            assert "arg_3_link_id" not in iv_vec["dispatch_args"]
+        else:
+            assert "arg_3_link_id" in iv_vec["dispatch_args"]
+            assert "arg_4_remote_identity" in iv_vec["dispatch_args"]
+    print(f"    [OK] {len(inv)} handler invocation vectors verified")
+
+    # 12. Handler validation vectors
+    val = output["handler_validation_vectors"]
+    for vv in val["vectors"]:
+        assert vv["expected_error"] == "ValueError", f"Validation {vv['index']}: expected ValueError"
+    assert val["valid_policies"] == [ALLOW_NONE, ALLOW_ALL, ALLOW_LIST]
+    print(f"    [OK] {len(val['vectors'])} handler validation vectors verified")
 
     # JSON round-trip integrity
     json_str = json.dumps(output, indent=2)
@@ -1120,6 +1480,22 @@ def main():
     rt_vectors = extract_round_trip_vectors(derived_key, link_id)
     print(f"  Extracted {len(rt_vectors)} round-trip vectors")
 
+    print("Extracting handler registration vectors...")
+    handler_reg_vectors = extract_handler_registration_vectors(keypairs)
+    print(f"  Extracted {len(handler_reg_vectors['individual_vectors'])} handler registration vectors")
+
+    print("Extracting handler deregistration vectors...")
+    handler_dereg_vectors = extract_handler_deregistration_vectors()
+    print(f"  Extracted {len(handler_dereg_vectors['steps'])} handler deregistration steps")
+
+    print("Extracting handler invocation vectors...")
+    handler_inv_vectors = extract_handler_invocation_vectors(derived_key, link_id, keypairs)
+    print(f"  Extracted {len(handler_inv_vectors)} handler invocation vectors")
+
+    print("Extracting handler validation vectors...")
+    handler_val_vectors = extract_handler_validation_vectors()
+    print(f"  Extracted {len(handler_val_vectors['vectors'])} handler validation vectors")
+
     output = {
         "description": "Reticulum v1.1.3 - request/response protocol test vectors",
         "source": "RNS/Link.py, RNS/Destination.py, RNS/Packet.py, RNS/Resource.py",
@@ -1134,6 +1510,10 @@ def main():
         "policy_vectors": policy_vectors,
         "timeout_vectors": timeout_vectors,
         "round_trip_vectors": rt_vectors,
+        "handler_registration_vectors": handler_reg_vectors,
+        "handler_deregistration_vectors": handler_dereg_vectors,
+        "handler_invocation_vectors": handler_inv_vectors,
+        "handler_validation_vectors": handler_val_vectors,
     }
 
     verify(output, derived_key)

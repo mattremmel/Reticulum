@@ -657,5 +657,290 @@
       },
       "verified": true
     }
-  ]
+  ],
+  "handler_registration_vectors": {
+    "individual_vectors": [
+      {
+        "index": 0,
+        "description": "Basic with defaults",
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+        "stored_structure": {
+          "index_0_path": "/echo",
+          "index_1_response_generator": "callable (not serializable)",
+          "index_2_allow": 1,
+          "index_2_allow_name": "ALLOW_ALL",
+          "index_3_allowed_list": null,
+          "index_4_auto_compress": true
+        },
+        "dict_key": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+        "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+      },
+      {
+        "index": 1,
+        "description": "Default deny policy",
+        "path": "/api/v1/status",
+        "path_hash": "212e3326ed94d54abc342a251f15ffe2",
+        "stored_structure": {
+          "index_0_path": "/api/v1/status",
+          "index_1_response_generator": "callable (not serializable)",
+          "index_2_allow": 0,
+          "index_2_allow_name": "ALLOW_NONE",
+          "index_3_allowed_list": null,
+          "index_4_auto_compress": true
+        },
+        "dict_key": "212e3326ed94d54abc342a251f15ffe2",
+        "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+      },
+      {
+        "index": 2,
+        "description": "With allow list",
+        "path": "/upload",
+        "path_hash": "9a5ea6ccd4dc13823617991b0dda4e30",
+        "stored_structure": {
+          "index_0_path": "/upload",
+          "index_1_response_generator": "callable (not serializable)",
+          "index_2_allow": 2,
+          "index_2_allow_name": "ALLOW_LIST",
+          "index_3_allowed_list": [
+            "650b5d76b6bec0390d1f8cfca5bd33f9"
+          ],
+          "index_4_auto_compress": false
+        },
+        "dict_key": "9a5ea6ccd4dc13823617991b0dda4e30",
+        "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+      },
+      {
+        "index": 3,
+        "description": "Integer auto_compress threshold",
+        "path": "/config",
+        "path_hash": "01d0ea696869632ca69da251f24e240d",
+        "stored_structure": {
+          "index_0_path": "/config",
+          "index_1_response_generator": "callable (not serializable)",
+          "index_2_allow": 1,
+          "index_2_allow_name": "ALLOW_ALL",
+          "index_3_allowed_list": null,
+          "index_4_auto_compress": 4096
+        },
+        "dict_key": "01d0ea696869632ca69da251f24e240d",
+        "algorithm": "SHA256(path.encode('utf-8'))[:16]"
+      }
+    ],
+    "multi_handler": {
+      "description": "Final dict state after registering all 4 handlers",
+      "dict_size": 4,
+      "keys": [
+        "cb9c1f54d8102d68b7a40c2376e1f0e8",
+        "212e3326ed94d54abc342a251f15ffe2",
+        "9a5ea6ccd4dc13823617991b0dda4e30",
+        "01d0ea696869632ca69da251f24e240d"
+      ],
+      "paths": [
+        "/echo",
+        "/api/v1/status",
+        "/upload",
+        "/config"
+      ]
+    }
+  },
+  "handler_deregistration_vectors": {
+    "initial_state": {
+      "dict_size": 2,
+      "keys": [
+        "cb9c1f54d8102d68b7a40c2376e1f0e8",
+        "212e3326ed94d54abc342a251f15ffe2"
+      ]
+    },
+    "steps": [
+      {
+        "step": 1,
+        "action": "deregister '/echo'",
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+        "expected_return": true,
+        "dict_size_after": 1,
+        "remaining_keys": [
+          "212e3326ed94d54abc342a251f15ffe2"
+        ]
+      },
+      {
+        "step": 2,
+        "action": "deregister '/echo' again (already removed)",
+        "path": "/echo",
+        "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+        "expected_return": false,
+        "dict_size_after": 1,
+        "remaining_keys": [
+          "212e3326ed94d54abc342a251f15ffe2"
+        ]
+      },
+      {
+        "step": 3,
+        "action": "deregister '/nonexistent' (never registered)",
+        "path": "/nonexistent",
+        "path_hash": "3969afb7f55ca222f7d7e1b5f5bfd3dd",
+        "expected_return": false,
+        "dict_size_after": 1,
+        "remaining_keys": [
+          "212e3326ed94d54abc342a251f15ffe2"
+        ]
+      },
+      {
+        "step": 4,
+        "action": "deregister '/api/v1/status'",
+        "path": "/api/v1/status",
+        "path_hash": "212e3326ed94d54abc342a251f15ffe2",
+        "expected_return": true,
+        "dict_size_after": 0,
+        "remaining_keys": []
+      }
+    ],
+    "note": "Steps are sequential \u2014 each builds on the previous dict state"
+  },
+  "handler_invocation_vectors": [
+    {
+      "index": 0,
+      "description": "5-param dispatch",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000000.0,
+      "request_id": "cade9d8b3b6c6ee4f31e3876d040d6b5",
+      "param_count": 5,
+      "dispatch_args": {
+        "arg_0_path": "/echo",
+        "arg_1_request_data": "68656c6c6f",
+        "arg_2_request_id": "cade9d8b3b6c6ee4f31e3876d040d6b5",
+        "arg_3_remote_identity": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "arg_4_requested_at": 1700000000.0
+      },
+      "dispatch_algorithm": "if len(inspect.signature(response_generator).parameters) == 5: response_generator(path, request_data, request_id, remote_identity, requested_at); elif == 6: response_generator(path, request_data, request_id, link_id, remote_identity, requested_at)",
+      "unpacked_request_indices": {
+        "0": "requested_at (float timestamp)",
+        "1": "path_hash (16 bytes, used for handler lookup)",
+        "2": "request_data (arbitrary msgpack-serializable data)"
+      }
+    },
+    {
+      "index": 1,
+      "description": "6-param dispatch (with link_id)",
+      "path": "/echo",
+      "path_hash": "cb9c1f54d8102d68b7a40c2376e1f0e8",
+      "timestamp": 1700000000.0,
+      "request_id": "98a3d674d7fbc89250efaf87f5d29e06",
+      "param_count": 6,
+      "dispatch_args": {
+        "arg_0_path": "/echo",
+        "arg_1_request_data": "68656c6c6f",
+        "arg_2_request_id": "98a3d674d7fbc89250efaf87f5d29e06",
+        "arg_3_link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+        "arg_4_remote_identity": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "arg_5_requested_at": 1700000000.0
+      },
+      "dispatch_algorithm": "if len(inspect.signature(response_generator).parameters) == 5: response_generator(path, request_data, request_id, remote_identity, requested_at); elif == 6: response_generator(path, request_data, request_id, link_id, remote_identity, requested_at)",
+      "unpacked_request_indices": {
+        "0": "requested_at (float timestamp)",
+        "1": "path_hash (16 bytes, used for handler lookup)",
+        "2": "request_data (arbitrary msgpack-serializable data)"
+      }
+    },
+    {
+      "index": 2,
+      "description": "6-param, no remote identity",
+      "path": "/api/v1/status",
+      "path_hash": "212e3326ed94d54abc342a251f15ffe2",
+      "timestamp": 1700000000.0,
+      "request_id": "c7f1eae6935d8633e018de181ed632aa",
+      "param_count": 6,
+      "dispatch_args": {
+        "arg_0_path": "/api/v1/status",
+        "arg_1_request_data": {
+          "query": "test"
+        },
+        "arg_2_request_id": "c7f1eae6935d8633e018de181ed632aa",
+        "arg_3_link_id": "4daf0d8a4a8a3e0bfe8401b810467b22",
+        "arg_4_remote_identity": null,
+        "arg_5_requested_at": 1700000000.0
+      },
+      "dispatch_algorithm": "if len(inspect.signature(response_generator).parameters) == 5: response_generator(path, request_data, request_id, remote_identity, requested_at); elif == 6: response_generator(path, request_data, request_id, link_id, remote_identity, requested_at)",
+      "unpacked_request_indices": {
+        "0": "requested_at (float timestamp)",
+        "1": "path_hash (16 bytes, used for handler lookup)",
+        "2": "request_data (arbitrary msgpack-serializable data)"
+      }
+    },
+    {
+      "index": 3,
+      "description": "Handler not found (path_hash not in request_handlers dict)",
+      "path": "/unknown",
+      "path_hash": "54572d9e14d202df3445d4677b5d0986",
+      "handler_found": false,
+      "behavior": "Request silently ignored \u2014 no response sent, no error raised"
+    }
+  ],
+  "handler_validation_vectors": {
+    "vectors": [
+      {
+        "index": 0,
+        "path": null,
+        "response_generator": "callable",
+        "allow": 1,
+        "expected_error": "ValueError",
+        "error_message": "Invalid path specified",
+        "description": "path is None",
+        "validation_rule": "path == None or path == ''"
+      },
+      {
+        "index": 1,
+        "path": "",
+        "response_generator": "callable",
+        "allow": 1,
+        "expected_error": "ValueError",
+        "error_message": "Invalid path specified",
+        "description": "path is empty string",
+        "validation_rule": "path == None or path == ''"
+      },
+      {
+        "index": 2,
+        "path": "/echo",
+        "response_generator": null,
+        "allow": 1,
+        "expected_error": "ValueError",
+        "error_message": "Invalid response generator specified",
+        "description": "response_generator is None (not callable)",
+        "validation_rule": "not callable(response_generator)"
+      },
+      {
+        "index": 3,
+        "path": "/echo",
+        "response_generator": "a string",
+        "allow": 1,
+        "expected_error": "ValueError",
+        "error_message": "Invalid response generator specified",
+        "description": "response_generator is a string (not callable)",
+        "validation_rule": "not callable(response_generator)"
+      },
+      {
+        "index": 4,
+        "path": "/echo",
+        "response_generator": "callable",
+        "allow": 255,
+        "expected_error": "ValueError",
+        "error_message": "Invalid request policy",
+        "description": "invalid allow policy value (0xFF)",
+        "validation_rule": "not allow in [ALLOW_NONE, ALLOW_ALL, ALLOW_LIST]"
+      }
+    ],
+    "valid_policies": [
+      0,
+      1,
+      2
+    ],
+    "valid_policy_names": [
+      "ALLOW_NONE (0x00)",
+      "ALLOW_ALL (0x01)",
+      "ALLOW_LIST (0x02)"
+    ],
+    "note": "Validation occurs in order: path \u2192 response_generator \u2192 allow policy"
+  }
 }
