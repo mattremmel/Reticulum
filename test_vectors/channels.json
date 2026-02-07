@@ -926,5 +926,188 @@
       "decoded_message_data": "at max sequence",
       "verified": true
     }
+  ],
+  "send_receive_vectors": [
+    {
+      "index": 0,
+      "type": "tx_send_progression",
+      "description": "3 sends with seq 0,1,2 using Alpha and Beta types; tracks _next_sequence state",
+      "steps": [
+        {
+          "step": 0,
+          "message_type": "Alpha",
+          "msgtype": 43981,
+          "msgtype_hex": "0xabcd",
+          "tx_sequence_before": 0,
+          "tx_sequence_after": 1,
+          "message_packed_hex": "92ab616c7068612d6d73672d30a568656c6c6f",
+          "message_packed_length": 19,
+          "envelope_raw_hex": "abcd0000001392ab616c7068612d6d73672d30a568656c6c6f",
+          "envelope_length": 25
+        },
+        {
+          "step": 1,
+          "message_type": "Beta",
+          "msgtype": 4660,
+          "msgtype_hex": "0x1234",
+          "tx_sequence_before": 1,
+          "tx_sequence_after": 2,
+          "message_packed_hex": "92aa626574612d6d73672d31c404deadbeef",
+          "message_packed_length": 18,
+          "envelope_raw_hex": "12340001001292aa626574612d6d73672d31c404deadbeef",
+          "envelope_length": 24
+        },
+        {
+          "step": 2,
+          "message_type": "Alpha",
+          "msgtype": 43981,
+          "msgtype_hex": "0xabcd",
+          "tx_sequence_before": 2,
+          "tx_sequence_after": 3,
+          "message_packed_hex": "92ab616c7068612d6d73672d32ae7465737420726f756e642074776f",
+          "message_packed_length": 28,
+          "envelope_raw_hex": "abcd0002001c92ab616c7068612d6d73672d32ae7465737420726f756e642074776f",
+          "envelope_length": 34
+        }
+      ],
+      "final_next_sequence": 3
+    },
+    {
+      "index": 1,
+      "type": "rx_receive_progression",
+      "description": "3 receives of the same envelopes; MSGTYPE-based factory dispatch; tracks _next_rx_sequence state",
+      "steps": [
+        {
+          "step": 0,
+          "envelope_raw_hex": "abcd0000001392ab616c7068612d6d73672d30a568656c6c6f",
+          "rx_sequence_before": 0,
+          "rx_sequence_after": 1,
+          "decoded_msgtype": 43981,
+          "decoded_msgtype_hex": "0xabcd",
+          "decoded_sequence": 0,
+          "decoded_data_length": 19,
+          "factory_used": "Alpha",
+          "decoded_fields": [
+            {
+              "type": "str",
+              "value": "alpha-msg-0"
+            },
+            {
+              "type": "str",
+              "value": "hello"
+            }
+          ]
+        },
+        {
+          "step": 1,
+          "envelope_raw_hex": "12340001001292aa626574612d6d73672d31c404deadbeef",
+          "rx_sequence_before": 1,
+          "rx_sequence_after": 2,
+          "decoded_msgtype": 4660,
+          "decoded_msgtype_hex": "0x1234",
+          "decoded_sequence": 1,
+          "decoded_data_length": 18,
+          "factory_used": "Beta",
+          "decoded_fields": [
+            {
+              "type": "str",
+              "value": "beta-msg-1"
+            },
+            {
+              "type": "bytes",
+              "hex": "deadbeef"
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "envelope_raw_hex": "abcd0002001c92ab616c7068612d6d73672d32ae7465737420726f756e642074776f",
+          "rx_sequence_before": 2,
+          "rx_sequence_after": 3,
+          "decoded_msgtype": 43981,
+          "decoded_msgtype_hex": "0xabcd",
+          "decoded_sequence": 2,
+          "decoded_data_length": 28,
+          "factory_used": "Alpha",
+          "decoded_fields": [
+            {
+              "type": "str",
+              "value": "alpha-msg-2"
+            },
+            {
+              "type": "str",
+              "value": "test round two"
+            }
+          ]
+        }
+      ],
+      "final_next_rx_sequence": 3
+    },
+    {
+      "index": 2,
+      "type": "non_serialized_field_loss",
+      "description": "Fields not in pack() don't survive round-trip unpack()",
+      "original_fields": {
+        "id": "field-loss-test",
+        "data": "some data",
+        "timestamp": "2025-01-01T00:00:00Z"
+      },
+      "serialized_fields": [
+        "id",
+        "data"
+      ],
+      "non_serialized_fields": [
+        "timestamp"
+      ],
+      "packed_hex": "92af6669656c642d6c6f73732d74657374a9736f6d652064617461",
+      "packed_length": 27,
+      "unpacked_fields": [
+        "field-loss-test",
+        "some data"
+      ],
+      "unpacked_field_count": 2,
+      "timestamp_preserved": false,
+      "note": "Only fields included in pack() survive; timestamp is lost"
+    },
+    {
+      "index": 3,
+      "type": "full_round_trip",
+      "description": "Complete send-receive integrity check for Alpha message",
+      "message_type": "Alpha",
+      "msgtype": 43981,
+      "msgtype_hex": "0xabcd",
+      "original_id": "alpha-rt-001",
+      "original_data": "alpha round trip verification",
+      "sequence": 42,
+      "message_packed_hex": "92ac616c7068612d72742d303031bd616c70686120726f756e64207472697020766572696669636174696f6e",
+      "envelope_raw_hex": "abcd002a002c92ac616c7068612d72742d303031bd616c70686120726f756e64207472697020766572696669636174696f6e",
+      "envelope_length": 50,
+      "decoded_msgtype": 43981,
+      "decoded_sequence": 42,
+      "decoded_data_length": 44,
+      "decoded_id": "alpha-rt-001",
+      "decoded_data": "alpha round trip verification",
+      "verified": true
+    },
+    {
+      "index": 4,
+      "type": "full_round_trip",
+      "description": "Complete send-receive integrity check for Beta message",
+      "message_type": "Beta",
+      "msgtype": 4660,
+      "msgtype_hex": "0x1234",
+      "original_tag": "beta-rt-002",
+      "original_payload_hex": "cafebabe00ff0102",
+      "sequence": 99,
+      "message_packed_hex": "92ab626574612d72742d303032c408cafebabe00ff0102",
+      "envelope_raw_hex": "12340063001792ab626574612d72742d303032c408cafebabe00ff0102",
+      "envelope_length": 29,
+      "decoded_msgtype": 4660,
+      "decoded_sequence": 99,
+      "decoded_data_length": 23,
+      "decoded_tag": "beta-rt-002",
+      "decoded_payload_hex": "cafebabe00ff0102",
+      "verified": true
+    }
   ]
 }

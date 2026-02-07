@@ -1034,6 +1034,209 @@ def extract_round_trip_vectors():
     return vectors
 
 
+def extract_send_receive_vectors():
+    """Generate send/receive progression and multi-type dispatch vectors.
+
+    Simulates a channel conversation using two MessageBase-like types:
+      - Alpha (MSGTYPE=0xabcd): serializes (id_str, data_str) via umsgpack
+      - Beta  (MSGTYPE=0x1234): serializes (tag_str, payload_bytes) via umsgpack
+
+    Produces vectors covering:
+      - TX send progression: _next_sequence state across 3 sends
+      - RX receive progression: _next_rx_sequence state across 3 receives
+      - Non-serialized field loss: fields not in pack() don't survive round-trip
+      - Full round-trip for each message type
+    """
+    from RNS.vendor import umsgpack
+
+    vectors = []
+
+    ALPHA_MSGTYPE = 0xABCD
+    BETA_MSGTYPE = 0x1234
+
+    # Define the three messages in conversation order
+    # msg 0: Alpha("alpha-msg-0", "hello")
+    # msg 1: Beta("beta-msg-1", b"\xde\xad\xbe\xef")
+    # msg 2: Alpha("alpha-msg-2", "test round two")
+    messages = [
+        {"type": "Alpha", "msgtype": ALPHA_MSGTYPE,
+         "fields": ("alpha-msg-0", "hello"),
+         "pack": lambda: umsgpack.packb(("alpha-msg-0", "hello"))},
+        {"type": "Beta", "msgtype": BETA_MSGTYPE,
+         "fields": ("beta-msg-1", b"\xde\xad\xbe\xef"),
+         "pack": lambda: umsgpack.packb(("beta-msg-1", b"\xde\xad\xbe\xef"))},
+        {"type": "Alpha", "msgtype": ALPHA_MSGTYPE,
+         "fields": ("alpha-msg-2", "test round two"),
+         "pack": lambda: umsgpack.packb(("alpha-msg-2", "test round two"))},
+    ]
+
+    # Pre-compute packed data and envelopes
+    packed_data = [m["pack"]() for m in messages]
+    envelopes = [envelope_pack(messages[i]["msgtype"], i, packed_data[i]) for i in range(3)]
+
+    # --- Vector 0: TX send progression ---
+    tx_steps = []
+    next_sequence = 0
+    for i in range(3):
+        seq_before = next_sequence
+        msg_packed = packed_data[i]
+        env_raw = envelope_pack(messages[i]["msgtype"], next_sequence, msg_packed)
+        next_sequence = (next_sequence + 1) % SEQ_MODULUS
+        tx_steps.append({
+            "step": i,
+            "message_type": messages[i]["type"],
+            "msgtype": messages[i]["msgtype"],
+            "msgtype_hex": f"0x{messages[i]['msgtype']:04x}",
+            "tx_sequence_before": seq_before,
+            "tx_sequence_after": next_sequence,
+            "message_packed_hex": msg_packed.hex(),
+            "message_packed_length": len(msg_packed),
+            "envelope_raw_hex": env_raw.hex(),
+            "envelope_length": len(env_raw),
+        })
+
+    vectors.append({
+        "index": 0,
+        "type": "tx_send_progression",
+        "description": "3 sends with seq 0,1,2 using Alpha and Beta types; tracks _next_sequence state",
+        "steps": tx_steps,
+        "final_next_sequence": next_sequence,
+    })
+
+    # --- Vector 1: RX receive progression ---
+    # Receiver processes the same 3 envelopes in order
+    rx_steps = []
+    next_rx_sequence = 0
+    message_factories = {ALPHA_MSGTYPE: "Alpha", BETA_MSGTYPE: "Beta"}
+
+    for i in range(3):
+        rx_seq_before = next_rx_sequence
+        env_raw = envelopes[i]
+        dec_msgtype, dec_seq, dec_len, dec_data = envelope_unpack(env_raw)
+        dec_fields = umsgpack.unpackb(dec_data)
+        factory_used = message_factories.get(dec_msgtype, "unknown")
+        next_rx_sequence = (next_rx_sequence + 1) % SEQ_MODULUS
+
+        # Represent decoded fields as JSON-safe values
+        decoded = []
+        for f in dec_fields:
+            if isinstance(f, bytes):
+                decoded.append({"type": "bytes", "hex": f.hex()})
+            else:
+                decoded.append({"type": "str", "value": f})
+
+        rx_steps.append({
+            "step": i,
+            "envelope_raw_hex": env_raw.hex(),
+            "rx_sequence_before": rx_seq_before,
+            "rx_sequence_after": next_rx_sequence,
+            "decoded_msgtype": dec_msgtype,
+            "decoded_msgtype_hex": f"0x{dec_msgtype:04x}",
+            "decoded_sequence": dec_seq,
+            "decoded_data_length": dec_len,
+            "factory_used": factory_used,
+            "decoded_fields": decoded,
+        })
+
+    vectors.append({
+        "index": 1,
+        "type": "rx_receive_progression",
+        "description": "3 receives of the same envelopes; MSGTYPE-based factory dispatch; tracks _next_rx_sequence state",
+        "steps": rx_steps,
+        "final_next_rx_sequence": next_rx_sequence,
+    })
+
+    # --- Vector 2: Non-serialized field loss ---
+    # Alpha packs only (id, data). If we add a "timestamp" field, it doesn't
+    # survive pack/unpack. Show that packed bytes only contain the serialized fields.
+    alpha_id = "field-loss-test"
+    alpha_data = "some data"
+    extra_field = "2025-01-01T00:00:00Z"  # not part of pack()
+    alpha_packed = umsgpack.packb((alpha_id, alpha_data))
+    alpha_unpacked = umsgpack.unpackb(alpha_packed)
+
+    vectors.append({
+        "index": 2,
+        "type": "non_serialized_field_loss",
+        "description": "Fields not in pack() don't survive round-trip unpack()",
+        "original_fields": {
+            "id": alpha_id,
+            "data": alpha_data,
+            "timestamp": extra_field,
+        },
+        "serialized_fields": ["id", "data"],
+        "non_serialized_fields": ["timestamp"],
+        "packed_hex": alpha_packed.hex(),
+        "packed_length": len(alpha_packed),
+        "unpacked_fields": list(alpha_unpacked),
+        "unpacked_field_count": len(alpha_unpacked),
+        "timestamp_preserved": False,
+        "note": "Only fields included in pack() survive; timestamp is lost",
+    })
+
+    # --- Vector 3: Full round-trip for Alpha ---
+    alpha_rt_id = "alpha-rt-001"
+    alpha_rt_data = "alpha round trip verification"
+    alpha_rt_packed = umsgpack.packb((alpha_rt_id, alpha_rt_data))
+    alpha_rt_seq = 42
+    alpha_rt_env = envelope_pack(ALPHA_MSGTYPE, alpha_rt_seq, alpha_rt_packed)
+    dec_mt, dec_sq, dec_ln, dec_dt = envelope_unpack(alpha_rt_env)
+    dec_tup = umsgpack.unpackb(dec_dt)
+
+    vectors.append({
+        "index": 3,
+        "type": "full_round_trip",
+        "description": "Complete send-receive integrity check for Alpha message",
+        "message_type": "Alpha",
+        "msgtype": ALPHA_MSGTYPE,
+        "msgtype_hex": f"0x{ALPHA_MSGTYPE:04x}",
+        "original_id": alpha_rt_id,
+        "original_data": alpha_rt_data,
+        "sequence": alpha_rt_seq,
+        "message_packed_hex": alpha_rt_packed.hex(),
+        "envelope_raw_hex": alpha_rt_env.hex(),
+        "envelope_length": len(alpha_rt_env),
+        "decoded_msgtype": dec_mt,
+        "decoded_sequence": dec_sq,
+        "decoded_data_length": dec_ln,
+        "decoded_id": dec_tup[0],
+        "decoded_data": dec_tup[1],
+        "verified": dec_tup[0] == alpha_rt_id and dec_tup[1] == alpha_rt_data and dec_mt == ALPHA_MSGTYPE and dec_sq == alpha_rt_seq,
+    })
+
+    # --- Vector 4: Full round-trip for Beta ---
+    beta_rt_tag = "beta-rt-002"
+    beta_rt_payload = bytes([0xCA, 0xFE, 0xBA, 0xBE, 0x00, 0xFF, 0x01, 0x02])
+    beta_rt_packed = umsgpack.packb((beta_rt_tag, beta_rt_payload))
+    beta_rt_seq = 99
+    beta_rt_env = envelope_pack(BETA_MSGTYPE, beta_rt_seq, beta_rt_packed)
+    dec_mt2, dec_sq2, dec_ln2, dec_dt2 = envelope_unpack(beta_rt_env)
+    dec_tup2 = umsgpack.unpackb(dec_dt2)
+
+    vectors.append({
+        "index": 4,
+        "type": "full_round_trip",
+        "description": "Complete send-receive integrity check for Beta message",
+        "message_type": "Beta",
+        "msgtype": BETA_MSGTYPE,
+        "msgtype_hex": f"0x{BETA_MSGTYPE:04x}",
+        "original_tag": beta_rt_tag,
+        "original_payload_hex": beta_rt_payload.hex(),
+        "sequence": beta_rt_seq,
+        "message_packed_hex": beta_rt_packed.hex(),
+        "envelope_raw_hex": beta_rt_env.hex(),
+        "envelope_length": len(beta_rt_env),
+        "decoded_msgtype": dec_mt2,
+        "decoded_sequence": dec_sq2,
+        "decoded_data_length": dec_ln2,
+        "decoded_tag": dec_tup2[0],
+        "decoded_payload_hex": dec_tup2[1].hex(),
+        "verified": dec_tup2[0] == beta_rt_tag and dec_tup2[1] == beta_rt_payload and dec_mt2 == BETA_MSGTYPE and dec_sq2 == beta_rt_seq,
+    })
+
+    return vectors
+
+
 # ============================================================
 # Verification
 # ============================================================
@@ -1130,6 +1333,55 @@ def verify(output):
         assert is_sys == smv["is_system"], f"System msg {smv['msgtype_hex']}: boundary check failed"
     print(f"    [OK] {len(output['system_message_vectors'])} system message vectors verified")
 
+    # 10. Send/receive vectors
+    for srv in output["send_receive_vectors"]:
+        vtype = srv["type"]
+
+        if vtype == "tx_send_progression":
+            steps = srv["steps"]
+            assert len(steps) == 3, "tx_send_progression: expected 3 steps"
+            for i, step in enumerate(steps):
+                # Verify envelope decodes to correct msgtype/seq/data
+                env_raw = bytes.fromhex(step["envelope_raw_hex"])
+                dec_mt, dec_seq, dec_len, dec_data = envelope_unpack(env_raw)
+                assert dec_mt == step["msgtype"], f"tx step {i}: msgtype mismatch"
+                assert dec_seq == step["tx_sequence_before"], f"tx step {i}: sequence mismatch"
+                assert dec_data.hex() == step["message_packed_hex"], f"tx step {i}: data mismatch"
+                # Verify sequence increments
+                assert step["tx_sequence_after"] == (step["tx_sequence_before"] + 1) % SEQ_MODULUS, \
+                    f"tx step {i}: sequence increment wrong"
+            assert srv["final_next_sequence"] == 3, "tx_send_progression: final sequence should be 3"
+
+        elif vtype == "rx_receive_progression":
+            steps = srv["steps"]
+            assert len(steps) == 3, "rx_receive_progression: expected 3 steps"
+            for i, step in enumerate(steps):
+                env_raw = bytes.fromhex(step["envelope_raw_hex"])
+                dec_mt, dec_seq, dec_len, dec_data = envelope_unpack(env_raw)
+                assert dec_mt == step["decoded_msgtype"], f"rx step {i}: msgtype mismatch"
+                assert dec_seq == step["decoded_sequence"], f"rx step {i}: sequence mismatch"
+                # Verify rx_sequence advances
+                assert step["rx_sequence_after"] == (step["rx_sequence_before"] + 1) % SEQ_MODULUS, \
+                    f"rx step {i}: rx_sequence increment wrong"
+            assert srv["final_next_rx_sequence"] == 3, "rx_receive_progression: final rx_sequence should be 3"
+
+        elif vtype == "non_serialized_field_loss":
+            packed = bytes.fromhex(srv["packed_hex"])
+            unpacked = umsgpack.unpackb(packed)
+            assert len(unpacked) == srv["unpacked_field_count"], f"non_serialized_field_loss: field count mismatch"
+            assert srv["timestamp_preserved"] is False, "non_serialized_field_loss: timestamp should not be preserved"
+            assert "timestamp" in srv["non_serialized_fields"], "non_serialized_field_loss: timestamp should be listed"
+
+        elif vtype == "full_round_trip":
+            assert srv["verified"] is True, f"send_receive full_round_trip {srv['index']}: verification failed"
+            # Re-verify from envelope bytes
+            env_raw = bytes.fromhex(srv["envelope_raw_hex"])
+            dec_mt, dec_seq, dec_len, dec_data = envelope_unpack(env_raw)
+            assert dec_mt == srv["decoded_msgtype"], f"send_receive full_round_trip {srv['index']}: msgtype mismatch"
+            assert dec_seq == srv["decoded_sequence"], f"send_receive full_round_trip {srv['index']}: sequence mismatch"
+
+    print(f"    [OK] {len(output['send_receive_vectors'])} send/receive vectors verified")
+
     # JSON round-trip
     json_str = json.dumps(output, indent=2)
     assert json.loads(json_str) == output, "JSON round-trip failed"
@@ -1218,6 +1470,10 @@ def main():
     rt_vectors = extract_round_trip_vectors()
     print(f"  Extracted {len(rt_vectors)} round-trip vectors")
 
+    print("Extracting send/receive vectors...")
+    sr_vectors = extract_send_receive_vectors()
+    print(f"  Extracted {len(sr_vectors)} send/receive vectors")
+
     output = {
         "description": "Reticulum v1.1.3 - channel/buffer protocol test vectors",
         "source": "RNS/Channel.py, RNS/Buffer.py",
@@ -1232,6 +1488,7 @@ def main():
         "mdu_vectors": mdu_vectors,
         "system_message_vectors": sys_msg_vectors,
         "round_trip_vectors": rt_vectors,
+        "send_receive_vectors": sr_vectors,
     }
 
     verify(output)
