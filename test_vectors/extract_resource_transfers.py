@@ -28,6 +28,9 @@ Covers:
   - Large resource (50MB) multi-segment (48 segments) transfer sequence:
     ~107,766 total parts across 48 segments for sustained throughput
     stress testing (split=True, flags 0x05)
+  - Micro resource (128B) with metadata transfer (flags 0x21)
+  - Compressible resource (2KB) with compression transfer (flags 0x03)
+  - Compressible resource (2KB) with metadata + compression transfer (flags 0x23)
   - Data integrity verification
   - Callback and state machine sequence
   - Cancellation payload vectors (ICL, RCL)
@@ -2056,6 +2059,792 @@ def build_large_transfer_sequence(derived_key):
     return vector
 
 
+def deterministic_compressible_data(index, length):
+    """Generate deterministic, highly compressible data of given length.
+
+    Uses a repeating pattern seeded by index, matching the approach in
+    extract_resources.py for compressible resource cases.
+    """
+    pattern = b"RETICULUM_TEST_PATTERN_" + str(index).encode() + b"_"
+    return (pattern * ((length // len(pattern)) + 1))[:length]
+
+
+def build_metadata_transfer_sequence(derived_key):
+    """Build micro resource (128B) transfer with metadata (flags=0x21).
+
+    Simulates the 5-step exchange with metadata encoding:
+      1. Sender prepares advertisement (with metadata)
+      2. Receiver accepts & requests parts
+      3. Sender sends part
+      4. Receiver assembles, verifies, extracts metadata, and proves
+      5. Sender validates proof
+    """
+    from RNS.vendor import umsgpack
+
+    idx = 100  # Avoids collisions with existing 0-4, 99, 300+, 400+
+
+    # --- Input data ---
+    input_data = deterministic_data(idx, 128)
+    input_sha256 = full_hash(input_data).hex()
+
+    # --- Metadata ---
+    metadata_dict = {"filename": "test.bin", "size": 128}
+    packed_metadata = umsgpack.packb(metadata_dict)
+    metadata_size = len(packed_metadata)
+    metadata_bytes = struct.pack(">I", metadata_size)[1:] + packed_metadata
+
+    # --- Step 1: Sender prepares advertisement ---
+    random_hash = deterministic_random_hash(idx)
+    iv = deterministic_iv(idx)
+
+    # Combine metadata + payload
+    data_with_metadata = metadata_bytes + input_data
+    total_size = len(data_with_metadata)
+
+    # Attempt compression (incompressible data + small metadata = no benefit)
+    compressed_data = bz2.compress(data_with_metadata)
+    compressed = len(compressed_data) < len(data_with_metadata)
+    if compressed:
+        payload_after_compress = compressed_data
+    else:
+        payload_after_compress = data_with_metadata
+
+    # Pre-encryption data: random_hash(4) + payload
+    pre_encryption_data = random_hash + payload_after_compress
+
+    # Encrypt
+    encrypted_data = token_encrypt_deterministic(pre_encryption_data, derived_key, iv)
+    encrypted_size = len(encrypted_data)
+
+    # Segment into parts
+    sdu = RESOURCE_SDU
+    num_parts = int(math.ceil(encrypted_size / float(sdu)))
+
+    # Build parts and hashmap
+    parts = []
+    hashmap = b""
+    for i in range(num_parts):
+        part_data = encrypted_data[i * sdu:(i + 1) * sdu]
+        parts.append(part_data)
+        map_hash = get_map_hash(part_data, random_hash)
+        hashmap += map_hash
+
+    # Compute hashes
+    resource_hash = full_hash(data_with_metadata + random_hash)
+    original_hash = resource_hash
+    expected_proof = full_hash(data_with_metadata + resource_hash)
+
+    # Flags: encrypted=True, compressed=compressed, has_metadata=True
+    flags = (1 << 5) | (int(compressed) << 1) | 1  # 0x21 if not compressed, 0x23 if compressed
+
+    # Build advertisement dict
+    hashmap_for_adv = hashmap[:HASHMAP_MAX_LEN * MAPHASH_LEN]
+    adv_dict = {
+        "t": encrypted_size,
+        "d": total_size,
+        "n": num_parts,
+        "h": resource_hash,
+        "r": random_hash,
+        "o": original_hash,
+        "i": 1,
+        "l": 1,
+        "q": None,
+        "f": flags,
+        "m": hashmap_for_adv,
+    }
+    adv_packed = umsgpack.packb(adv_dict)
+
+    step_1 = {
+        "step": 1,
+        "name": "sender_prepare_advertisement",
+        "advertisement_packed_hex": adv_packed.hex(),
+        "advertisement_packed_length": len(adv_packed),
+        "advertisement_dict": {
+            "t": encrypted_size,
+            "d": total_size,
+            "n": num_parts,
+            "h": resource_hash.hex(),
+            "r": random_hash.hex(),
+            "o": original_hash.hex(),
+            "i": 1,
+            "l": 1,
+            "q": None,
+            "f": flags,
+            "m": hashmap_for_adv.hex(),
+        },
+        "resource_hash_hex": resource_hash.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "hashmap_hex": hashmap_for_adv.hex(),
+        "num_parts": num_parts,
+        "encrypted_data_length": encrypted_size,
+        "flags": flags,
+        "flags_hex": f"0x{flags:02x}",
+        "expected_proof_hex": expected_proof.hex(),
+        "metadata_dict": metadata_dict,
+        "packed_metadata_hex": packed_metadata.hex(),
+        "metadata_bytes_hex": metadata_bytes.hex(),
+        "sender_state_before": "QUEUED",
+        "sender_state_after": "ADVERTISED",
+        "packet_context": f"RESOURCE_ADV (0x{CONTEXT_RESOURCE_ADV:02x})",
+    }
+
+    # --- Step 2: Receiver accepts & requests parts ---
+    first_map_hash = hashmap[:MAPHASH_LEN]
+    hashmap_exhausted_flag = bytes([HASHMAP_IS_NOT_EXHAUSTED])
+    request_payload = hashmap_exhausted_flag + resource_hash
+    for i in range(min(num_parts, WINDOW)):
+        request_payload += hashmap[i * MAPHASH_LEN:(i + 1) * MAPHASH_LEN]
+
+    step_2 = {
+        "step": 2,
+        "name": "receiver_request_parts",
+        "request_payload_hex": request_payload.hex(),
+        "request_payload_length": len(request_payload),
+        "receiver_state": "TRANSFERRING",
+        "callbacks_fired": ["resource_started"],
+        "packet_context": f"RESOURCE_REQ (0x{CONTEXT_RESOURCE_REQ:02x})",
+    }
+
+    # --- Step 3: Sender sends parts ---
+    step_3_parts = []
+    for i in range(num_parts):
+        step_3_parts.append({
+            "part_index": i,
+            "part_data_hex": hex_prefix(parts[i], 64),
+            "part_data_length": len(parts[i]),
+            "map_hash_hex": hashmap[i * MAPHASH_LEN:(i + 1) * MAPHASH_LEN].hex(),
+        })
+
+    step_3 = {
+        "step": 3,
+        "name": "sender_send_parts",
+        "parts": step_3_parts,
+        "sender_state": "TRANSFERRING",
+        "packet_context": f"RESOURCE (0x{CONTEXT_RESOURCE:02x})",
+    }
+
+    # --- Step 4: Receiver assembles & proves ---
+    joined_parts = b"".join(parts)
+    decrypted = token_decrypt(joined_parts, derived_key)
+    stripped_data = decrypted[RANDOM_HASH_SIZE:]
+
+    # Decompress if flagged
+    if compressed:
+        decompressed_data = bz2.decompress(stripped_data)
+    else:
+        decompressed_data = stripped_data
+
+    # Verify hash
+    calculated_hash = full_hash(decompressed_data + random_hash)
+    hash_verified = calculated_hash == resource_hash
+    assert hash_verified, "Assembly hash verification failed for metadata transfer"
+
+    # Extract metadata
+    meta_size = decompressed_data[0] << 16 | decompressed_data[1] << 8 | decompressed_data[2]
+    packed_meta_extracted = decompressed_data[3:3 + meta_size]
+    extracted_metadata = umsgpack.unpackb(packed_meta_extracted)
+    extracted_payload = decompressed_data[3 + meta_size:]
+
+    assert extracted_payload == input_data, "Assembled payload doesn't match input"
+    assert extracted_metadata == metadata_dict, "Extracted metadata doesn't match"
+
+    # Build proof
+    proof = full_hash(decompressed_data + resource_hash)
+    proof_data = resource_hash + proof
+    assert proof == expected_proof, "Proof doesn't match expected"
+
+    step_4 = {
+        "step": 4,
+        "name": "receiver_assemble_and_prove",
+        "assembly": {
+            "joined_parts_hex": hex_prefix(joined_parts, 64),
+            "joined_parts_length": len(joined_parts),
+            "decrypted_hex": hex_prefix(decrypted, 64),
+            "decrypted_length": len(decrypted),
+            "stripped_data_hex": hex_prefix(stripped_data, 64),
+            "stripped_data_length": len(stripped_data),
+            "decompressed": compressed,
+            "decompressed_data_length": len(decompressed_data) if compressed else None,
+            "hash_verified": hash_verified,
+            "calculated_hash_hex": calculated_hash.hex(),
+        },
+        "metadata_extraction": {
+            "metadata_size": meta_size,
+            "extracted_metadata": extracted_metadata,
+            "extracted_payload_hex": hex_prefix(extracted_payload, 64),
+            "extracted_payload_length": len(extracted_payload),
+        },
+        "proof_payload_hex": proof_data.hex(),
+        "proof_payload_length": len(proof_data),
+        "proof_breakdown": {
+            "resource_hash_hex": resource_hash.hex(),
+            "proof_hex": proof.hex(),
+        },
+        "receiver_state_sequence": ["TRANSFERRING", "ASSEMBLING", "COMPLETE"],
+        "callbacks_fired": ["progress_callback", "resource_concluded"],
+        "packet_context": f"RESOURCE_PRF (0x{CONTEXT_RESOURCE_PRF:02x})",
+    }
+
+    # --- Step 5: Sender validates proof ---
+    proof_valid = (
+        len(proof_data) == HASHLENGTH_BYTES * 2
+        and proof_data[HASHLENGTH_BYTES:] == expected_proof
+    )
+    assert proof_valid, "Proof validation failed"
+
+    step_5 = {
+        "step": 5,
+        "name": "sender_validate_proof",
+        "proof_valid": proof_valid,
+        "sender_state": "COMPLETE",
+        "callbacks_fired": ["completion_callback"],
+    }
+
+    reconstructed_sha256 = full_hash(extracted_payload).hex()
+
+    vector = {
+        "index": 5,
+        "description": "Micro resource (128B) with metadata, single-part transfer",
+        "input_data_hex": hex_prefix(input_data, 64),
+        "input_data_length": 128,
+        "input_sha256": input_sha256,
+        "metadata_dict": metadata_dict,
+        "has_metadata": True,
+        "compressed": compressed,
+        "derived_key_hex": derived_key.hex(),
+        "deterministic_iv_hex": iv.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "steps": [step_1, step_2, step_3, step_4, step_5],
+        "data_integrity": {
+            "original_sha256": input_sha256,
+            "reconstructed_sha256": reconstructed_sha256,
+            "match": input_sha256 == reconstructed_sha256,
+        },
+        "state_machine_sequence": [
+            {"side": "sender",   "event": "prepare_advertisement", "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "receiver", "event": "accept_advertisement",  "state_before": "NONE",         "state_after": "TRANSFERRING", "callback": "resource_started"},
+            {"side": "receiver", "event": "request_parts",         "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": None},
+            {"side": "sender",   "event": "send_part",             "state_before": "ADVERTISED",   "state_after": "TRANSFERRING", "callback": None},
+            {"side": "receiver", "event": "receive_part",          "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": "progress_callback"},
+            {"side": "receiver", "event": "assemble",              "state_before": "TRANSFERRING", "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "extract_metadata",      "state_before": "ASSEMBLING",   "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "verify_and_prove",      "state_before": "ASSEMBLING",   "state_after": "COMPLETE",     "callback": "resource_concluded"},
+            {"side": "sender",   "event": "validate_proof",        "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": "completion_callback"},
+        ],
+    }
+
+    return vector
+
+
+def build_compressed_transfer_sequence(derived_key):
+    """Build compressible resource (2KB) transfer with compression (flags=0x03).
+
+    Simulates the 5-step exchange with bz2 compression:
+      1. Sender prepares advertisement (compressed)
+      2. Receiver accepts & requests parts
+      3. Sender sends part
+      4. Receiver assembles, decompresses, verifies, and proves
+      5. Sender validates proof
+    """
+    from RNS.vendor import umsgpack
+
+    idx = 101  # iv and random_hash seed
+
+    # --- Input data (compressible pattern) ---
+    input_data = deterministic_compressible_data(idx, 2048)
+    input_sha256 = full_hash(input_data).hex()
+
+    # --- Step 1: Sender prepares advertisement ---
+    random_hash = deterministic_random_hash(idx)
+    iv = deterministic_iv(idx)
+
+    # No metadata
+    data_with_metadata = input_data
+    total_size = len(data_with_metadata)
+
+    # Compress
+    compressed_data = bz2.compress(data_with_metadata)
+    compressed = len(compressed_data) < len(data_with_metadata)
+    assert compressed, "Expected data to be compressible"
+    payload_after_compress = compressed_data
+
+    # Pre-encryption data: random_hash(4) + compressed_payload
+    pre_encryption_data = random_hash + payload_after_compress
+
+    # Encrypt
+    encrypted_data = token_encrypt_deterministic(pre_encryption_data, derived_key, iv)
+    encrypted_size = len(encrypted_data)
+
+    # Segment into parts
+    sdu = RESOURCE_SDU
+    num_parts = int(math.ceil(encrypted_size / float(sdu)))
+
+    # Build parts and hashmap
+    parts = []
+    hashmap = b""
+    for i in range(num_parts):
+        part_data = encrypted_data[i * sdu:(i + 1) * sdu]
+        parts.append(part_data)
+        map_hash = get_map_hash(part_data, random_hash)
+        hashmap += map_hash
+
+    # Compute hashes
+    resource_hash = full_hash(data_with_metadata + random_hash)
+    original_hash = resource_hash
+    expected_proof = full_hash(data_with_metadata + resource_hash)
+
+    # Flags: encrypted=True, compressed=True
+    flags = 0x03
+
+    # Build advertisement dict
+    hashmap_for_adv = hashmap[:HASHMAP_MAX_LEN * MAPHASH_LEN]
+    adv_dict = {
+        "t": encrypted_size,
+        "d": total_size,
+        "n": num_parts,
+        "h": resource_hash,
+        "r": random_hash,
+        "o": original_hash,
+        "i": 1,
+        "l": 1,
+        "q": None,
+        "f": flags,
+        "m": hashmap_for_adv,
+    }
+    adv_packed = umsgpack.packb(adv_dict)
+
+    step_1 = {
+        "step": 1,
+        "name": "sender_prepare_advertisement",
+        "advertisement_packed_hex": adv_packed.hex(),
+        "advertisement_packed_length": len(adv_packed),
+        "advertisement_dict": {
+            "t": encrypted_size,
+            "d": total_size,
+            "n": num_parts,
+            "h": resource_hash.hex(),
+            "r": random_hash.hex(),
+            "o": original_hash.hex(),
+            "i": 1,
+            "l": 1,
+            "q": None,
+            "f": flags,
+            "m": hashmap_for_adv.hex(),
+        },
+        "resource_hash_hex": resource_hash.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "hashmap_hex": hashmap_for_adv.hex(),
+        "num_parts": num_parts,
+        "encrypted_data_length": encrypted_size,
+        "flags": flags,
+        "flags_hex": f"0x{flags:02x}",
+        "expected_proof_hex": expected_proof.hex(),
+        "compression_info": {
+            "original_size": total_size,
+            "compressed_size": len(compressed_data),
+            "savings": total_size - len(compressed_data),
+        },
+        "sender_state_before": "QUEUED",
+        "sender_state_after": "ADVERTISED",
+        "packet_context": f"RESOURCE_ADV (0x{CONTEXT_RESOURCE_ADV:02x})",
+    }
+
+    # --- Step 2: Receiver accepts & requests parts ---
+    hashmap_exhausted_flag = bytes([HASHMAP_IS_NOT_EXHAUSTED])
+    request_payload = hashmap_exhausted_flag + resource_hash
+    for i in range(min(num_parts, WINDOW)):
+        request_payload += hashmap[i * MAPHASH_LEN:(i + 1) * MAPHASH_LEN]
+
+    step_2 = {
+        "step": 2,
+        "name": "receiver_request_parts",
+        "request_payload_hex": request_payload.hex(),
+        "request_payload_length": len(request_payload),
+        "receiver_state": "TRANSFERRING",
+        "callbacks_fired": ["resource_started"],
+        "packet_context": f"RESOURCE_REQ (0x{CONTEXT_RESOURCE_REQ:02x})",
+    }
+
+    # --- Step 3: Sender sends parts ---
+    step_3_parts = []
+    for i in range(num_parts):
+        step_3_parts.append({
+            "part_index": i,
+            "part_data_hex": hex_prefix(parts[i], 64),
+            "part_data_length": len(parts[i]),
+            "map_hash_hex": hashmap[i * MAPHASH_LEN:(i + 1) * MAPHASH_LEN].hex(),
+        })
+
+    step_3 = {
+        "step": 3,
+        "name": "sender_send_parts",
+        "parts": step_3_parts,
+        "sender_state": "TRANSFERRING",
+        "packet_context": f"RESOURCE (0x{CONTEXT_RESOURCE:02x})",
+    }
+
+    # --- Step 4: Receiver assembles & proves ---
+    joined_parts = b"".join(parts)
+    decrypted = token_decrypt(joined_parts, derived_key)
+    stripped_data = decrypted[RANDOM_HASH_SIZE:]
+
+    # Decompress
+    decompressed_data = bz2.decompress(stripped_data)
+
+    # Verify hash
+    calculated_hash = full_hash(decompressed_data + random_hash)
+    hash_verified = calculated_hash == resource_hash
+    assert hash_verified, "Assembly hash verification failed for compressed transfer"
+    assert decompressed_data == input_data, "Decompressed data doesn't match input"
+
+    # Build proof
+    proof = full_hash(decompressed_data + resource_hash)
+    proof_data = resource_hash + proof
+    assert proof == expected_proof, "Proof doesn't match expected"
+
+    step_4 = {
+        "step": 4,
+        "name": "receiver_assemble_and_prove",
+        "assembly": {
+            "joined_parts_hex": hex_prefix(joined_parts, 64),
+            "joined_parts_length": len(joined_parts),
+            "decrypted_hex": hex_prefix(decrypted, 64),
+            "decrypted_length": len(decrypted),
+            "stripped_data_hex": hex_prefix(stripped_data, 64),
+            "stripped_data_length": len(stripped_data),
+            "decompressed_data_hex": hex_prefix(decompressed_data, 64),
+            "decompressed_data_length": len(decompressed_data),
+            "hash_verified": hash_verified,
+            "calculated_hash_hex": calculated_hash.hex(),
+        },
+        "proof_payload_hex": proof_data.hex(),
+        "proof_payload_length": len(proof_data),
+        "proof_breakdown": {
+            "resource_hash_hex": resource_hash.hex(),
+            "proof_hex": proof.hex(),
+        },
+        "receiver_state_sequence": ["TRANSFERRING", "ASSEMBLING", "COMPLETE"],
+        "callbacks_fired": ["progress_callback", "resource_concluded"],
+        "packet_context": f"RESOURCE_PRF (0x{CONTEXT_RESOURCE_PRF:02x})",
+    }
+
+    # --- Step 5: Sender validates proof ---
+    proof_valid = (
+        len(proof_data) == HASHLENGTH_BYTES * 2
+        and proof_data[HASHLENGTH_BYTES:] == expected_proof
+    )
+    assert proof_valid, "Proof validation failed"
+
+    step_5 = {
+        "step": 5,
+        "name": "sender_validate_proof",
+        "proof_valid": proof_valid,
+        "sender_state": "COMPLETE",
+        "callbacks_fired": ["completion_callback"],
+    }
+
+    reconstructed_sha256 = full_hash(decompressed_data).hex()
+
+    vector = {
+        "index": 6,
+        "description": "Compressible resource (2KB) with compression, single-part transfer",
+        "input_data_hex": hex_prefix(input_data, 64),
+        "input_data_length": 2048,
+        "input_sha256": input_sha256,
+        "has_metadata": False,
+        "compressed": True,
+        "derived_key_hex": derived_key.hex(),
+        "deterministic_iv_hex": iv.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "steps": [step_1, step_2, step_3, step_4, step_5],
+        "data_integrity": {
+            "original_sha256": input_sha256,
+            "reconstructed_sha256": reconstructed_sha256,
+            "match": input_sha256 == reconstructed_sha256,
+        },
+        "state_machine_sequence": [
+            {"side": "sender",   "event": "prepare_advertisement", "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "receiver", "event": "accept_advertisement",  "state_before": "NONE",         "state_after": "TRANSFERRING", "callback": "resource_started"},
+            {"side": "receiver", "event": "request_parts",         "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": None},
+            {"side": "sender",   "event": "send_part",             "state_before": "ADVERTISED",   "state_after": "TRANSFERRING", "callback": None},
+            {"side": "receiver", "event": "receive_part",          "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": "progress_callback"},
+            {"side": "receiver", "event": "assemble",              "state_before": "TRANSFERRING", "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "decompress",            "state_before": "ASSEMBLING",   "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "verify_and_prove",      "state_before": "ASSEMBLING",   "state_after": "COMPLETE",     "callback": "resource_concluded"},
+            {"side": "sender",   "event": "validate_proof",        "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": "completion_callback"},
+        ],
+    }
+
+    return vector
+
+
+def build_metadata_compressed_transfer_sequence(derived_key):
+    """Build compressible resource (2KB) transfer with metadata + compression (flags=0x23).
+
+    The most complex single-segment case — exercises the complete pipeline:
+      1. Sender prepares advertisement (metadata + compression)
+      2. Receiver accepts & requests parts
+      3. Sender sends part
+      4. Receiver assembles, decompresses, verifies, extracts metadata, and proves
+      5. Sender validates proof
+    """
+    from RNS.vendor import umsgpack
+
+    idx = 102  # iv and random_hash seed
+
+    # --- Input data (compressible pattern) ---
+    input_data = deterministic_compressible_data(idx, 2048)
+    input_sha256 = full_hash(input_data).hex()
+
+    # --- Metadata ---
+    metadata_dict = {"type": "compressed_with_meta", "version": 1}
+    packed_metadata = umsgpack.packb(metadata_dict)
+    metadata_size = len(packed_metadata)
+    metadata_bytes = struct.pack(">I", metadata_size)[1:] + packed_metadata
+
+    # --- Step 1: Sender prepares advertisement ---
+    random_hash = deterministic_random_hash(idx)
+    iv = deterministic_iv(idx)
+
+    # Combine metadata + payload
+    data_with_metadata = metadata_bytes + input_data
+    total_size = len(data_with_metadata)
+
+    # Compress the combined data
+    compressed_data = bz2.compress(data_with_metadata)
+    compressed = len(compressed_data) < len(data_with_metadata)
+    assert compressed, "Expected metadata+pattern data to be compressible"
+    payload_after_compress = compressed_data
+
+    # Pre-encryption data: random_hash(4) + compressed_payload
+    pre_encryption_data = random_hash + payload_after_compress
+
+    # Encrypt
+    encrypted_data = token_encrypt_deterministic(pre_encryption_data, derived_key, iv)
+    encrypted_size = len(encrypted_data)
+
+    # Segment into parts
+    sdu = RESOURCE_SDU
+    num_parts = int(math.ceil(encrypted_size / float(sdu)))
+
+    # Build parts and hashmap
+    parts = []
+    hashmap = b""
+    for i in range(num_parts):
+        part_data = encrypted_data[i * sdu:(i + 1) * sdu]
+        parts.append(part_data)
+        map_hash = get_map_hash(part_data, random_hash)
+        hashmap += map_hash
+
+    # Compute hashes
+    resource_hash = full_hash(data_with_metadata + random_hash)
+    original_hash = resource_hash
+    expected_proof = full_hash(data_with_metadata + resource_hash)
+
+    # Flags: encrypted=True, compressed=True, has_metadata=True
+    flags = 0x23
+
+    # Build advertisement dict
+    hashmap_for_adv = hashmap[:HASHMAP_MAX_LEN * MAPHASH_LEN]
+    adv_dict = {
+        "t": encrypted_size,
+        "d": total_size,
+        "n": num_parts,
+        "h": resource_hash,
+        "r": random_hash,
+        "o": original_hash,
+        "i": 1,
+        "l": 1,
+        "q": None,
+        "f": flags,
+        "m": hashmap_for_adv,
+    }
+    adv_packed = umsgpack.packb(adv_dict)
+
+    step_1 = {
+        "step": 1,
+        "name": "sender_prepare_advertisement",
+        "advertisement_packed_hex": adv_packed.hex(),
+        "advertisement_packed_length": len(adv_packed),
+        "advertisement_dict": {
+            "t": encrypted_size,
+            "d": total_size,
+            "n": num_parts,
+            "h": resource_hash.hex(),
+            "r": random_hash.hex(),
+            "o": original_hash.hex(),
+            "i": 1,
+            "l": 1,
+            "q": None,
+            "f": flags,
+            "m": hashmap_for_adv.hex(),
+        },
+        "resource_hash_hex": resource_hash.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "hashmap_hex": hashmap_for_adv.hex(),
+        "num_parts": num_parts,
+        "encrypted_data_length": encrypted_size,
+        "flags": flags,
+        "flags_hex": f"0x{flags:02x}",
+        "expected_proof_hex": expected_proof.hex(),
+        "metadata_dict": metadata_dict,
+        "packed_metadata_hex": packed_metadata.hex(),
+        "metadata_bytes_hex": metadata_bytes.hex(),
+        "compression_info": {
+            "original_size": total_size,
+            "compressed_size": len(compressed_data),
+            "savings": total_size - len(compressed_data),
+        },
+        "sender_state_before": "QUEUED",
+        "sender_state_after": "ADVERTISED",
+        "packet_context": f"RESOURCE_ADV (0x{CONTEXT_RESOURCE_ADV:02x})",
+    }
+
+    # --- Step 2: Receiver accepts & requests parts ---
+    hashmap_exhausted_flag = bytes([HASHMAP_IS_NOT_EXHAUSTED])
+    request_payload = hashmap_exhausted_flag + resource_hash
+    for i in range(min(num_parts, WINDOW)):
+        request_payload += hashmap[i * MAPHASH_LEN:(i + 1) * MAPHASH_LEN]
+
+    step_2 = {
+        "step": 2,
+        "name": "receiver_request_parts",
+        "request_payload_hex": request_payload.hex(),
+        "request_payload_length": len(request_payload),
+        "receiver_state": "TRANSFERRING",
+        "callbacks_fired": ["resource_started"],
+        "packet_context": f"RESOURCE_REQ (0x{CONTEXT_RESOURCE_REQ:02x})",
+    }
+
+    # --- Step 3: Sender sends parts ---
+    step_3_parts = []
+    for i in range(num_parts):
+        step_3_parts.append({
+            "part_index": i,
+            "part_data_hex": hex_prefix(parts[i], 64),
+            "part_data_length": len(parts[i]),
+            "map_hash_hex": hashmap[i * MAPHASH_LEN:(i + 1) * MAPHASH_LEN].hex(),
+        })
+
+    step_3 = {
+        "step": 3,
+        "name": "sender_send_parts",
+        "parts": step_3_parts,
+        "sender_state": "TRANSFERRING",
+        "packet_context": f"RESOURCE (0x{CONTEXT_RESOURCE:02x})",
+    }
+
+    # --- Step 4: Receiver assembles & proves ---
+    joined_parts = b"".join(parts)
+    decrypted = token_decrypt(joined_parts, derived_key)
+    stripped_data = decrypted[RANDOM_HASH_SIZE:]
+
+    # Decompress
+    decompressed_data = bz2.decompress(stripped_data)
+
+    # Verify hash
+    calculated_hash = full_hash(decompressed_data + random_hash)
+    hash_verified = calculated_hash == resource_hash
+    assert hash_verified, "Assembly hash verification failed for metadata+compressed transfer"
+
+    # Extract metadata
+    meta_size = decompressed_data[0] << 16 | decompressed_data[1] << 8 | decompressed_data[2]
+    packed_meta_extracted = decompressed_data[3:3 + meta_size]
+    extracted_metadata = umsgpack.unpackb(packed_meta_extracted)
+    extracted_payload = decompressed_data[3 + meta_size:]
+
+    assert extracted_payload == input_data, "Assembled payload doesn't match input"
+    assert extracted_metadata == metadata_dict, "Extracted metadata doesn't match"
+
+    # Build proof
+    proof = full_hash(decompressed_data + resource_hash)
+    proof_data = resource_hash + proof
+    assert proof == expected_proof, "Proof doesn't match expected"
+
+    step_4 = {
+        "step": 4,
+        "name": "receiver_assemble_and_prove",
+        "assembly": {
+            "joined_parts_hex": hex_prefix(joined_parts, 64),
+            "joined_parts_length": len(joined_parts),
+            "decrypted_hex": hex_prefix(decrypted, 64),
+            "decrypted_length": len(decrypted),
+            "stripped_data_hex": hex_prefix(stripped_data, 64),
+            "stripped_data_length": len(stripped_data),
+            "decompressed_data_hex": hex_prefix(decompressed_data, 64),
+            "decompressed_data_length": len(decompressed_data),
+            "hash_verified": hash_verified,
+            "calculated_hash_hex": calculated_hash.hex(),
+        },
+        "metadata_extraction": {
+            "metadata_size": meta_size,
+            "extracted_metadata": extracted_metadata,
+            "extracted_payload_hex": hex_prefix(extracted_payload, 64),
+            "extracted_payload_length": len(extracted_payload),
+        },
+        "proof_payload_hex": proof_data.hex(),
+        "proof_payload_length": len(proof_data),
+        "proof_breakdown": {
+            "resource_hash_hex": resource_hash.hex(),
+            "proof_hex": proof.hex(),
+        },
+        "receiver_state_sequence": ["TRANSFERRING", "ASSEMBLING", "COMPLETE"],
+        "callbacks_fired": ["progress_callback", "resource_concluded"],
+        "packet_context": f"RESOURCE_PRF (0x{CONTEXT_RESOURCE_PRF:02x})",
+    }
+
+    # --- Step 5: Sender validates proof ---
+    proof_valid = (
+        len(proof_data) == HASHLENGTH_BYTES * 2
+        and proof_data[HASHLENGTH_BYTES:] == expected_proof
+    )
+    assert proof_valid, "Proof validation failed"
+
+    step_5 = {
+        "step": 5,
+        "name": "sender_validate_proof",
+        "proof_valid": proof_valid,
+        "sender_state": "COMPLETE",
+        "callbacks_fired": ["completion_callback"],
+    }
+
+    reconstructed_sha256 = full_hash(extracted_payload).hex()
+
+    vector = {
+        "index": 7,
+        "description": "Compressible resource (2KB) with metadata + compression, single-part transfer",
+        "input_data_hex": hex_prefix(input_data, 64),
+        "input_data_length": 2048,
+        "input_sha256": input_sha256,
+        "metadata_dict": metadata_dict,
+        "has_metadata": True,
+        "compressed": True,
+        "derived_key_hex": derived_key.hex(),
+        "deterministic_iv_hex": iv.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "steps": [step_1, step_2, step_3, step_4, step_5],
+        "data_integrity": {
+            "original_sha256": input_sha256,
+            "reconstructed_sha256": reconstructed_sha256,
+            "match": input_sha256 == reconstructed_sha256,
+        },
+        "state_machine_sequence": [
+            {"side": "sender",   "event": "prepare_advertisement", "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "receiver", "event": "accept_advertisement",  "state_before": "NONE",         "state_after": "TRANSFERRING", "callback": "resource_started"},
+            {"side": "receiver", "event": "request_parts",         "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": None},
+            {"side": "sender",   "event": "send_part",             "state_before": "ADVERTISED",   "state_after": "TRANSFERRING", "callback": None},
+            {"side": "receiver", "event": "receive_part",          "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": "progress_callback"},
+            {"side": "receiver", "event": "assemble",              "state_before": "TRANSFERRING", "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "decompress",            "state_before": "ASSEMBLING",   "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "extract_metadata",      "state_before": "ASSEMBLING",   "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "verify_and_prove",      "state_before": "ASSEMBLING",   "state_after": "COMPLETE",     "callback": "resource_concluded"},
+            {"side": "sender",   "event": "validate_proof",        "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": "completion_callback"},
+        ],
+    }
+
+    return vector
+
+
 def build_cancellation_vectors():
     """Build cancellation payload vectors for ICL and RCL."""
     # Use the resource_hash from case 0 (deterministic)
@@ -2490,6 +3279,120 @@ def verify(output, derived_key):
         "Large vector: cross-segment verification flag is False"
     print("    [OK] Large vector: cross-segment reassembly verified")
 
+    # --- Metadata transfer vector (index 5) verification ---
+    meta_vec = output["transfer_sequence_vectors"][5]
+
+    # 33. Verify metadata transfer flags and data integrity
+    assert meta_vec["has_metadata"] is True, "Metadata vector: expected has_metadata=True"
+    assert meta_vec["data_integrity"]["match"] is True, "Metadata vector: data integrity check failed"
+    meta_step1 = meta_vec["steps"][0]
+    meta_flags = meta_step1["flags"]
+    assert meta_flags & 0x20, "Metadata vector: has_metadata flag not set"
+    assert meta_flags & 0x01, "Metadata vector: encrypted flag not set"
+    print(f"    [OK] Metadata vector: flags=0x{meta_flags:02x}, data integrity verified")
+
+    # 34. Cross-validate metadata encoding with resources.json
+    res_case_1 = resources_data["resource_advertisement_vectors"][1]
+    assert meta_vec["metadata_dict"] == res_case_1["metadata_dict"], \
+        "Metadata vector: metadata_dict doesn't match resources.json case 1"
+    assert meta_step1["packed_metadata_hex"] == res_case_1["packed_metadata_hex"], \
+        "Metadata vector: packed_metadata doesn't match resources.json case 1"
+    print("    [OK] Metadata vector: metadata encoding cross-validated against resources.json case 1")
+
+    # 35. Verify metadata extraction round-trip
+    meta_step4 = meta_vec["steps"][3]
+    assert meta_step4["metadata_extraction"]["extracted_metadata"] == meta_vec["metadata_dict"], \
+        "Metadata vector: extracted metadata doesn't match original"
+    print("    [OK] Metadata vector: metadata extraction round-trip verified")
+
+    # --- Compressed transfer vector (index 6) verification ---
+    comp_vec = output["transfer_sequence_vectors"][6]
+
+    # 36. Verify compression transfer flags and data integrity
+    assert comp_vec["compressed"] is True, "Compressed vector: expected compressed=True"
+    assert comp_vec["data_integrity"]["match"] is True, "Compressed vector: data integrity check failed"
+    comp_step1 = comp_vec["steps"][0]
+    comp_flags = comp_step1["flags"]
+    assert comp_flags == 0x03, f"Compressed vector: expected flags=0x03, got 0x{comp_flags:02x}"
+    print(f"    [OK] Compressed vector: flags=0x{comp_flags:02x}, data integrity verified")
+
+    # 37. Verify compression independently
+    c_idx = 101
+    comp_input = deterministic_compressible_data(c_idx, 2048)
+    comp_compressed = bz2.compress(comp_input)
+    assert len(comp_compressed) < len(comp_input), "Compressed vector: data should be compressible"
+    comp_rh = deterministic_random_hash(c_idx)
+    comp_iv = deterministic_iv(c_idx)
+    comp_pre = comp_rh + comp_compressed
+    comp_enc = token_encrypt_deterministic(comp_pre, derived_key, comp_iv)
+    assert len(comp_enc) == comp_step1["encrypted_data_length"], \
+        "Compressed vector: encrypted data length mismatch"
+
+    # Verify assembly round-trip
+    comp_dec = token_decrypt(comp_enc, derived_key)
+    comp_stripped = comp_dec[RANDOM_HASH_SIZE:]
+    comp_decompressed = bz2.decompress(comp_stripped)
+    assert comp_decompressed == comp_input, "Compressed vector: decompression round-trip mismatch"
+
+    # Verify resource hash
+    comp_resource_hash = full_hash(comp_input + comp_rh)
+    assert comp_resource_hash.hex() == comp_step1["resource_hash_hex"], \
+        "Compressed vector: resource hash mismatch"
+    print("    [OK] Compressed vector: compression and assembly independently verified")
+
+    # --- Metadata+Compressed transfer vector (index 7) verification ---
+    mc_vec = output["transfer_sequence_vectors"][7]
+
+    # 38. Verify metadata+compression flags and data integrity
+    assert mc_vec["has_metadata"] is True, "Meta+Comp vector: expected has_metadata=True"
+    assert mc_vec["compressed"] is True, "Meta+Comp vector: expected compressed=True"
+    assert mc_vec["data_integrity"]["match"] is True, "Meta+Comp vector: data integrity check failed"
+    mc_step1 = mc_vec["steps"][0]
+    mc_flags = mc_step1["flags"]
+    assert mc_flags == 0x23, f"Meta+Comp vector: expected flags=0x23, got 0x{mc_flags:02x}"
+    print(f"    [OK] Meta+Comp vector: flags=0x{mc_flags:02x}, data integrity verified")
+
+    # 39. Verify full pipeline independently
+    mc_idx = 102
+    mc_input = deterministic_compressible_data(mc_idx, 2048)
+    mc_meta_dict = {"type": "compressed_with_meta", "version": 1}
+    mc_packed_meta = umsgpack.packb(mc_meta_dict)
+    mc_meta_bytes = struct.pack(">I", len(mc_packed_meta))[1:] + mc_packed_meta
+    mc_data_with_meta = mc_meta_bytes + mc_input
+    mc_compressed = bz2.compress(mc_data_with_meta)
+    assert len(mc_compressed) < len(mc_data_with_meta), "Meta+Comp vector: should be compressible"
+
+    mc_rh = deterministic_random_hash(mc_idx)
+    mc_iv = deterministic_iv(mc_idx)
+    mc_pre = mc_rh + mc_compressed
+    mc_enc = token_encrypt_deterministic(mc_pre, derived_key, mc_iv)
+    assert len(mc_enc) == mc_step1["encrypted_data_length"], \
+        "Meta+Comp vector: encrypted data length mismatch"
+
+    # Full assembly round-trip
+    mc_dec = token_decrypt(mc_enc, derived_key)
+    mc_stripped = mc_dec[RANDOM_HASH_SIZE:]
+    mc_decompressed = bz2.decompress(mc_stripped)
+    mc_resource_hash = full_hash(mc_data_with_meta + mc_rh)
+    assert full_hash(mc_decompressed + mc_rh) == mc_resource_hash, \
+        "Meta+Comp vector: hash verification mismatch"
+
+    # Extract metadata
+    mc_meta_size = mc_decompressed[0] << 16 | mc_decompressed[1] << 8 | mc_decompressed[2]
+    mc_extracted_meta = umsgpack.unpackb(mc_decompressed[3:3 + mc_meta_size])
+    mc_extracted_payload = mc_decompressed[3 + mc_meta_size:]
+    assert mc_extracted_meta == mc_meta_dict, "Meta+Comp vector: metadata extraction mismatch"
+    assert mc_extracted_payload == mc_input, "Meta+Comp vector: payload extraction mismatch"
+    print("    [OK] Meta+Comp vector: full pipeline independently verified")
+
+    # 40. Cross-validate metadata+compression against resources.json case 4
+    res_case_4 = resources_data["resource_advertisement_vectors"][4]
+    assert mc_vec["metadata_dict"] == res_case_4["metadata_dict"], \
+        "Meta+Comp vector: metadata_dict doesn't match resources.json case 4"
+    assert res_case_4["flags"] == 0x23, \
+        f"resources.json case 4: expected flags=0x23, got 0x{res_case_4['flags']:02x}"
+    print("    [OK] Meta+Comp vector: cross-validated against resources.json case 4")
+
 
 def verify_library_constants():
     """Verify our local constants match the actual RNS library values."""
@@ -2554,6 +3457,23 @@ def main():
     print("Building transfer sequence vectors (micro 128B, mini 256KB, small 1MB, medium 5MB, large 50MB)...")
     transfer_vectors = build_transfer_sequence(derived_key)
     print(f"  Built {len(transfer_vectors)} transfer sequence vector(s)")
+
+    print("Building metadata transfer sequence (128B with metadata, flags=0x21)...")
+    metadata_vec = build_metadata_transfer_sequence(derived_key)
+    transfer_vectors.append(metadata_vec)
+    print("  Built metadata transfer sequence")
+
+    print("Building compressed transfer sequence (2KB compressed, flags=0x03)...")
+    compressed_vec = build_compressed_transfer_sequence(derived_key)
+    transfer_vectors.append(compressed_vec)
+    print("  Built compressed transfer sequence")
+
+    print("Building metadata+compressed transfer sequence (2KB with metadata+compression, flags=0x23)...")
+    meta_compressed_vec = build_metadata_compressed_transfer_sequence(derived_key)
+    transfer_vectors.append(meta_compressed_vec)
+    print("  Built metadata+compressed transfer sequence")
+
+    print(f"  Total: {len(transfer_vectors)} transfer sequence vectors")
 
     print("Building cancellation vectors...")
     cancel_vectors = build_cancellation_vectors()

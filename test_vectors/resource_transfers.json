@@ -21362,6 +21362,601 @@
           "details": "Last segment, triggers completion_callback"
         }
       ]
+    },
+    {
+      "index": 5,
+      "description": "Micro resource (128B) with metadata, single-part transfer",
+      "input_data_hex": "c0d2dc0056dbc79a7dcc25df8fd14b301d31bc3a6a2ad5fe8561f06861c4b1e2a6ae7ecaad5e2a4bdfd6cee4789433c78bf1bc6899378505e28f6e6b55cc6170... (128 bytes total)",
+      "input_data_length": 128,
+      "input_sha256": "dd1e944e61d0efc974bb47df708e842aae8cfce0cc21990c13bf974395b807b4",
+      "metadata_dict": {
+        "filename": "test.bin",
+        "size": 128
+      },
+      "has_metadata": true,
+      "compressed": false,
+      "derived_key_hex": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e9091dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+      "deterministic_iv_hex": "f5573ae8a11df5fd4047992df076393e",
+      "random_hash_hex": "95eb45cd",
+      "steps": [
+        {
+          "step": 1,
+          "name": "sender_prepare_advertisement",
+          "advertisement_packed_hex": "8ba174cce0a164cc9da16e01a168c42047d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9a172c40495eb45cda16fc42047d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9a16901a16c01a171c0a16621a16dc404056492bf",
+          "advertisement_packed_length": 112,
+          "advertisement_dict": {
+            "t": 224,
+            "d": 157,
+            "n": 1,
+            "h": "47d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9",
+            "r": "95eb45cd",
+            "o": "47d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9",
+            "i": 1,
+            "l": 1,
+            "q": null,
+            "f": 33,
+            "m": "056492bf"
+          },
+          "resource_hash_hex": "47d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9",
+          "random_hash_hex": "95eb45cd",
+          "hashmap_hex": "056492bf",
+          "num_parts": 1,
+          "encrypted_data_length": 224,
+          "flags": 33,
+          "flags_hex": "0x21",
+          "expected_proof_hex": "8a9a3db372acff26350c423b710f2aaa74ee71202367512f7221d5b06234bfbc",
+          "metadata_dict": {
+            "filename": "test.bin",
+            "size": 128
+          },
+          "packed_metadata_hex": "82a866696c656e616d65a8746573742e62696ea473697a65cc80",
+          "metadata_bytes_hex": "00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80",
+          "sender_state_before": "QUEUED",
+          "sender_state_after": "ADVERTISED",
+          "packet_context": "RESOURCE_ADV (0x02)"
+        },
+        {
+          "step": 2,
+          "name": "receiver_request_parts",
+          "request_payload_hex": "0047d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9056492bf",
+          "request_payload_length": 37,
+          "receiver_state": "TRANSFERRING",
+          "callbacks_fired": [
+            "resource_started"
+          ],
+          "packet_context": "RESOURCE_REQ (0x03)"
+        },
+        {
+          "step": 3,
+          "name": "sender_send_parts",
+          "parts": [
+            {
+              "part_index": 0,
+              "part_data_hex": "f5573ae8a11df5fd4047992df076393e7316e85face387f17fc44eb83811a16e94804ec7357290e5596a6d14464b5f359e06d31947407b028ab3a128caa58a0d... (224 bytes total)",
+              "part_data_length": 224,
+              "map_hash_hex": "056492bf"
+            }
+          ],
+          "sender_state": "TRANSFERRING",
+          "packet_context": "RESOURCE (0x01)"
+        },
+        {
+          "step": 4,
+          "name": "receiver_assemble_and_prove",
+          "assembly": {
+            "joined_parts_hex": "f5573ae8a11df5fd4047992df076393e7316e85face387f17fc44eb83811a16e94804ec7357290e5596a6d14464b5f359e06d31947407b028ab3a128caa58a0d... (224 bytes total)",
+            "joined_parts_length": 224,
+            "decrypted_hex": "95eb45cd00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80c0d2dc0056dbc79a7dcc25df8fd14b301d31bc3a6a2ad5fe8561f06861c4b1... (161 bytes total)",
+            "decrypted_length": 161,
+            "stripped_data_hex": "00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80c0d2dc0056dbc79a7dcc25df8fd14b301d31bc3a6a2ad5fe8561f06861c4b1e2a6ae7e... (157 bytes total)",
+            "stripped_data_length": 157,
+            "decompressed": false,
+            "decompressed_data_length": null,
+            "hash_verified": true,
+            "calculated_hash_hex": "47d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9"
+          },
+          "metadata_extraction": {
+            "metadata_size": 26,
+            "extracted_metadata": {
+              "filename": "test.bin",
+              "size": 128
+            },
+            "extracted_payload_hex": "c0d2dc0056dbc79a7dcc25df8fd14b301d31bc3a6a2ad5fe8561f06861c4b1e2a6ae7ecaad5e2a4bdfd6cee4789433c78bf1bc6899378505e28f6e6b55cc6170... (128 bytes total)",
+            "extracted_payload_length": 128
+          },
+          "proof_payload_hex": "47d246604db997f37594af37be706436525d98480c22407ea01774839177bfa98a9a3db372acff26350c423b710f2aaa74ee71202367512f7221d5b06234bfbc",
+          "proof_payload_length": 64,
+          "proof_breakdown": {
+            "resource_hash_hex": "47d246604db997f37594af37be706436525d98480c22407ea01774839177bfa9",
+            "proof_hex": "8a9a3db372acff26350c423b710f2aaa74ee71202367512f7221d5b06234bfbc"
+          },
+          "receiver_state_sequence": [
+            "TRANSFERRING",
+            "ASSEMBLING",
+            "COMPLETE"
+          ],
+          "callbacks_fired": [
+            "progress_callback",
+            "resource_concluded"
+          ],
+          "packet_context": "RESOURCE_PRF (0x05)"
+        },
+        {
+          "step": 5,
+          "name": "sender_validate_proof",
+          "proof_valid": true,
+          "sender_state": "COMPLETE",
+          "callbacks_fired": [
+            "completion_callback"
+          ]
+        }
+      ],
+      "data_integrity": {
+        "original_sha256": "dd1e944e61d0efc974bb47df708e842aae8cfce0cc21990c13bf974395b807b4",
+        "reconstructed_sha256": "dd1e944e61d0efc974bb47df708e842aae8cfce0cc21990c13bf974395b807b4",
+        "match": true
+      },
+      "state_machine_sequence": [
+        {
+          "side": "sender",
+          "event": "prepare_advertisement",
+          "state_before": "QUEUED",
+          "state_after": "ADVERTISED",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "accept_advertisement",
+          "state_before": "NONE",
+          "state_after": "TRANSFERRING",
+          "callback": "resource_started"
+        },
+        {
+          "side": "receiver",
+          "event": "request_parts",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "sender",
+          "event": "send_part",
+          "state_before": "ADVERTISED",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "receive_part",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": "progress_callback"
+        },
+        {
+          "side": "receiver",
+          "event": "assemble",
+          "state_before": "TRANSFERRING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "extract_metadata",
+          "state_before": "ASSEMBLING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "verify_and_prove",
+          "state_before": "ASSEMBLING",
+          "state_after": "COMPLETE",
+          "callback": "resource_concluded"
+        },
+        {
+          "side": "sender",
+          "event": "validate_proof",
+          "state_before": "TRANSFERRING",
+          "state_after": "COMPLETE",
+          "callback": "completion_callback"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "description": "Compressible resource (2KB) with compression, single-part transfer",
+      "input_data_hex": "5245544943554c554d5f544553545f5041545445524e5f3130315f5245544943554c554d5f544553545f5041545445524e5f3130315f5245544943554c554d5f... (2048 bytes total)",
+      "input_data_length": 2048,
+      "input_sha256": "d532886b661616982b0c26d1c604977202dfd53845f154d576ac3e1862185e6e",
+      "has_metadata": false,
+      "compressed": true,
+      "derived_key_hex": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e9091dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+      "deterministic_iv_hex": "dd3dfa84d1b871ee405715a7c1630ed4",
+      "random_hash_hex": "51fc0d53",
+      "steps": [
+        {
+          "step": 1,
+          "name": "sender_prepare_advertisement",
+          "advertisement_packed_hex": "8ba174cc90a164cd0800a16e01a168c420aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a7a172c40451fc0d53a16fc420aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a7a16901a16c01a171c0a16603a16dc40472464bbf",
+          "advertisement_packed_length": 113,
+          "advertisement_dict": {
+            "t": 144,
+            "d": 2048,
+            "n": 1,
+            "h": "aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a7",
+            "r": "51fc0d53",
+            "o": "aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a7",
+            "i": 1,
+            "l": 1,
+            "q": null,
+            "f": 3,
+            "m": "72464bbf"
+          },
+          "resource_hash_hex": "aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a7",
+          "random_hash_hex": "51fc0d53",
+          "hashmap_hex": "72464bbf",
+          "num_parts": 1,
+          "encrypted_data_length": 144,
+          "flags": 3,
+          "flags_hex": "0x03",
+          "expected_proof_hex": "21edd9c5552fd03e824c820dca944b6b11637420e9542f32e4a540816b1fe6b6",
+          "compression_info": {
+            "original_size": 2048,
+            "compressed_size": 90,
+            "savings": 1958
+          },
+          "sender_state_before": "QUEUED",
+          "sender_state_after": "ADVERTISED",
+          "packet_context": "RESOURCE_ADV (0x02)"
+        },
+        {
+          "step": 2,
+          "name": "receiver_request_parts",
+          "request_payload_hex": "00aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a772464bbf",
+          "request_payload_length": 37,
+          "receiver_state": "TRANSFERRING",
+          "callbacks_fired": [
+            "resource_started"
+          ],
+          "packet_context": "RESOURCE_REQ (0x03)"
+        },
+        {
+          "step": 3,
+          "name": "sender_send_parts",
+          "parts": [
+            {
+              "part_index": 0,
+              "part_data_hex": "dd3dfa84d1b871ee405715a7c1630ed48941a09e7c61af6358632baabc84365aac8c657544dc3deef0fa3d41b54a19c98479237110407b6ec5755e85dab0c1c3... (144 bytes total)",
+              "part_data_length": 144,
+              "map_hash_hex": "72464bbf"
+            }
+          ],
+          "sender_state": "TRANSFERRING",
+          "packet_context": "RESOURCE (0x01)"
+        },
+        {
+          "step": 4,
+          "name": "receiver_assemble_and_prove",
+          "assembly": {
+            "joined_parts_hex": "dd3dfa84d1b871ee405715a7c1630ed48941a09e7c61af6358632baabc84365aac8c657544dc3deef0fa3d41b54a19c98479237110407b6ec5755e85dab0c1c3... (144 bytes total)",
+            "joined_parts_length": 144,
+            "decrypted_hex": "51fc0d53425a683931415926535984cb2ae50001ec8e0060002a275e00a000902980000a545068d33d53548ca46e91c947051d8a3a28d1460a3651ec51c8a3c9... (94 bytes total)",
+            "decrypted_length": 94,
+            "stripped_data_hex": "425a683931415926535984cb2ae50001ec8e0060002a275e00a000902980000a545068d33d53548ca46e91c947051d8a3a28d1460a3651ec51c8a3c946ca3651... (90 bytes total)",
+            "stripped_data_length": 90,
+            "decompressed_data_hex": "5245544943554c554d5f544553545f5041545445524e5f3130315f5245544943554c554d5f544553545f5041545445524e5f3130315f5245544943554c554d5f... (2048 bytes total)",
+            "decompressed_data_length": 2048,
+            "hash_verified": true,
+            "calculated_hash_hex": "aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a7"
+          },
+          "proof_payload_hex": "aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a721edd9c5552fd03e824c820dca944b6b11637420e9542f32e4a540816b1fe6b6",
+          "proof_payload_length": 64,
+          "proof_breakdown": {
+            "resource_hash_hex": "aaff2ec2226e3efb36ff18337391334afda2b85dbe5d78f20457bd13e8d219a7",
+            "proof_hex": "21edd9c5552fd03e824c820dca944b6b11637420e9542f32e4a540816b1fe6b6"
+          },
+          "receiver_state_sequence": [
+            "TRANSFERRING",
+            "ASSEMBLING",
+            "COMPLETE"
+          ],
+          "callbacks_fired": [
+            "progress_callback",
+            "resource_concluded"
+          ],
+          "packet_context": "RESOURCE_PRF (0x05)"
+        },
+        {
+          "step": 5,
+          "name": "sender_validate_proof",
+          "proof_valid": true,
+          "sender_state": "COMPLETE",
+          "callbacks_fired": [
+            "completion_callback"
+          ]
+        }
+      ],
+      "data_integrity": {
+        "original_sha256": "d532886b661616982b0c26d1c604977202dfd53845f154d576ac3e1862185e6e",
+        "reconstructed_sha256": "d532886b661616982b0c26d1c604977202dfd53845f154d576ac3e1862185e6e",
+        "match": true
+      },
+      "state_machine_sequence": [
+        {
+          "side": "sender",
+          "event": "prepare_advertisement",
+          "state_before": "QUEUED",
+          "state_after": "ADVERTISED",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "accept_advertisement",
+          "state_before": "NONE",
+          "state_after": "TRANSFERRING",
+          "callback": "resource_started"
+        },
+        {
+          "side": "receiver",
+          "event": "request_parts",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "sender",
+          "event": "send_part",
+          "state_before": "ADVERTISED",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "receive_part",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": "progress_callback"
+        },
+        {
+          "side": "receiver",
+          "event": "assemble",
+          "state_before": "TRANSFERRING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "decompress",
+          "state_before": "ASSEMBLING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "verify_and_prove",
+          "state_before": "ASSEMBLING",
+          "state_after": "COMPLETE",
+          "callback": "resource_concluded"
+        },
+        {
+          "side": "sender",
+          "event": "validate_proof",
+          "state_before": "TRANSFERRING",
+          "state_after": "COMPLETE",
+          "callback": "completion_callback"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "description": "Compressible resource (2KB) with metadata + compression, single-part transfer",
+      "input_data_hex": "5245544943554c554d5f544553545f5041545445524e5f3130325f5245544943554c554d5f544553545f5041545445524e5f3130325f5245544943554c554d5f... (2048 bytes total)",
+      "input_data_length": 2048,
+      "input_sha256": "2f1dcd458a9d12abaa0f185da321688b1108c36edb8ac50939630f7f34b5356f",
+      "metadata_dict": {
+        "type": "compressed_with_meta",
+        "version": 1
+      },
+      "has_metadata": true,
+      "compressed": true,
+      "derived_key_hex": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e9091dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+      "deterministic_iv_hex": "a14729f371ab90e384944991691b37a8",
+      "random_hash_hex": "41dc3e95",
+      "steps": [
+        {
+          "step": 1,
+          "name": "sender_prepare_advertisement",
+          "advertisement_packed_hex": "8ba174cce0a164cd0827a16e01a168c420bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8da172c40441dc3e95a16fc420bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8da16901a16c01a171c0a16623a16dc4040707141b",
+          "advertisement_packed_length": 113,
+          "advertisement_dict": {
+            "t": 224,
+            "d": 2087,
+            "n": 1,
+            "h": "bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8d",
+            "r": "41dc3e95",
+            "o": "bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8d",
+            "i": 1,
+            "l": 1,
+            "q": null,
+            "f": 35,
+            "m": "0707141b"
+          },
+          "resource_hash_hex": "bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8d",
+          "random_hash_hex": "41dc3e95",
+          "hashmap_hex": "0707141b",
+          "num_parts": 1,
+          "encrypted_data_length": 224,
+          "flags": 35,
+          "flags_hex": "0x23",
+          "expected_proof_hex": "54dde738a72784ed4694257c16e93b3ae6306729215e82fe12909edf494855d0",
+          "metadata_dict": {
+            "type": "compressed_with_meta",
+            "version": 1
+          },
+          "packed_metadata_hex": "82a474797065b4636f6d707265737365645f776974685f6d657461a776657273696f6e01",
+          "metadata_bytes_hex": "00002482a474797065b4636f6d707265737365645f776974685f6d657461a776657273696f6e01",
+          "compression_info": {
+            "original_size": 2087,
+            "compressed_size": 161,
+            "savings": 1926
+          },
+          "sender_state_before": "QUEUED",
+          "sender_state_after": "ADVERTISED",
+          "packet_context": "RESOURCE_ADV (0x02)"
+        },
+        {
+          "step": 2,
+          "name": "receiver_request_parts",
+          "request_payload_hex": "00bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8d0707141b",
+          "request_payload_length": 37,
+          "receiver_state": "TRANSFERRING",
+          "callbacks_fired": [
+            "resource_started"
+          ],
+          "packet_context": "RESOURCE_REQ (0x03)"
+        },
+        {
+          "step": 3,
+          "name": "sender_send_parts",
+          "parts": [
+            {
+              "part_index": 0,
+              "part_data_hex": "a14729f371ab90e384944991691b37a806c0e606297061567e84d7d4c48aaa11b06d8af413e6be9e8c2d1120a6e7b6dc37fddc50a63334bba32eafef6610be19... (224 bytes total)",
+              "part_data_length": 224,
+              "map_hash_hex": "0707141b"
+            }
+          ],
+          "sender_state": "TRANSFERRING",
+          "packet_context": "RESOURCE (0x01)"
+        },
+        {
+          "step": 4,
+          "name": "receiver_assemble_and_prove",
+          "assembly": {
+            "joined_parts_hex": "a14729f371ab90e384944991691b37a806c0e606297061567e84d7d4c48aaa11b06d8af413e6be9e8c2d1120a6e7b6dc37fddc50a63334bba32eafef6610be19... (224 bytes total)",
+            "joined_parts_length": 224,
+            "decrypted_hex": "41dc3e95425a6839314159265359f9c408bc0000005fd86000040070002a275e00ae63dda01000048004003000b8b0ca8034d340000d3d21a148d069a6261323... (165 bytes total)",
+            "decrypted_length": 165,
+            "stripped_data_hex": "425a6839314159265359f9c408bc0000005fd86000040070002a275e00ae63dda01000048004003000b8b0ca8034d340000d3d21a148d069a62613230101814a... (161 bytes total)",
+            "stripped_data_length": 161,
+            "decompressed_data_hex": "00002482a474797065b4636f6d707265737365645f776974685f6d657461a776657273696f6e015245544943554c554d5f544553545f5041545445524e5f3130... (2087 bytes total)",
+            "decompressed_data_length": 2087,
+            "hash_verified": true,
+            "calculated_hash_hex": "bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8d"
+          },
+          "metadata_extraction": {
+            "metadata_size": 36,
+            "extracted_metadata": {
+              "type": "compressed_with_meta",
+              "version": 1
+            },
+            "extracted_payload_hex": "5245544943554c554d5f544553545f5041545445524e5f3130325f5245544943554c554d5f544553545f5041545445524e5f3130325f5245544943554c554d5f... (2048 bytes total)",
+            "extracted_payload_length": 2048
+          },
+          "proof_payload_hex": "bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8d54dde738a72784ed4694257c16e93b3ae6306729215e82fe12909edf494855d0",
+          "proof_payload_length": 64,
+          "proof_breakdown": {
+            "resource_hash_hex": "bb65c86207f36dfd57e26ca719dcea90e9ca088f37ecfb3bc65533d396568d8d",
+            "proof_hex": "54dde738a72784ed4694257c16e93b3ae6306729215e82fe12909edf494855d0"
+          },
+          "receiver_state_sequence": [
+            "TRANSFERRING",
+            "ASSEMBLING",
+            "COMPLETE"
+          ],
+          "callbacks_fired": [
+            "progress_callback",
+            "resource_concluded"
+          ],
+          "packet_context": "RESOURCE_PRF (0x05)"
+        },
+        {
+          "step": 5,
+          "name": "sender_validate_proof",
+          "proof_valid": true,
+          "sender_state": "COMPLETE",
+          "callbacks_fired": [
+            "completion_callback"
+          ]
+        }
+      ],
+      "data_integrity": {
+        "original_sha256": "2f1dcd458a9d12abaa0f185da321688b1108c36edb8ac50939630f7f34b5356f",
+        "reconstructed_sha256": "2f1dcd458a9d12abaa0f185da321688b1108c36edb8ac50939630f7f34b5356f",
+        "match": true
+      },
+      "state_machine_sequence": [
+        {
+          "side": "sender",
+          "event": "prepare_advertisement",
+          "state_before": "QUEUED",
+          "state_after": "ADVERTISED",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "accept_advertisement",
+          "state_before": "NONE",
+          "state_after": "TRANSFERRING",
+          "callback": "resource_started"
+        },
+        {
+          "side": "receiver",
+          "event": "request_parts",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "sender",
+          "event": "send_part",
+          "state_before": "ADVERTISED",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "receive_part",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": "progress_callback"
+        },
+        {
+          "side": "receiver",
+          "event": "assemble",
+          "state_before": "TRANSFERRING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "decompress",
+          "state_before": "ASSEMBLING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "extract_metadata",
+          "state_before": "ASSEMBLING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "verify_and_prove",
+          "state_before": "ASSEMBLING",
+          "state_after": "COMPLETE",
+          "callback": "resource_concluded"
+        },
+        {
+          "side": "sender",
+          "event": "validate_proof",
+          "state_before": "TRANSFERRING",
+          "state_after": "COMPLETE",
+          "callback": "completion_callback"
+        }
+      ]
     }
   ],
   "cancellation_vectors": [

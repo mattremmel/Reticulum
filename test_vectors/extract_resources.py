@@ -378,6 +378,15 @@ def build_resource_vectors(derived_key):
         "auto_compress": True,
     })
 
+    # --- Case 4: Compressible resource (~2KB) with metadata (flags=0x23) ---
+    cases.append({
+        "description": "Compressible resource (~2KB) with metadata, compressed",
+        "data_length": 2048,
+        "metadata": {"type": "compressed_with_meta", "version": 1},
+        "compressible": True,
+        "auto_compress": True,
+    })
+
     vectors = []
 
     for idx, case in enumerate(cases):
@@ -535,6 +544,7 @@ def build_resource_vectors(derived_key):
             "random_hash_seed": f"SHA256(b'reticulum_test_resource_random_hash_{idx}')[:4]",
             "auto_compress": auto_compress,
             "compressed": compressed,
+            "compressible": case["compressible"],
         })
 
         if compressed:
@@ -626,7 +636,7 @@ def extract_assembly_vectors(resource_vectors, derived_key):
         input_data_length = rv["input_data_length"]
 
         # Regenerate the compressible case
-        if case_compressed and idx == 2:
+        if rv.get("compressible", False):
             pattern = b"RETICULUM_TEST_PATTERN_" + str(idx).encode() + b"_"
             input_data = (pattern * ((input_data_length // len(pattern)) + 1))[:input_data_length]
         else:
@@ -762,6 +772,53 @@ def extract_proof_vectors(resource_vectors):
     return vectors
 
 
+def extract_integrity_failure_vector(resource_vectors, derived_key):
+    """Generate a vector demonstrating SHA-256 integrity verification failure.
+
+    Takes Case 0 (micro, no metadata, no compression) as the base, corrupts one
+    byte of the decrypted data, and shows that the hash no longer matches.
+    """
+    rv = resource_vectors[0]
+    idx = rv["index"]
+
+    # Regenerate the original data
+    random_hash = deterministic_random_hash(idx)
+    input_data = deterministic_data(idx, rv["input_data_length"])
+    data_with_metadata = input_data  # no metadata for case 0
+
+    # Original resource_hash
+    resource_hash = bytes.fromhex(rv["resource_hash_hex"])
+    original_hash = full_hash(data_with_metadata + random_hash)
+    assert original_hash == resource_hash
+
+    # Corrupt one byte: flip bit 0 of byte 0
+    corrupted_data = bytearray(data_with_metadata)
+    corrupted_data[0] ^= 0x01
+    corrupted_data = bytes(corrupted_data)
+
+    # Compute hash of corrupted data
+    corrupted_hash = full_hash(corrupted_data + random_hash)
+    verified = corrupted_hash == resource_hash
+
+    assert not verified, "Corrupted data should not verify"
+
+    return {
+        "description": "SHA-256 integrity verification failure: corrupted data does not match resource_hash",
+        "base_case": idx,
+        "corruption": {
+            "method": "flip bit 0 of byte 0",
+            "original_byte_hex": f"0x{data_with_metadata[0]:02x}",
+            "corrupted_byte_hex": f"0x{corrupted_data[0]:02x}",
+        },
+        "resource_hash_hex": resource_hash.hex(),
+        "corrupted_data_hash_hex": corrupted_hash.hex(),
+        "verified": verified,
+        "expected_status": "CORRUPT",
+        "expected_status_code": STATUS_CORRUPT,
+        "note": "Receiver computes SHA256(assembled_data + random_hash) and compares to resource_hash from advertisement",
+    }
+
+
 def extract_invalid_metadata_vector():
     """Document the invalid metadata size edge case."""
     return {
@@ -842,7 +899,7 @@ def verify(output, derived_key):
         case_has_metadata = rv["has_metadata"]
         case_compressed = rv["compressed"]
 
-        if case_compressed and idx == 2:
+        if rv.get("compressible", False):
             pattern = b"RETICULUM_TEST_PATTERN_" + str(idx).encode() + b"_"
             input_data = (pattern * ((input_data_length // len(pattern)) + 1))[:input_data_length]
         else:
@@ -869,14 +926,21 @@ def verify(output, derived_key):
 
     print(f"    [OK] {len(output['resource_proof_vectors'])} resource proof vectors verified")
 
-    # 5. Cross-check derived_key from links.json
+    # 5. Verify integrity failure vector
+    ifv = output["integrity_failure_vector"]
+    assert ifv["verified"] is False, "Integrity failure vector should have verified=False"
+    assert ifv["resource_hash_hex"] != ifv["corrupted_data_hash_hex"], \
+        "Integrity failure: hashes should differ"
+    print("    [OK] Integrity failure vector verified")
+
+    # 6. Cross-check derived_key from links.json
     links_data = load_links_json()
     hs0 = links_data["handshake_vectors"][0]
     links_derived_key = hs0["step_2_lrproof"]["derived_key"]
     assert derived_key.hex() == links_derived_key, f"derived_key mismatch with links.json"
     print("    [OK] derived_key cross-validated against links.json")
 
-    # 6. JSON round-trip
+    # 7. JSON round-trip
     json_str = json.dumps(output, indent=2)
     assert json.loads(json_str) == output, "JSON round-trip failed"
     print("    [OK] JSON round-trip integrity verified")
@@ -983,6 +1047,10 @@ def main():
     proof_vectors = extract_proof_vectors(resource_adv_vectors)
     print(f"  Extracted {len(proof_vectors)} resource proof vectors")
 
+    print("Extracting integrity failure vector...")
+    integrity_failure = extract_integrity_failure_vector(resource_adv_vectors, derived_key)
+    print("  Extracted integrity failure vector")
+
     print("Extracting invalid metadata vector...")
     invalid_meta = extract_invalid_metadata_vector()
 
@@ -994,6 +1062,7 @@ def main():
         "resource_advertisement_vectors": resource_adv_vectors,
         "assembly_vectors": assembly_vectors,
         "resource_proof_vectors": proof_vectors,
+        "integrity_failure_vector": integrity_failure,
         "invalid_metadata_vector": invalid_meta,
     }
 

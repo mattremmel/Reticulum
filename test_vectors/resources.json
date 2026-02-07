@@ -135,6 +135,7 @@
       "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_0')[:4]",
       "auto_compress": true,
       "compressed": false,
+      "compressible": false,
       "pre_encryption_data_hex": "ff8510d6285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e... (132 bytes total)",
       "pre_encryption_data_length": 132,
       "pre_encryption_layout": "random_hash(4) + data_with_metadata(128) = 132",
@@ -208,6 +209,7 @@
       "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_1')[:4]",
       "auto_compress": true,
       "compressed": false,
+      "compressible": false,
       "pre_encryption_data_hex": "0508ad6a00001a82a866696c656e616d65a8746573742e62696ea473697a65cc80e4b7b1a88998c70fa8a60ac04e6f27e8e9ed7c7dc9c37a7a71c53528d364eb... (161 bytes total)",
       "pre_encryption_data_length": 161,
       "pre_encryption_layout": "random_hash(4) + data_with_metadata(157) = 161",
@@ -274,6 +276,7 @@
       "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_2')[:4]",
       "auto_compress": true,
       "compressed": true,
+      "compressible": true,
       "compressed_data_hex": "425a6839314159265359044bc2060001c28e0010002a275e00a0009020000052a9a9a3133d4c84e913f227844ed13644c226913e913a226e89a44d227289889f... (85 bytes total)",
       "compressed_length": 85,
       "compression_savings": 1963,
@@ -343,6 +346,7 @@
       "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_3')[:4]",
       "auto_compress": true,
       "compressed": false,
+      "compressible": false,
       "pre_encryption_data_hex": "abed1e7b25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218e... (2052 bytes total)",
       "pre_encryption_data_length": 2052,
       "pre_encryption_layout": "random_hash(4) + data_with_metadata(2048) = 2052",
@@ -422,6 +426,83 @@
       },
       "advertisement_packed_hex": "8ba174cd0840a164cd0800a16e05a168c4209c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8aa172c404abed1e7ba16fc4209c2bc4189e8e1ae6959e9e21fcab492f5fa4a18bc664bb7aa9509fa4e23b5a8aa16901a16c01a171c0a16601a16dc41466c0a784128b9e938c71e3de50f32afd91779ee2",
       "advertisement_packed_length": 130
+    },
+    {
+      "index": 4,
+      "description": "Compressible resource (~2KB) with metadata, compressed",
+      "input_data_hex": "5245544943554c554d5f544553545f5041545445524e5f345f5245544943554c554d5f544553545f5041545445524e5f345f5245544943554c554d5f54455354... (2048 bytes total)",
+      "input_data_length": 2048,
+      "metadata_dict": {
+        "type": "compressed_with_meta",
+        "version": 1
+      },
+      "has_metadata": true,
+      "packed_metadata_hex": "82a474797065b4636f6d707265737365645f776974685f6d657461a776657273696f6e01",
+      "metadata_size_prefix_hex": "000024",
+      "metadata_bytes_hex": "00002482a474797065b4636f6d707265737365645f776974685f6d657461a776657273696f6e01",
+      "metadata_bytes_length": 39,
+      "data_with_metadata_hex": "00002482a474797065b4636f6d707265737365645f776974685f6d657461a776657273696f6e015245544943554c554d5f544553545f5041545445524e5f345f... (2087 bytes total)",
+      "data_with_metadata_length": 2087,
+      "total_size": 2087,
+      "random_hash_hex": "adf8af53",
+      "random_hash_seed": "SHA256(b'reticulum_test_resource_random_hash_4')[:4]",
+      "auto_compress": true,
+      "compressed": true,
+      "compressible": true,
+      "compressed_data_hex": "425a68393141592653595d6a795f0000005fd86000040004002a275e00ae63dda01000048004002000910d4803d4d34034064f287a814aa2993434c6501a6984... (143 bytes total)",
+      "compressed_length": 143,
+      "compression_savings": 1944,
+      "pre_encryption_data_hex": "adf8af53425a68393141592653595d6a795f0000005fd86000040004002a275e00ae63dda01000048004002000910d4803d4d34034064f287a814aa2993434c6... (147 bytes total)",
+      "pre_encryption_data_length": 147,
+      "pre_encryption_layout": "random_hash(4) + compressed_data(143) = 147",
+      "deterministic_iv_hex": "9181099cc4e7a9c2104bd2258d23ae7f",
+      "deterministic_iv_seed": "SHA256(b'reticulum_test_resource_iv_4')[:16]",
+      "encrypted_data_hex": "9181099cc4e7a9c2104bd2258d23ae7fb844fb572415c65cc98f079bfa9cbbd299d384f41be9c04a440a05edbd0f5265e8193c017ed9b2f2488d79aa91445a546990ec0003e4c060ce4dec58d3a9496201fbd20b24240362ff2b6867b1fbdc766e25386cad1bdb0e1170a91739b757fcfc8411a53fdcdafb6f89780a5c56419e... (208 bytes total)",
+      "encrypted_data_length": 208,
+      "encryption_layout": "IV(16) + AES_ciphertext + HMAC(32) = 208",
+      "sdu": 464,
+      "num_parts": 1,
+      "parts": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 208,
+          "data_hex": "9181099cc4e7a9c2104bd2258d23ae7fb844fb572415c65cc98f079bfa9cbbd299d384f41be9c04a440a05edbd0f5265e8193c017ed9b2f2488d79aa91445a54... (208 bytes total)",
+          "map_hash_hex": "3818afd7"
+        }
+      ],
+      "hashmap_hex": "3818afd7",
+      "hashmap_length": 4,
+      "resource_hash_hex": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beae",
+      "resource_hash_note": "SHA256(data_with_metadata + random_hash)",
+      "original_hash_hex": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beae",
+      "expected_proof_hex": "e8dede6b855996afd83b1863ef1cc50cd72b61182b684e758878b21b4552d127",
+      "expected_proof_note": "SHA256(data_with_metadata + resource_hash)",
+      "flags": 35,
+      "flags_hex": "0x23",
+      "flags_breakdown": {
+        "encrypted": true,
+        "compressed": true,
+        "split": false,
+        "is_request": false,
+        "is_response": false,
+        "has_metadata": true
+      },
+      "advertisement_dict": {
+        "t": 208,
+        "d": 2087,
+        "n": 1,
+        "h": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beae",
+        "r": "adf8af53",
+        "o": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beae",
+        "i": 1,
+        "l": 1,
+        "q": null,
+        "f": 35,
+        "m": "3818afd7"
+      },
+      "advertisement_packed_hex": "8ba174ccd0a164cd0827a16e01a168c420a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beaea172c404adf8af53a16fc420a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beaea16901a16c01a171c0a16623a16dc4043818afd7",
+      "advertisement_packed_length": 113
     }
   ],
   "assembly_vectors": [
@@ -517,6 +598,36 @@
       "verified": true,
       "extracted_payload_hex": "25af325432ead3b9fd3f6b7b5a512e553ae6d9765a601720d6bed8c02988c2e318252eba5b412901dce548c40474d4a72498c93b092961ccafe8218efcc041ee... (2048 bytes total)",
       "extracted_payload_length": 2048
+    },
+    {
+      "index": 4,
+      "description": "Assembly verification for: Compressible resource (~2KB) with metadata, compressed",
+      "resource_hash_hex": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beae",
+      "random_hash_hex": "adf8af53",
+      "flags": 35,
+      "steps": {
+        "1_join_parts": "Concatenate 1 encrypted part(s) \u2192 208 bytes",
+        "2_decrypt": "Token.decrypt(stream) \u2192 147 bytes",
+        "3_strip_random_hash": "Remove first 4 bytes \u2192 143 bytes",
+        "4_decompress": "bz2.decompress(stripped_data) \u2192 2087 bytes",
+        "5_verify_hash": "SHA256(assembled_data + random_hash) == resource_hash \u2192 True",
+        "6_extract_metadata": "Read 3-byte size prefix, extract 36 bytes of packed metadata"
+      },
+      "decrypted_stream_hex": "adf8af53425a68393141592653595d6a795f0000005fd86000040004002a275e00ae63dda01000048004002000910d4803d4d34034064f287a814aa2993434c6... (147 bytes total)",
+      "decrypted_stream_length": 147,
+      "stripped_data_hex": "425a68393141592653595d6a795f0000005fd86000040004002a275e00ae63dda01000048004002000910d4803d4d34034064f287a814aa2993434c6501a6984... (143 bytes total)",
+      "stripped_data_length": 143,
+      "decompressed_data_hex": "00002482a474797065b4636f6d707265737365645f776974685f6d657461a776657273696f6e015245544943554c554d5f544553545f5041545445524e5f345f... (2087 bytes total)",
+      "decompressed_data_length": 2087,
+      "calculated_hash_hex": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beae",
+      "verified": true,
+      "extracted_metadata_size": 36,
+      "extracted_metadata": {
+        "type": "compressed_with_meta",
+        "version": 1
+      },
+      "extracted_payload_hex": "5245544943554c554d5f544553545f5041545445524e5f345f5245544943554c554d5f544553545f5041545445524e5f345f5245544943554c554d5f54455354... (2048 bytes total)",
+      "extracted_payload_length": 2048
     }
   ],
   "resource_proof_vectors": [
@@ -567,8 +678,35 @@
       "proof_packet_payload_length": 64,
       "proof_packet_layout": "resource_hash(32) + proof(32) = 64 bytes",
       "validation_note": "Sender validates: proof_data[32:] == self.expected_proof (Resource.validate_proof line 774)"
+    },
+    {
+      "index": 4,
+      "description": "Resource proof for: Compressible resource (~2KB) with metadata, compressed",
+      "resource_hash_hex": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beae",
+      "expected_proof_hex": "e8dede6b855996afd83b1863ef1cc50cd72b61182b684e758878b21b4552d127",
+      "proof_computation": "SHA256(data_with_metadata + resource_hash)",
+      "proof_computation_note": "data_with_metadata is the pre-compression, pre-encryption plaintext (metadata_bytes + resource_data)",
+      "proof_packet_payload_hex": "a87068d3d1b7319c655d3dd0326a18f91b22e19cf555f293ef51ffa7df19beaee8dede6b855996afd83b1863ef1cc50cd72b61182b684e758878b21b4552d127",
+      "proof_packet_payload_length": 64,
+      "proof_packet_layout": "resource_hash(32) + proof(32) = 64 bytes",
+      "validation_note": "Sender validates: proof_data[32:] == self.expected_proof (Resource.validate_proof line 774)"
     }
   ],
+  "integrity_failure_vector": {
+    "description": "SHA-256 integrity verification failure: corrupted data does not match resource_hash",
+    "base_case": 0,
+    "corruption": {
+      "method": "flip bit 0 of byte 0",
+      "original_byte_hex": "0x28",
+      "corrupted_byte_hex": "0x29"
+    },
+    "resource_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+    "corrupted_data_hash_hex": "e6499bc2f3fe3267b93562640d00ba14fbe086c91d0f64298cdb9dc853b2fa64",
+    "verified": false,
+    "expected_status": "CORRUPT",
+    "expected_status_code": 8,
+    "note": "Receiver computes SHA256(assembled_data + random_hash) and compares to resource_hash from advertisement"
+  },
   "invalid_metadata_vector": {
     "description": "Metadata exceeding METADATA_MAX_SIZE raises SystemError",
     "METADATA_MAX_SIZE": 16777215,
