@@ -1,0 +1,235 @@
+{
+  "description": "Reticulum v1.1.3 - resource transfer protocol test vectors",
+  "source": "RNS/Resource.py, RNS/Packet.py",
+  "constants": {
+    "packet_contexts": {
+      "NONE": 0,
+      "RESOURCE": 1,
+      "RESOURCE_ADV": 2,
+      "RESOURCE_REQ": 3,
+      "RESOURCE_HMU": 4,
+      "RESOURCE_PRF": 5,
+      "RESOURCE_ICL": 6,
+      "RESOURCE_RCL": 7
+    },
+    "resource_states": {
+      "NONE": 0,
+      "QUEUED": 1,
+      "ADVERTISED": 2,
+      "TRANSFERRING": 3,
+      "AWAITING_PROOF": 4,
+      "ASSEMBLING": 5,
+      "COMPLETE": 6,
+      "FAILED": 7,
+      "CORRUPT": 8,
+      "REJECTED": 0
+    },
+    "hashmap_flags": {
+      "HASHMAP_IS_NOT_EXHAUSTED": 0,
+      "HASHMAP_IS_EXHAUSTED": 255
+    }
+  },
+  "transfer_sequence_vectors": [
+    {
+      "index": 0,
+      "description": "Micro resource (128B) single-part transfer, no metadata",
+      "input_data_hex": "285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e13e4a0cc... (128 bytes total)",
+      "input_data_length": 128,
+      "input_sha256": "ccbf3213f686ee40baefba68bd48f4e85e8bd8a806d9b0213d9750c15c49b4d1",
+      "derived_key_hex": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e9091dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+      "deterministic_iv_hex": "b0d257a5234b3d5c1fa8ea7ea5ec661b",
+      "random_hash_hex": "ff8510d6",
+      "steps": [
+        {
+          "step": 1,
+          "name": "sender_prepare_advertisement",
+          "advertisement_packed_hex": "8ba174ccc0a164cc80a16e01a168c42018e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985a172c404ff8510d6a16fc42018e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985a16901a16c01a171c0a16601a16dc4041dc48c9a",
+          "advertisement_packed_length": 112,
+          "advertisement_dict": {
+            "t": 192,
+            "d": 128,
+            "n": 1,
+            "h": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+            "r": "ff8510d6",
+            "o": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+            "i": 1,
+            "l": 1,
+            "q": null,
+            "f": 1,
+            "m": "1dc48c9a"
+          },
+          "resource_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+          "random_hash_hex": "ff8510d6",
+          "hashmap_hex": "1dc48c9a",
+          "num_parts": 1,
+          "encrypted_data_length": 192,
+          "flags": 1,
+          "flags_hex": "0x01",
+          "expected_proof_hex": "f13a075d319c76a039f160d6f6fe3141f51aed6a5f1310156cb613d6b8d938e1",
+          "sender_state_before": "QUEUED",
+          "sender_state_after": "ADVERTISED",
+          "packet_context": "RESOURCE_ADV (0x02)"
+        },
+        {
+          "step": 2,
+          "name": "receiver_request_parts",
+          "request_payload_hex": "0018e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a9851dc48c9a",
+          "request_payload_length": 37,
+          "request_breakdown": {
+            "hashmap_exhausted_flag": "0x00",
+            "resource_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+            "requested_hashes_hex": "1dc48c9a",
+            "requested_hashes_count": 1
+          },
+          "request_layout": "exhausted_flag(1) + resource_hash(32) + map_hashes(4*1) = 37",
+          "receiver_state": "TRANSFERRING",
+          "callbacks_fired": [
+            "resource_started"
+          ],
+          "packet_context": "RESOURCE_REQ (0x03)"
+        },
+        {
+          "step": 3,
+          "name": "sender_send_part",
+          "part_index": 0,
+          "part_data_hex": "b0d257a5234b3d5c1fa8ea7ea5ec661b3a14080a5610e329776fd409788eb4ee3050e40f77afb0bfe325cb0cfc63c7890876259005add765a3a4caa4f0e0f82e... (192 bytes total)",
+          "part_data_length": 192,
+          "map_hash_hex": "1dc48c9a",
+          "sender_state": "TRANSFERRING",
+          "packet_context": "RESOURCE (0x01)"
+        },
+        {
+          "step": 4,
+          "name": "receiver_assemble_and_prove",
+          "assembly": {
+            "joined_parts_hex": "b0d257a5234b3d5c1fa8ea7ea5ec661b3a14080a5610e329776fd409788eb4ee3050e40f77afb0bfe325cb0cfc63c7890876259005add765a3a4caa4f0e0f82e... (192 bytes total)",
+            "joined_parts_length": 192,
+            "decrypted_hex": "ff8510d6285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e... (132 bytes total)",
+            "decrypted_length": 132,
+            "stripped_data_hex": "285428903707fdca696d0846cb9e17d7035a4efa1fdd8d21c559275abe282db996568726efae1b9254983867e63b494e01b10a19b3565444cac60a7e13e4a0cc... (128 bytes total)",
+            "stripped_data_length": 128,
+            "hash_verified": true,
+            "calculated_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985"
+          },
+          "proof_payload_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985f13a075d319c76a039f160d6f6fe3141f51aed6a5f1310156cb613d6b8d938e1",
+          "proof_payload_length": 64,
+          "proof_breakdown": {
+            "resource_hash_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+            "proof_hex": "f13a075d319c76a039f160d6f6fe3141f51aed6a5f1310156cb613d6b8d938e1"
+          },
+          "proof_layout": "resource_hash(32) + proof(32) = 64",
+          "receiver_state_sequence": [
+            "TRANSFERRING",
+            "ASSEMBLING",
+            "COMPLETE"
+          ],
+          "callbacks_fired": [
+            "progress_callback",
+            "resource_concluded"
+          ],
+          "progress_at_callback": {
+            "received": 1,
+            "total": 1
+          },
+          "packet_context": "RESOURCE_PRF (0x05)"
+        },
+        {
+          "step": 5,
+          "name": "sender_validate_proof",
+          "proof_valid": true,
+          "validation": {
+            "proof_data_length_check": "len(64) == HASHLENGTH_BYTES*2(64)",
+            "proof_hash_check": "proof_data[32:] == expected_proof"
+          },
+          "sender_state": "COMPLETE",
+          "callbacks_fired": [
+            "completion_callback"
+          ]
+        }
+      ],
+      "data_integrity": {
+        "original_sha256": "ccbf3213f686ee40baefba68bd48f4e85e8bd8a806d9b0213d9750c15c49b4d1",
+        "reconstructed_sha256": "ccbf3213f686ee40baefba68bd48f4e85e8bd8a806d9b0213d9750c15c49b4d1",
+        "match": true
+      },
+      "state_machine_sequence": [
+        {
+          "side": "sender",
+          "event": "prepare_advertisement",
+          "state_before": "QUEUED",
+          "state_after": "ADVERTISED",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "accept_advertisement",
+          "state_before": "NONE",
+          "state_after": "TRANSFERRING",
+          "callback": "resource_started"
+        },
+        {
+          "side": "receiver",
+          "event": "request_parts",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "sender",
+          "event": "send_part",
+          "state_before": "ADVERTISED",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "receive_part",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": "progress_callback"
+        },
+        {
+          "side": "receiver",
+          "event": "assemble",
+          "state_before": "TRANSFERRING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "verify_and_prove",
+          "state_before": "ASSEMBLING",
+          "state_after": "COMPLETE",
+          "callback": "resource_concluded"
+        },
+        {
+          "side": "sender",
+          "event": "validate_proof",
+          "state_before": "TRANSFERRING",
+          "state_after": "COMPLETE",
+          "callback": "completion_callback"
+        }
+      ]
+    }
+  ],
+  "cancellation_vectors": [
+    {
+      "type": "initiator_cancel",
+      "description": "Sender cancels transfer (RESOURCE_ICL)",
+      "payload_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+      "payload_length": 32,
+      "payload_content": "resource_hash (32 bytes)",
+      "packet_context": "RESOURCE_ICL (0x06)",
+      "source": "Resource.cancel() \u2014 sends self.hash as payload"
+    },
+    {
+      "type": "receiver_cancel",
+      "description": "Receiver rejects/cancels transfer (RESOURCE_RCL)",
+      "payload_hex": "18e5e4b750419ce16e37e1efa8a0138d1b31ede7e359f3f33d0411689784a985",
+      "payload_length": 32,
+      "payload_content": "resource_hash (32 bytes)",
+      "packet_context": "RESOURCE_RCL (0x07)",
+      "source": "Resource.accept() rejection \u2014 sends resource_hash as payload"
+    }
+  ]
+}
