@@ -210,6 +210,1076 @@
           "callback": "completion_callback"
         }
       ]
+    },
+    {
+      "index": 1,
+      "description": "Mini resource (256KB) multi-part transfer with windowed request/response and hashmap updates",
+      "input_data_length": 256000,
+      "input_sha256": "f13f96bb3827f438594e45d8e97453b5de99836f8b9c0a602d048effbc4486d1",
+      "encrypted_data_length": 256064,
+      "encrypted_data_sha256": "b3947e4c67c91f94b1ee04d7b612ea00529c6b748910d9b2d1ad1accd4b9355f",
+      "num_parts": 552,
+      "sdu": 464,
+      "last_part_size": 400,
+      "compression_attempted": true,
+      "compression_used": false,
+      "hashmap_by_segment": [
+        {
+          "segment": 0,
+          "hash_count": 74,
+          "hashmap_hex": "fa224eeb93ce02ae1ade82d4f091d96db296de1dda06fd741961b19ff2a69ff6a27a87dd5f9fb0f93c23ad31fa8c725755f91c10f0c4ea52d764458efeb1521e4db3cea8ab15f5d73c5b6b90e871cb9108526902b21a014e96977b46a7f7607118320ab3ea6ffcaccffd01aee7d229fe5283024eeb49f218205ec7fbf1129f013e1ec8ecfee079a520cf87d662987191f418eab334ad6bab9ec9a6a6a3a59bbe51b4a24aae93d62eab13b44182c766861b8a4fdb560cbfeeb4ad21427e907be74650dc5ac383d82caf9fa43ebb274bfba8a26480f10d343aef11d5274d05f15291ab67a4df1bdc964ce7c26c02e16f3067f619a859a74a4702147548f8f2c7d9d4eb6ac4dc2d12fdc7fe4d973e0f1e6ac2e6440d92aa25799548e458b2f0c4bbb3a71fcedebd9d88"
+        },
+        {
+          "segment": 1,
+          "hash_count": 74,
+          "hashmap_hex": "f561f78118b45f7d68af70be9a181b748cb07cfcc629c9b36d095a2a9bc85a13a17830dc294edddfc9075fc75b11f728104a1965a757dea2441b4c8b0b6d1a32e743847a2aac2b25eaaac9e81e987573d2a8e1812c1d91cb00adb8057251c3c4f72a7d88e8b40265dc91b00d8b41acf95f3380b80eac000b7e39784b2ea48d77e12eb019dfcde01a74e0f5b48440574464829ae6868bf5f3bc2f7642205b83352bc6f9c8bbf9476ade406fb472c15ebff9b08091644a2bd19099215f3f80174a01fda9946310c876f4b3aa4a434dad4d0f4731575d2ec2df4271993d565d110baeea4ecf2651d57c6df9ab502882d60379ab55226b00bec3f6c9d890e2407f6e548e7c7dae67541768c462c5c5e8d68c52249b0cb9137e38da6814162baf44b41ea5e15aa65dc472"
+        },
+        {
+          "segment": 2,
+          "hash_count": 74,
+          "hashmap_hex": "1701c7a1d32189981466537c8d3e2748d037b1a957587aeb0064fe482127150aacb0022342788d7f74fa02cb17d29148c64dd418b2c3408cb20cf7c81feeaa9bafef821887fd34d028060ab27845ab9af73da8e6d5adcc3cd0dc82382814b890e0a89fef0892c90cfe702d727e588a8094872a8e082dba432a873a19a2e1647b891eb5b204fcf107478693e0f23cada39327fb0a01410a0a7fe12b5f8ce125fb210439af8aacfdaf027cde1f69329e03a11690be050c3a9d6a8e4f45d17d58d01e63a2c7764e36767c66ffbe2568dfdd59800d8f5975615b56ec1805fdaa7c50f70ff0e5f950f6a280184abc6cd5b951c78c31c1d3bc884d22abe435a774012c5c115d44cf5a13aa2b078939fe3bf0a26464ee7fc3e5f07ec23f5a9ecd1d43ea039061e81cdd68b3"
+        },
+        {
+          "segment": 3,
+          "hash_count": 74,
+          "hashmap_hex": "5b4f794b4a7f0e41cdf58108a5fa56e5b96f8cf2321d642de219064fbef8058ce29e5b5f68636b0f57705540aabb616f5cdead3c942ca77b0b0d9087bb9d876989ef0cbad241ebc7f04f0b8de2402918170d2f2a6f71b5bbfc107ce8dea5dbcae41e9c2fcf9f2666d72ba67a6e1bb0130df72fd3c0ec137f296f2ec6b45439eaf4f4a932f732bdd4a9cebf5f0057ca6fdb2aa72c25ed67d51cb29fe10986573c304ab1580b7441e7c16207aad02744be0b90808137d8026023165b2dcf350e3ea4decc0fcb477f4a59659197a24c6fb4ad2bff59ed2437d612411a534906175ba839db65f0fc98019d88df96bc2529db11fe1b77d5fdb5827eff68b0fb6fdf805c289fe44a9a63f7a9bdff2891c7145f559302abb151b87e40d53292b5aa720d063373404dee8725"
+        },
+        {
+          "segment": 4,
+          "hash_count": 74,
+          "hashmap_hex": "cecfe2934e8a97c76e466f5b2479820df6723e886a4012b9cfb440e8e71a3b5d6570dcc41ad916d9cd0ab3edf6c66032cf6ff1260f1858823491bfb60ea7d1a0ab52ba1e5ce671ae629b12d7408b4120a0e30f7ca7644e3aa99fd330e721f7e6dd1cf273b6e1027321545543cdc89ed3f2a665363d248f24d85f0df642020179ad265951d8a5c2644d296045781227b0269552641cfa9d50fddf0f9df1c0ce03d6ee5c62cfcd7a9f2b70f06d3ee49608bab157eb6d80741a783677da70a45e9b8515084346b0f6b1b73872738561d9ae9007ad1f967d8aabe6c2584bdd4810efd5fd8821f1d8932295e038fddc9d5c931681e0465b71548bbd303f0008aae0cba96f65860dd17be04cc337a690f91e4bdabea2bb7c351b71658f3c0cd364417fb642387e993acd20"
+        },
+        {
+          "segment": 5,
+          "hash_count": 74,
+          "hashmap_hex": "21054e293e5623d50f1e80fbde4dc7817fd2b61c5aa64172ff4b8b94edbaa5ea641c4c70543ebae5db217b4790c5a69afe90b01afda823d4bd63b84ef2c39cd2b115d9686ffe19eacd63533130b52417a56327d724ff0dfc9f9f22160e67e883d2da8e6dedb7962d176b9b645fc365aca6b01dd4c2ef9004a28556d7bbf485d70408b54118e5c4e61564e1d76e9e1f29d11077e6a191b60b87cf199549778eb676f468024e875756ff0b3b84f1c19ec8643ddfde6fc02520ae9644d6bf53e95a76b35818f59e80c5b04d87e6361fdc86dc8221a449a2921c72beccc824fc27f60642c2bfec22250f283389b37851306b267828addac398bb654ea8f16dc471298eeabade70484d08d4a1e89d4fb8b165e67c4629b81711a20a8841a5cd8ddf73d55c9890ee5dc076"
+        },
+        {
+          "segment": 6,
+          "hash_count": 74,
+          "hashmap_hex": "2e42f9c1f2ccbc83e53c73b101d066f3d22aae98e4bd6fa07ccffa1fecb1c4f0f2a4a7cbaea3668c155c66a771ae097bc21b12c6d3d34a5251e596fb9c32fc25991a2a50b1af1b70bb20100078edab99b2015099e34c770b5fa2d34b21c75337759a9f78dd05af90db1860bb967ee2613d857e2f9009488065bc6ec4b2226797391a27f56f576d402fe029bec58bc4b0ad7946dd821947d0021944041a562f23101dadd3d9ab9c2e7585f41359907c6592c99b1c7e7413e14f91d1e8ec2ebe618df86badbdc6f844077048a891fbfaf5381c3c81ec3c79dc425ea40cddf5306fc5e217b39296751e1f3c8d37661634a13f3daa81241384e5cf000ae2d6d632fae4266353011f0e5b04f12ef08c6ef85529759d026a7f701643255bd5d3edcf86a4d5d04f55cbb68e"
+        },
+        {
+          "segment": 7,
+          "hash_count": 34,
+          "hashmap_hex": "b9f971246a88e15995a4536743ee6efa1b1823ccf99788bfdff27695a5f280d9f9c7ddab2aa8b7b9ed5a5957232d4b0e5be6f672d2817c588060b1fb160153c3074844895db845a24a9ae6f37a6e7f95f4e0292ad4266c03765906f2756ca9f0960c303ef57f465c82f73a9289b7d95ca57a2ae46cb380c66f1a8f585f73d04b974c998436840454"
+        }
+      ],
+      "total_hashmap_hex": "fa224eeb93ce02ae1ade82d4f091d96db296de1dda06fd741961b19ff2a69ff6a27a87dd5f9fb0f93c23ad31fa8c725755f91c10f0c4ea52d764458efeb1521e4db3cea8ab15f5d73c5b6b90e871cb9108526902b21a014e96977b46a7f7607118320ab3ea6ffcaccffd01aee7d229fe5283024eeb49f218205ec7fbf1129f013e1ec8ecfee079a520cf87d662987191f418eab334ad6bab9ec9a6a6a3a59bbe51b4a24aae93d62eab13b44182c766861b8a4fdb560cbfeeb4ad21427e907be74650dc5ac383d82caf9fa43ebb274bfba8a26480f10d343aef11d5274d05f15291ab67a4df1bdc964ce7c26c02e16f3067f619a859a74a4702147548f8f2c7d9d4eb6ac4dc2d12fdc7fe4d973e0f1e6ac2e6440d92aa25799548e458b2f0c4bbb3a71fcedebd9d88f561f78118b45f7d68af70be9a181b748cb07cfcc629c9b36d095a2a9bc85a13a17830dc294edddfc9075fc75b11f728104a1965a757dea2441b4c8b0b6d1a32e743847a2aac2b25eaaac9e81e987573d2a8e1812c1d91cb00adb8057251c3c4f72a7d88e8b40265dc91b00d8b41acf95f3380b80eac000b7e39784b2ea48d77e12eb019dfcde01a74e0f5b48440574464829ae6868bf5f3bc2f7642205b83352bc6f9c8bbf9476ade406fb472c15ebff9b08091644a2bd19099215f3f80174a01fda9946310c876f4b3aa4a434dad4d0f4731575d2ec2df4271993d565d110baeea4ecf2651d57c6df9ab502882d60379ab55226b00bec3f6c9d890e2407f6e548e7c7dae67541768c462c5c5e8d68c52249b0cb9137e38da6814162baf44b41ea5e15aa65dc4721701c7a1d32189981466537c8d3e2748d037b1a957587aeb0064fe482127150aacb0022342788d7f74fa02cb17d29148c64dd418b2c3408cb20cf7c81feeaa9bafef821887fd34d028060ab27845ab9af73da8e6d5adcc3cd0dc82382814b890e0a89fef0892c90cfe702d727e588a8094872a8e082dba432a873a19a2e1647b891eb5b204fcf107478693e0f23cada39327fb0a01410a0a7fe12b5f8ce125fb210439af8aacfdaf027cde1f69329e03a11690be050c3a9d6a8e4f45d17d58d01e63a2c7764e36767c66ffbe2568dfdd59800d8f5975615b56ec1805fdaa7c50f70ff0e5f950f6a280184abc6cd5b951c78c31c1d3bc884d22abe435a774012c5c115d44cf5a13aa2b078939fe3bf0a26464ee7fc3e5f07ec23f5a9ecd1d43ea039061e81cdd68b35b4f794b4a7f0e41cdf58108a5fa56e5b96f8cf2321d642de219064fbef8058ce29e5b5f68636b0f57705540aabb616f5cdead3c942ca77b0b0d9087bb9d876989ef0cbad241ebc7f04f0b8de2402918170d2f2a6f71b5bbfc107ce8dea5dbcae41e9c2fcf9f2666d72ba67a6e1bb0130df72fd3c0ec137f296f2ec6b45439eaf4f4a932f732bdd4a9cebf5f0057ca6fdb2aa72c25ed67d51cb29fe10986573c304ab1580b7441e7c16207aad02744be0b90808137d8026023165b2dcf350e3ea4decc0fcb477f4a59659197a24c6fb4ad2bff59ed2437d612411a534906175ba839db65f0fc98019d88df96bc2529db11fe1b77d5fdb5827eff68b0fb6fdf805c289fe44a9a63f7a9bdff2891c7145f559302abb151b87e40d53292b5aa720d063373404dee8725cecfe2934e8a97c76e466f5b2479820df6723e886a4012b9cfb440e8e71a3b5d6570dcc41ad916d9cd0ab3edf6c66032cf6ff1260f1858823491bfb60ea7d1a0ab52ba1e5ce671ae629b12d7408b4120a0e30f7ca7644e3aa99fd330e721f7e6dd1cf273b6e1027321545543cdc89ed3f2a665363d248f24d85f0df642020179ad265951d8a5c2644d296045781227b0269552641cfa9d50fddf0f9df1c0ce03d6ee5c62cfcd7a9f2b70f06d3ee49608bab157eb6d80741a783677da70a45e9b8515084346b0f6b1b73872738561d9ae9007ad1f967d8aabe6c2584bdd4810efd5fd8821f1d8932295e038fddc9d5c931681e0465b71548bbd303f0008aae0cba96f65860dd17be04cc337a690f91e4bdabea2bb7c351b71658f3c0cd364417fb642387e993acd2021054e293e5623d50f1e80fbde4dc7817fd2b61c5aa64172ff4b8b94edbaa5ea641c4c70543ebae5db217b4790c5a69afe90b01afda823d4bd63b84ef2c39cd2b115d9686ffe19eacd63533130b52417a56327d724ff0dfc9f9f22160e67e883d2da8e6dedb7962d176b9b645fc365aca6b01dd4c2ef9004a28556d7bbf485d70408b54118e5c4e61564e1d76e9e1f29d11077e6a191b60b87cf199549778eb676f468024e875756ff0b3b84f1c19ec8643ddfde6fc02520ae9644d6bf53e95a76b35818f59e80c5b04d87e6361fdc86dc8221a449a2921c72beccc824fc27f60642c2bfec22250f283389b37851306b267828addac398bb654ea8f16dc471298eeabade70484d08d4a1e89d4fb8b165e67c4629b81711a20a8841a5cd8ddf73d55c9890ee5dc0762e42f9c1f2ccbc83e53c73b101d066f3d22aae98e4bd6fa07ccffa1fecb1c4f0f2a4a7cbaea3668c155c66a771ae097bc21b12c6d3d34a5251e596fb9c32fc25991a2a50b1af1b70bb20100078edab99b2015099e34c770b5fa2d34b21c75337759a9f78dd05af90db1860bb967ee2613d857e2f9009488065bc6ec4b2226797391a27f56f576d402fe029bec58bc4b0ad7946dd821947d0021944041a562f23101dadd3d9ab9c2e7585f41359907c6592c99b1c7e7413e14f91d1e8ec2ebe618df86badbdc6f844077048a891fbfaf5381c3c81ec3c79dc425ea40cddf5306fc5e217b39296751e1f3c8d37661634a13f3daa81241384e5cf000ae2d6d632fae4266353011f0e5b04f12ef08c6ef85529759d026a7f701643255bd5d3edcf86a4d5d04f55cbb68eb9f971246a88e15995a4536743ee6efa1b1823ccf99788bfdff27695a5f280d9f9c7ddab2aa8b7b9ed5a5957232d4b0e5be6f672d2817c588060b1fb160153c3074844895db845a24a9ae6f37a6e7f95f4e0292ad4266c03765906f2756ca9f0960c303ef57f465c82f73a9289b7d95ca57a2ae46cb380c66f1a8f585f73d04b974c998436840454",
+      "representative_parts": [
+        {
+          "part_index": 0,
+          "part_data_hex": "406690dd8ddcccaf4dddc1c9483dd4034fb12d3413017daed7a5a15db3cc98402dfe832b7370809aeb7ea397dd88b2e5c926646e2fdf4cf1f456877f6da2fe17... (464 bytes total)",
+          "part_data_length": 464,
+          "map_hash_hex": "fa224eeb"
+        },
+        {
+          "part_index": 73,
+          "part_data_hex": "b308c781714267cf4c345d3fb70f26a7ae18b01921a29ee75f85fd5e947ba3161fba4dba03c48e099eb7690fbb26ba4a5727eba8273ee5484a0dd0ba5fc8bb90... (464 bytes total)",
+          "part_data_length": 464,
+          "map_hash_hex": "debd9d88"
+        },
+        {
+          "part_index": 74,
+          "part_data_hex": "ddd8ac848ba50a341abc1efcb29209fa4948d352c73047c79e0a67f0e93aa2144597934418447ccd0d433b8aa9fa126e6ff21412cfb39fc476a4eb0282366576... (464 bytes total)",
+          "part_data_length": 464,
+          "map_hash_hex": "f561f781"
+        },
+        {
+          "part_index": 551,
+          "part_data_hex": "2638106dc9b058aacc065030d22eca2b1e1a521f15d2c0bce879a29bad586edf2884ee47145b9098bea84beeee91e137ab23c751d96bd84848acaf5fc14c509b... (400 bytes total)",
+          "part_data_length": 400,
+          "map_hash_hex": "36840454"
+        }
+      ],
+      "derived_key_hex": "46b2978d613a03932e701caeb7288d7c12462c5be455c0e133f8ffcd0d35e9091dad7ff512ee502aea792e2db89de23cd488eb5dbb505f9be32cb706b655d1d4",
+      "deterministic_iv_hex": "406690dd8ddcccaf4dddc1c9483dd403",
+      "random_hash_hex": "0508ad6a",
+      "resource_hash_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449",
+      "expected_proof_hex": "03a304d53e5ebc691375fb4d698cc88c0dc86fe6300188181b5459dfdbb89e82",
+      "steps": [
+        {
+          "step": 1,
+          "name": "sender_prepare_advertisement",
+          "advertisement_packed_hex": "8ba174ce0003e840a164ce0003e800a16ecd0228a168c420679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449a172c4040508ad6aa16fc420679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449a16901a16c01a171c0a16601a16dc50128fa224eeb93ce02ae1ade82d4f091d96db296de1dda06fd741961b19ff2a69ff6a27a87dd5f9fb0f93c23ad31fa8c725755f91c10f0c4ea52d764458efeb1521e4db3cea8ab15f5d73c5b6b90e871cb9108526902b21a014e96977b46a7f7607118320ab3ea6ffcaccffd01aee7d229fe5283024eeb49f218205ec7fbf1129f013e1ec8ecfee079a520cf87d662987191f418eab334ad6bab9ec9a6a6a3a59bbe51b4a24aae93d62eab13b44182c766861b8a4fdb560cbfeeb4ad21427e907be74650dc5ac383d82caf9fa43ebb274bfba8a26480f10d343aef11d5274d05f15291ab67a4df1bdc964ce7c26c02e16f3067f619a859a74a4702147548f8f2c7d9d4eb6ac4dc2d12fdc7fe4d973e0f1e6ac2e6440d92aa25799548e458b2f0c4bbb3a71fcedebd9d88",
+          "advertisement_packed_length": 413,
+          "advertisement_dict": {
+            "t": 256064,
+            "d": 256000,
+            "n": 552,
+            "h": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449",
+            "r": "0508ad6a",
+            "o": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449",
+            "i": 1,
+            "l": 1,
+            "q": null,
+            "f": 1,
+            "m": "fa224eeb93ce02ae1ade82d4f091d96db296de1dda06fd741961b19ff2a69ff6a27a87dd5f9fb0f93c23ad31fa8c725755f91c10f0c4ea52d764458efeb1521e4db3cea8ab15f5d73c5b6b90e871cb9108526902b21a014e96977b46a7f7607118320ab3ea6ffcaccffd01aee7d229fe5283024eeb49f218205ec7fbf1129f013e1ec8ecfee079a520cf87d662987191f418eab334ad6bab9ec9a6a6a3a59bbe51b4a24aae93d62eab13b44182c766861b8a4fdb560cbfeeb4ad21427e907be74650dc5ac383d82caf9fa43ebb274bfba8a26480f10d343aef11d5274d05f15291ab67a4df1bdc964ce7c26c02e16f3067f619a859a74a4702147548f8f2c7d9d4eb6ac4dc2d12fdc7fe4d973e0f1e6ac2e6440d92aa25799548e458b2f0c4bbb3a71fcedebd9d88"
+          },
+          "resource_hash_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449",
+          "random_hash_hex": "0508ad6a",
+          "hashmap_hex": "fa224eeb93ce02ae1ade82d4f091d96db296de1dda06fd741961b19ff2a69ff6a27a87dd5f9fb0f93c23ad31fa8c725755f91c10f0c4ea52d764458efeb1521e4db3cea8ab15f5d73c5b6b90e871cb9108526902b21a014e96977b46a7f7607118320ab3ea6ffcaccffd01aee7d229fe5283024eeb49f218205ec7fbf1129f013e1ec8ecfee079a520cf87d662987191f418eab334ad6bab9ec9a6a6a3a59bbe51b4a24aae93d62eab13b44182c766861b8a4fdb560cbfeeb4ad21427e907be74650dc5ac383d82caf9fa43ebb274bfba8a26480f10d343aef11d5274d05f15291ab67a4df1bdc964ce7c26c02e16f3067f619a859a74a4702147548f8f2c7d9d4eb6ac4dc2d12fdc7fe4d973e0f1e6ac2e6440d92aa25799548e458b2f0c4bbb3a71fcedebd9d88",
+          "num_parts": 552,
+          "encrypted_data_length": 256064,
+          "flags": 1,
+          "flags_hex": "0x01",
+          "expected_proof_hex": "03a304d53e5ebc691375fb4d698cc88c0dc86fe6300188181b5459dfdbb89e82",
+          "sender_state_before": "QUEUED",
+          "sender_state_after": "ADVERTISED",
+          "packet_context": "RESOURCE_ADV (0x02)"
+        },
+        {
+          "step": 2,
+          "name": "transfer_protocol_simulation",
+          "total_rounds": 62,
+          "final_window": 10,
+          "initial_window": 4,
+          "window_max": 10,
+          "receiver_state": "TRANSFERRING",
+          "packet_context_req": "RESOURCE_REQ (0x03)",
+          "packet_context_data": "RESOURCE (0x01)"
+        },
+        {
+          "step": 3,
+          "name": "receiver_assemble",
+          "assembly": {
+            "joined_parts_length": 256064,
+            "joined_parts_sha256": "b3947e4c67c91f94b1ee04d7b612ea00529c6b748910d9b2d1ad1accd4b9355f",
+            "decrypted_length": 256004,
+            "stripped_data_length": 256000,
+            "stripped_data_sha256": "f13f96bb3827f438594e45d8e97453b5de99836f8b9c0a602d048effbc4486d1",
+            "hash_verified": true,
+            "calculated_hash_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449"
+          },
+          "receiver_state_sequence": [
+            "TRANSFERRING",
+            "ASSEMBLING",
+            "COMPLETE"
+          ]
+        },
+        {
+          "step": 4,
+          "name": "receiver_prove",
+          "proof_payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d2444903a304d53e5ebc691375fb4d698cc88c0dc86fe6300188181b5459dfdbb89e82",
+          "proof_payload_length": 64,
+          "proof_breakdown": {
+            "resource_hash_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d24449",
+            "proof_hex": "03a304d53e5ebc691375fb4d698cc88c0dc86fe6300188181b5459dfdbb89e82"
+          },
+          "proof_layout": "resource_hash(32) + proof(32) = 64",
+          "packet_context": "RESOURCE_PRF (0x05)"
+        },
+        {
+          "step": 5,
+          "name": "sender_validate_proof",
+          "proof_valid": true,
+          "validation": {
+            "proof_data_length_check": "len(64) == HASHLENGTH_BYTES*2(64)",
+            "proof_hash_check": "proof_data[32:] == expected_proof"
+          },
+          "sender_state": "COMPLETE",
+          "callbacks_fired": [
+            "completion_callback"
+          ]
+        }
+      ],
+      "transfer_protocol": {
+        "total_rounds": 62,
+        "initial_window": 4,
+        "final_window": 10,
+        "window_max": 10,
+        "rounds_summary": [
+          {
+            "round": 1,
+            "window": 4,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 0,
+            "parts_requested_indices_last": 3,
+            "received_total": 4,
+            "consecutive_completed": 3,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 2,
+            "window": 5,
+            "parts_requested": 5,
+            "parts_requested_indices_first": 4,
+            "parts_requested_indices_last": 8,
+            "received_total": 9,
+            "consecutive_completed": 8,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 3,
+            "window": 6,
+            "parts_requested": 6,
+            "parts_requested_indices_first": 9,
+            "parts_requested_indices_last": 14,
+            "received_total": 15,
+            "consecutive_completed": 14,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 4,
+            "window": 7,
+            "parts_requested": 7,
+            "parts_requested_indices_first": 15,
+            "parts_requested_indices_last": 21,
+            "received_total": 22,
+            "consecutive_completed": 21,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 5,
+            "window": 8,
+            "parts_requested": 8,
+            "parts_requested_indices_first": 22,
+            "parts_requested_indices_last": 29,
+            "received_total": 30,
+            "consecutive_completed": 29,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 6,
+            "window": 9,
+            "parts_requested": 9,
+            "parts_requested_indices_first": 30,
+            "parts_requested_indices_last": 38,
+            "received_total": 39,
+            "consecutive_completed": 38,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 7,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 39,
+            "parts_requested_indices_last": 48,
+            "received_total": 49,
+            "consecutive_completed": 48,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 8,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 49,
+            "parts_requested_indices_last": 58,
+            "received_total": 59,
+            "consecutive_completed": 58,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 9,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 59,
+            "parts_requested_indices_last": 68,
+            "received_total": 69,
+            "consecutive_completed": 68,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74
+          },
+          {
+            "round": 10,
+            "window": 10,
+            "parts_requested": 5,
+            "parts_requested_indices_first": 69,
+            "parts_requested_indices_last": 73,
+            "received_total": 74,
+            "consecutive_completed": 73,
+            "hashmap_exhausted": true,
+            "hashmap_height": 74,
+            "hmu_segment": 1
+          },
+          {
+            "round": 11,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 74,
+            "parts_requested_indices_last": 83,
+            "received_total": 84,
+            "consecutive_completed": 83,
+            "hashmap_exhausted": false,
+            "hashmap_height": 148
+          },
+          {
+            "round": 12,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 84,
+            "parts_requested_indices_last": 93,
+            "received_total": 94,
+            "consecutive_completed": 93,
+            "hashmap_exhausted": false,
+            "hashmap_height": 148
+          },
+          {
+            "round": 13,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 94,
+            "parts_requested_indices_last": 103,
+            "received_total": 104,
+            "consecutive_completed": 103,
+            "hashmap_exhausted": false,
+            "hashmap_height": 148
+          },
+          {
+            "round": 14,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 104,
+            "parts_requested_indices_last": 113,
+            "received_total": 114,
+            "consecutive_completed": 113,
+            "hashmap_exhausted": false,
+            "hashmap_height": 148
+          },
+          {
+            "round": 15,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 114,
+            "parts_requested_indices_last": 123,
+            "received_total": 124,
+            "consecutive_completed": 123,
+            "hashmap_exhausted": false,
+            "hashmap_height": 148
+          },
+          {
+            "round": 16,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 124,
+            "parts_requested_indices_last": 133,
+            "received_total": 134,
+            "consecutive_completed": 133,
+            "hashmap_exhausted": false,
+            "hashmap_height": 148
+          },
+          {
+            "round": 17,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 134,
+            "parts_requested_indices_last": 143,
+            "received_total": 144,
+            "consecutive_completed": 143,
+            "hashmap_exhausted": false,
+            "hashmap_height": 148
+          },
+          {
+            "round": 18,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 144,
+            "parts_requested_indices_last": 147,
+            "received_total": 148,
+            "consecutive_completed": 147,
+            "hashmap_exhausted": true,
+            "hashmap_height": 148,
+            "hmu_segment": 2
+          },
+          {
+            "round": 19,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 148,
+            "parts_requested_indices_last": 157,
+            "received_total": 158,
+            "consecutive_completed": 157,
+            "hashmap_exhausted": false,
+            "hashmap_height": 222
+          },
+          {
+            "round": 20,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 158,
+            "parts_requested_indices_last": 167,
+            "received_total": 168,
+            "consecutive_completed": 167,
+            "hashmap_exhausted": false,
+            "hashmap_height": 222
+          },
+          {
+            "round": 21,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 168,
+            "parts_requested_indices_last": 177,
+            "received_total": 178,
+            "consecutive_completed": 177,
+            "hashmap_exhausted": false,
+            "hashmap_height": 222
+          },
+          {
+            "round": 22,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 178,
+            "parts_requested_indices_last": 187,
+            "received_total": 188,
+            "consecutive_completed": 187,
+            "hashmap_exhausted": false,
+            "hashmap_height": 222
+          },
+          {
+            "round": 23,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 188,
+            "parts_requested_indices_last": 197,
+            "received_total": 198,
+            "consecutive_completed": 197,
+            "hashmap_exhausted": false,
+            "hashmap_height": 222
+          },
+          {
+            "round": 24,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 198,
+            "parts_requested_indices_last": 207,
+            "received_total": 208,
+            "consecutive_completed": 207,
+            "hashmap_exhausted": false,
+            "hashmap_height": 222
+          },
+          {
+            "round": 25,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 208,
+            "parts_requested_indices_last": 217,
+            "received_total": 218,
+            "consecutive_completed": 217,
+            "hashmap_exhausted": false,
+            "hashmap_height": 222
+          },
+          {
+            "round": 26,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 218,
+            "parts_requested_indices_last": 221,
+            "received_total": 222,
+            "consecutive_completed": 221,
+            "hashmap_exhausted": true,
+            "hashmap_height": 222,
+            "hmu_segment": 3
+          },
+          {
+            "round": 27,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 222,
+            "parts_requested_indices_last": 231,
+            "received_total": 232,
+            "consecutive_completed": 231,
+            "hashmap_exhausted": false,
+            "hashmap_height": 296
+          },
+          {
+            "round": 28,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 232,
+            "parts_requested_indices_last": 241,
+            "received_total": 242,
+            "consecutive_completed": 241,
+            "hashmap_exhausted": false,
+            "hashmap_height": 296
+          },
+          {
+            "round": 29,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 242,
+            "parts_requested_indices_last": 251,
+            "received_total": 252,
+            "consecutive_completed": 251,
+            "hashmap_exhausted": false,
+            "hashmap_height": 296
+          },
+          {
+            "round": 30,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 252,
+            "parts_requested_indices_last": 261,
+            "received_total": 262,
+            "consecutive_completed": 261,
+            "hashmap_exhausted": false,
+            "hashmap_height": 296
+          },
+          {
+            "round": 31,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 262,
+            "parts_requested_indices_last": 271,
+            "received_total": 272,
+            "consecutive_completed": 271,
+            "hashmap_exhausted": false,
+            "hashmap_height": 296
+          },
+          {
+            "round": 32,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 272,
+            "parts_requested_indices_last": 281,
+            "received_total": 282,
+            "consecutive_completed": 281,
+            "hashmap_exhausted": false,
+            "hashmap_height": 296
+          },
+          {
+            "round": 33,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 282,
+            "parts_requested_indices_last": 291,
+            "received_total": 292,
+            "consecutive_completed": 291,
+            "hashmap_exhausted": false,
+            "hashmap_height": 296
+          },
+          {
+            "round": 34,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 292,
+            "parts_requested_indices_last": 295,
+            "received_total": 296,
+            "consecutive_completed": 295,
+            "hashmap_exhausted": true,
+            "hashmap_height": 296,
+            "hmu_segment": 4
+          },
+          {
+            "round": 35,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 296,
+            "parts_requested_indices_last": 305,
+            "received_total": 306,
+            "consecutive_completed": 305,
+            "hashmap_exhausted": false,
+            "hashmap_height": 370
+          },
+          {
+            "round": 36,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 306,
+            "parts_requested_indices_last": 315,
+            "received_total": 316,
+            "consecutive_completed": 315,
+            "hashmap_exhausted": false,
+            "hashmap_height": 370
+          },
+          {
+            "round": 37,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 316,
+            "parts_requested_indices_last": 325,
+            "received_total": 326,
+            "consecutive_completed": 325,
+            "hashmap_exhausted": false,
+            "hashmap_height": 370
+          },
+          {
+            "round": 38,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 326,
+            "parts_requested_indices_last": 335,
+            "received_total": 336,
+            "consecutive_completed": 335,
+            "hashmap_exhausted": false,
+            "hashmap_height": 370
+          },
+          {
+            "round": 39,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 336,
+            "parts_requested_indices_last": 345,
+            "received_total": 346,
+            "consecutive_completed": 345,
+            "hashmap_exhausted": false,
+            "hashmap_height": 370
+          },
+          {
+            "round": 40,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 346,
+            "parts_requested_indices_last": 355,
+            "received_total": 356,
+            "consecutive_completed": 355,
+            "hashmap_exhausted": false,
+            "hashmap_height": 370
+          },
+          {
+            "round": 41,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 356,
+            "parts_requested_indices_last": 365,
+            "received_total": 366,
+            "consecutive_completed": 365,
+            "hashmap_exhausted": false,
+            "hashmap_height": 370
+          },
+          {
+            "round": 42,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 366,
+            "parts_requested_indices_last": 369,
+            "received_total": 370,
+            "consecutive_completed": 369,
+            "hashmap_exhausted": true,
+            "hashmap_height": 370,
+            "hmu_segment": 5
+          },
+          {
+            "round": 43,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 370,
+            "parts_requested_indices_last": 379,
+            "received_total": 380,
+            "consecutive_completed": 379,
+            "hashmap_exhausted": false,
+            "hashmap_height": 444
+          },
+          {
+            "round": 44,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 380,
+            "parts_requested_indices_last": 389,
+            "received_total": 390,
+            "consecutive_completed": 389,
+            "hashmap_exhausted": false,
+            "hashmap_height": 444
+          },
+          {
+            "round": 45,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 390,
+            "parts_requested_indices_last": 399,
+            "received_total": 400,
+            "consecutive_completed": 399,
+            "hashmap_exhausted": false,
+            "hashmap_height": 444
+          },
+          {
+            "round": 46,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 400,
+            "parts_requested_indices_last": 409,
+            "received_total": 410,
+            "consecutive_completed": 409,
+            "hashmap_exhausted": false,
+            "hashmap_height": 444
+          },
+          {
+            "round": 47,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 410,
+            "parts_requested_indices_last": 419,
+            "received_total": 420,
+            "consecutive_completed": 419,
+            "hashmap_exhausted": false,
+            "hashmap_height": 444
+          },
+          {
+            "round": 48,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 420,
+            "parts_requested_indices_last": 429,
+            "received_total": 430,
+            "consecutive_completed": 429,
+            "hashmap_exhausted": false,
+            "hashmap_height": 444
+          },
+          {
+            "round": 49,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 430,
+            "parts_requested_indices_last": 439,
+            "received_total": 440,
+            "consecutive_completed": 439,
+            "hashmap_exhausted": false,
+            "hashmap_height": 444
+          },
+          {
+            "round": 50,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 440,
+            "parts_requested_indices_last": 443,
+            "received_total": 444,
+            "consecutive_completed": 443,
+            "hashmap_exhausted": true,
+            "hashmap_height": 444,
+            "hmu_segment": 6
+          },
+          {
+            "round": 51,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 444,
+            "parts_requested_indices_last": 453,
+            "received_total": 454,
+            "consecutive_completed": 453,
+            "hashmap_exhausted": false,
+            "hashmap_height": 518
+          },
+          {
+            "round": 52,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 454,
+            "parts_requested_indices_last": 463,
+            "received_total": 464,
+            "consecutive_completed": 463,
+            "hashmap_exhausted": false,
+            "hashmap_height": 518
+          },
+          {
+            "round": 53,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 464,
+            "parts_requested_indices_last": 473,
+            "received_total": 474,
+            "consecutive_completed": 473,
+            "hashmap_exhausted": false,
+            "hashmap_height": 518
+          },
+          {
+            "round": 54,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 474,
+            "parts_requested_indices_last": 483,
+            "received_total": 484,
+            "consecutive_completed": 483,
+            "hashmap_exhausted": false,
+            "hashmap_height": 518
+          },
+          {
+            "round": 55,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 484,
+            "parts_requested_indices_last": 493,
+            "received_total": 494,
+            "consecutive_completed": 493,
+            "hashmap_exhausted": false,
+            "hashmap_height": 518
+          },
+          {
+            "round": 56,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 494,
+            "parts_requested_indices_last": 503,
+            "received_total": 504,
+            "consecutive_completed": 503,
+            "hashmap_exhausted": false,
+            "hashmap_height": 518
+          },
+          {
+            "round": 57,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 504,
+            "parts_requested_indices_last": 513,
+            "received_total": 514,
+            "consecutive_completed": 513,
+            "hashmap_exhausted": false,
+            "hashmap_height": 518
+          },
+          {
+            "round": 58,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 514,
+            "parts_requested_indices_last": 517,
+            "received_total": 518,
+            "consecutive_completed": 517,
+            "hashmap_exhausted": true,
+            "hashmap_height": 518,
+            "hmu_segment": 7
+          },
+          {
+            "round": 59,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 518,
+            "parts_requested_indices_last": 527,
+            "received_total": 528,
+            "consecutive_completed": 527,
+            "hashmap_exhausted": false,
+            "hashmap_height": 552
+          },
+          {
+            "round": 60,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 528,
+            "parts_requested_indices_last": 537,
+            "received_total": 538,
+            "consecutive_completed": 537,
+            "hashmap_exhausted": false,
+            "hashmap_height": 552
+          },
+          {
+            "round": 61,
+            "window": 10,
+            "parts_requested": 10,
+            "parts_requested_indices_first": 538,
+            "parts_requested_indices_last": 547,
+            "received_total": 548,
+            "consecutive_completed": 547,
+            "hashmap_exhausted": false,
+            "hashmap_height": 552
+          },
+          {
+            "round": 62,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 548,
+            "parts_requested_indices_last": 551,
+            "received_total": 552,
+            "consecutive_completed": 551,
+            "hashmap_exhausted": false,
+            "hashmap_height": 552
+          }
+        ],
+        "representative_rounds": [
+          {
+            "round": 1,
+            "window": 4,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 0,
+            "parts_requested_indices_last": 3,
+            "received_total": 4,
+            "consecutive_completed": 3,
+            "hashmap_exhausted": false,
+            "hashmap_height": 74,
+            "first_part_hex": "406690dd8ddcccaf4dddc1c9483dd4034fb12d3413017daed7a5a15db3cc9840... (464 bytes total)",
+            "first_part_length": 464,
+            "last_part_hex": "bcccc837d474f135614a280a896fd8efd453ceb9831927393f6948bfc576f802... (464 bytes total)",
+            "last_part_length": 464
+          },
+          {
+            "round": 10,
+            "window": 10,
+            "parts_requested": 5,
+            "parts_requested_indices_first": 69,
+            "parts_requested_indices_last": 73,
+            "received_total": 74,
+            "consecutive_completed": 73,
+            "hashmap_exhausted": true,
+            "hashmap_height": 74,
+            "hmu_segment": 1,
+            "first_part_hex": "fcf540b61db3d5a226444a0703ef53a2c7cddc99f4b49dee82e481509ef7f2d1... (464 bytes total)",
+            "first_part_length": 464,
+            "last_part_hex": "b308c781714267cf4c345d3fb70f26a7ae18b01921a29ee75f85fd5e947ba316... (464 bytes total)",
+            "last_part_length": 464
+          },
+          {
+            "round": 18,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 144,
+            "parts_requested_indices_last": 147,
+            "received_total": 148,
+            "consecutive_completed": 147,
+            "hashmap_exhausted": true,
+            "hashmap_height": 148,
+            "hmu_segment": 2,
+            "first_part_hex": "55e6770f4d6c5e1eb3dad329d24309217f444e88607b02eaa3e519c5deec9cac... (464 bytes total)",
+            "first_part_length": 464,
+            "last_part_hex": "3c7c2ac2110c33b1f2139936a408408c77706127f02a7dbbb3ee5608cc2491f6... (464 bytes total)",
+            "last_part_length": 464
+          },
+          {
+            "round": 62,
+            "window": 10,
+            "parts_requested": 4,
+            "parts_requested_indices_first": 548,
+            "parts_requested_indices_last": 551,
+            "received_total": 552,
+            "consecutive_completed": 551,
+            "hashmap_exhausted": false,
+            "hashmap_height": 552,
+            "first_part_hex": "8919cd2593a7ecce75563c6d8efe23d7ef87d43b01c049c7f3a046caab1929f0... (464 bytes total)",
+            "first_part_length": 464,
+            "last_part_hex": "2638106dc9b058aacc065030d22eca2b1e1a521f15d2c0bce879a29bad586edf... (400 bytes total)",
+            "last_part_length": 400
+          }
+        ],
+        "hmu_packets": [
+          {
+            "hmu_index": 0,
+            "triggered_at_round": 10,
+            "segment": 1,
+            "hash_count": 74,
+            "payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d244499201c50128f561f78118b45f7d68af70be9a181b748cb07cfcc629c9b36d095a2a9bc85a13a17830dc294edddfc9075fc75b11f728104a1965a757dea2441b4c8b0b6d1a32e743847a2aac2b25eaaac9e81e987573d2a8e1812c1d91cb00adb8057251c3c4f72a7d88e8b40265dc91b00d8b41acf95f3380b80eac000b7e39784b2ea48d77e12eb019dfcde01a74e0f5b48440574464829ae6868bf5f3bc2f7642205b83352bc6f9c8bbf9476ade406fb472c15ebff9b08091644a2bd19099215f3f80174a01fda9946310c876f4b3aa4a434dad4d0f4731575d2ec2df4271993d565d110baeea4ecf2651d57c6df9ab502882d60379ab55226b00bec3f6c9d890e2407f6e548e7c7dae67541768c462c5c5e8d68c52249b0cb9137e38da6814162baf44b41ea5e15aa65dc472",
+            "payload_length": 333,
+            "format": "resource_hash(32) + msgpack([segment, hashmap])",
+            "packet_context": "RESOURCE_HMU (0x04)"
+          },
+          {
+            "hmu_index": 1,
+            "triggered_at_round": 18,
+            "segment": 2,
+            "hash_count": 74,
+            "payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d244499202c501281701c7a1d32189981466537c8d3e2748d037b1a957587aeb0064fe482127150aacb0022342788d7f74fa02cb17d29148c64dd418b2c3408cb20cf7c81feeaa9bafef821887fd34d028060ab27845ab9af73da8e6d5adcc3cd0dc82382814b890e0a89fef0892c90cfe702d727e588a8094872a8e082dba432a873a19a2e1647b891eb5b204fcf107478693e0f23cada39327fb0a01410a0a7fe12b5f8ce125fb210439af8aacfdaf027cde1f69329e03a11690be050c3a9d6a8e4f45d17d58d01e63a2c7764e36767c66ffbe2568dfdd59800d8f5975615b56ec1805fdaa7c50f70ff0e5f950f6a280184abc6cd5b951c78c31c1d3bc884d22abe435a774012c5c115d44cf5a13aa2b078939fe3bf0a26464ee7fc3e5f07ec23f5a9ecd1d43ea039061e81cdd68b3",
+            "payload_length": 333,
+            "format": "resource_hash(32) + msgpack([segment, hashmap])",
+            "packet_context": "RESOURCE_HMU (0x04)"
+          },
+          {
+            "hmu_index": 2,
+            "triggered_at_round": 26,
+            "segment": 3,
+            "hash_count": 74,
+            "payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d244499203c501285b4f794b4a7f0e41cdf58108a5fa56e5b96f8cf2321d642de219064fbef8058ce29e5b5f68636b0f57705540aabb616f5cdead3c942ca77b0b0d9087bb9d876989ef0cbad241ebc7f04f0b8de2402918170d2f2a6f71b5bbfc107ce8dea5dbcae41e9c2fcf9f2666d72ba67a6e1bb0130df72fd3c0ec137f296f2ec6b45439eaf4f4a932f732bdd4a9cebf5f0057ca6fdb2aa72c25ed67d51cb29fe10986573c304ab1580b7441e7c16207aad02744be0b90808137d8026023165b2dcf350e3ea4decc0fcb477f4a59659197a24c6fb4ad2bff59ed2437d612411a534906175ba839db65f0fc98019d88df96bc2529db11fe1b77d5fdb5827eff68b0fb6fdf805c289fe44a9a63f7a9bdff2891c7145f559302abb151b87e40d53292b5aa720d063373404dee8725",
+            "payload_length": 333,
+            "format": "resource_hash(32) + msgpack([segment, hashmap])",
+            "packet_context": "RESOURCE_HMU (0x04)"
+          },
+          {
+            "hmu_index": 3,
+            "triggered_at_round": 34,
+            "segment": 4,
+            "hash_count": 74,
+            "payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d244499204c50128cecfe2934e8a97c76e466f5b2479820df6723e886a4012b9cfb440e8e71a3b5d6570dcc41ad916d9cd0ab3edf6c66032cf6ff1260f1858823491bfb60ea7d1a0ab52ba1e5ce671ae629b12d7408b4120a0e30f7ca7644e3aa99fd330e721f7e6dd1cf273b6e1027321545543cdc89ed3f2a665363d248f24d85f0df642020179ad265951d8a5c2644d296045781227b0269552641cfa9d50fddf0f9df1c0ce03d6ee5c62cfcd7a9f2b70f06d3ee49608bab157eb6d80741a783677da70a45e9b8515084346b0f6b1b73872738561d9ae9007ad1f967d8aabe6c2584bdd4810efd5fd8821f1d8932295e038fddc9d5c931681e0465b71548bbd303f0008aae0cba96f65860dd17be04cc337a690f91e4bdabea2bb7c351b71658f3c0cd364417fb642387e993acd20",
+            "payload_length": 333,
+            "format": "resource_hash(32) + msgpack([segment, hashmap])",
+            "packet_context": "RESOURCE_HMU (0x04)"
+          },
+          {
+            "hmu_index": 4,
+            "triggered_at_round": 42,
+            "segment": 5,
+            "hash_count": 74,
+            "payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d244499205c5012821054e293e5623d50f1e80fbde4dc7817fd2b61c5aa64172ff4b8b94edbaa5ea641c4c70543ebae5db217b4790c5a69afe90b01afda823d4bd63b84ef2c39cd2b115d9686ffe19eacd63533130b52417a56327d724ff0dfc9f9f22160e67e883d2da8e6dedb7962d176b9b645fc365aca6b01dd4c2ef9004a28556d7bbf485d70408b54118e5c4e61564e1d76e9e1f29d11077e6a191b60b87cf199549778eb676f468024e875756ff0b3b84f1c19ec8643ddfde6fc02520ae9644d6bf53e95a76b35818f59e80c5b04d87e6361fdc86dc8221a449a2921c72beccc824fc27f60642c2bfec22250f283389b37851306b267828addac398bb654ea8f16dc471298eeabade70484d08d4a1e89d4fb8b165e67c4629b81711a20a8841a5cd8ddf73d55c9890ee5dc076",
+            "payload_length": 333,
+            "format": "resource_hash(32) + msgpack([segment, hashmap])",
+            "packet_context": "RESOURCE_HMU (0x04)"
+          },
+          {
+            "hmu_index": 5,
+            "triggered_at_round": 50,
+            "segment": 6,
+            "hash_count": 74,
+            "payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d244499206c501282e42f9c1f2ccbc83e53c73b101d066f3d22aae98e4bd6fa07ccffa1fecb1c4f0f2a4a7cbaea3668c155c66a771ae097bc21b12c6d3d34a5251e596fb9c32fc25991a2a50b1af1b70bb20100078edab99b2015099e34c770b5fa2d34b21c75337759a9f78dd05af90db1860bb967ee2613d857e2f9009488065bc6ec4b2226797391a27f56f576d402fe029bec58bc4b0ad7946dd821947d0021944041a562f23101dadd3d9ab9c2e7585f41359907c6592c99b1c7e7413e14f91d1e8ec2ebe618df86badbdc6f844077048a891fbfaf5381c3c81ec3c79dc425ea40cddf5306fc5e217b39296751e1f3c8d37661634a13f3daa81241384e5cf000ae2d6d632fae4266353011f0e5b04f12ef08c6ef85529759d026a7f701643255bd5d3edcf86a4d5d04f55cbb68e",
+            "payload_length": 333,
+            "format": "resource_hash(32) + msgpack([segment, hashmap])",
+            "packet_context": "RESOURCE_HMU (0x04)"
+          },
+          {
+            "hmu_index": 6,
+            "triggered_at_round": 58,
+            "segment": 7,
+            "hash_count": 34,
+            "payload_hex": "679eac7304c40a36eeded5870b9d4b17392dcc904c2554386e8e645aa2d244499207c488b9f971246a88e15995a4536743ee6efa1b1823ccf99788bfdff27695a5f280d9f9c7ddab2aa8b7b9ed5a5957232d4b0e5be6f672d2817c588060b1fb160153c3074844895db845a24a9ae6f37a6e7f95f4e0292ad4266c03765906f2756ca9f0960c303ef57f465c82f73a9289b7d95ca57a2ae46cb380c66f1a8f585f73d04b974c998436840454",
+            "payload_length": 172,
+            "format": "resource_hash(32) + msgpack([segment, hashmap])",
+            "packet_context": "RESOURCE_HMU (0x04)"
+          }
+        ]
+      },
+      "data_integrity": {
+        "original_sha256": "f13f96bb3827f438594e45d8e97453b5de99836f8b9c0a602d048effbc4486d1",
+        "reconstructed_sha256": "f13f96bb3827f438594e45d8e97453b5de99836f8b9c0a602d048effbc4486d1",
+        "match": true
+      },
+      "state_machine_sequence": [
+        {
+          "side": "sender",
+          "event": "prepare_advertisement",
+          "state_before": "QUEUED",
+          "state_after": "ADVERTISED",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "accept_advertisement",
+          "state_before": "NONE",
+          "state_after": "TRANSFERRING",
+          "callback": "resource_started"
+        },
+        {
+          "side": "receiver",
+          "event": "request_parts",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "sender",
+          "event": "send_parts",
+          "state_before": "ADVERTISED",
+          "state_after": "TRANSFERRING",
+          "callback": null
+        },
+        {
+          "side": "both",
+          "event": "transfer_rounds",
+          "state_before": "TRANSFERRING",
+          "state_after": "TRANSFERRING",
+          "callback": "progress_callback",
+          "details": "62 rounds, 7 HMU updates"
+        },
+        {
+          "side": "receiver",
+          "event": "assemble",
+          "state_before": "TRANSFERRING",
+          "state_after": "ASSEMBLING",
+          "callback": null
+        },
+        {
+          "side": "receiver",
+          "event": "verify_and_prove",
+          "state_before": "ASSEMBLING",
+          "state_after": "COMPLETE",
+          "callback": "resource_concluded"
+        },
+        {
+          "side": "sender",
+          "event": "validate_proof",
+          "state_before": "TRANSFERRING",
+          "state_after": "COMPLETE",
+          "callback": "completion_callback"
+        }
+      ]
     }
   ],
   "cancellation_vectors": [

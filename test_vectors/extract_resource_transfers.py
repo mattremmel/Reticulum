@@ -16,6 +16,9 @@ Covers:
     3. Sender sends part data
     4. Receiver assembles and proves
     5. Sender validates proof
+  - Mini resource (256KB) multi-part transfer sequence:
+    552 parts, 8 hashmap segments, 7 HMU packets, 62 transfer rounds
+    with windowed request/response and hashmap exhaustion handling
   - Data integrity verification
   - Callback and state machine sequence
   - Cancellation payload vectors (ICL, RCL)
@@ -486,7 +489,403 @@ def build_transfer_sequence(derived_key):
         ],
     }
 
-    return [vector]
+    micro_vector = vector
+    mini_vector = build_mini_transfer_sequence(derived_key)
+    return [micro_vector, mini_vector]
+
+
+def build_mini_transfer_sequence(derived_key):
+    """Build the 256KB multi-part resource transfer sequence.
+
+    Simulates the full windowed transfer protocol:
+      - 552 parts, 8 hashmap segments, 7 HMU packets
+      - 62 transfer rounds with window growing from 4 to 10
+      - Full assembly, proof, and validation
+    """
+    from RNS.vendor import umsgpack
+
+    idx = 1  # Case 1: mini resource, 256KB
+
+    # --- Phase A: Prepare & encrypt ---
+    input_data = deterministic_data(idx, 256000)
+    input_sha256 = full_hash(input_data).hex()
+
+    # Attempt compression (SHA-256 expanded data is incompressible)
+    compressed_data = bz2.compress(input_data)
+    compression_helps = len(compressed_data) < len(input_data)
+    assert not compression_helps, "Expected incompressible data"
+
+    random_hash = deterministic_random_hash(idx)
+    iv = deterministic_iv(idx)
+
+    data_with_metadata = input_data  # no metadata
+
+    # Pre-encryption data: random_hash(4) + payload
+    pre_encryption_data = random_hash + data_with_metadata
+
+    # Encrypt
+    encrypted_data = token_encrypt_deterministic(pre_encryption_data, derived_key, iv)
+    encrypted_size = len(encrypted_data)
+    encrypted_sha256 = full_hash(encrypted_data).hex()
+
+    # --- Phase B: Segment into parts & compute hashmap ---
+    sdu = RESOURCE_SDU
+    num_parts = int(math.ceil(encrypted_size / float(sdu)))
+    assert num_parts == 552, f"Expected 552 parts, got {num_parts}"
+
+    parts = []
+    hashmap_raw = b""
+    for i in range(num_parts):
+        part_data = encrypted_data[i * sdu:(i + 1) * sdu]
+        parts.append(part_data)
+        map_hash = get_map_hash(part_data, random_hash)
+        hashmap_raw += map_hash
+
+    total_hashmap_bytes = len(hashmap_raw)
+    assert total_hashmap_bytes == num_parts * MAPHASH_LEN
+
+    # Verify last part size
+    last_part_size = len(parts[-1])
+    assert last_part_size == 400, f"Expected last part 400 bytes, got {last_part_size}"
+
+    # Organize hashmap by segment
+    num_segments = int(math.ceil(num_parts / HASHMAP_MAX_LEN))
+    assert num_segments == 8
+
+    hashmap_by_segment = []
+    for seg in range(num_segments):
+        seg_start = seg * HASHMAP_MAX_LEN
+        seg_end = min((seg + 1) * HASHMAP_MAX_LEN, num_parts)
+        seg_hash_count = seg_end - seg_start
+        seg_hashmap = hashmap_raw[seg_start * MAPHASH_LEN:seg_end * MAPHASH_LEN]
+        hashmap_by_segment.append({
+            "segment": seg,
+            "hash_count": seg_hash_count,
+            "hashmap_hex": seg_hashmap.hex(),
+        })
+
+    # --- Phase C: Compute resource hash & expected proof ---
+    resource_hash = full_hash(data_with_metadata + random_hash)
+    original_hash = resource_hash
+    expected_proof = full_hash(data_with_metadata + resource_hash)
+
+    # --- Phase D: Build 5-step transfer vector ---
+
+    # Flags: encrypted=True, compressed=False, split=False, no request/response, no metadata
+    flags = 0x01
+
+    # Step 1: Advertisement
+    adv_hashmap = hashmap_raw[:HASHMAP_MAX_LEN * MAPHASH_LEN]
+    adv_dict = {
+        "t": encrypted_size,
+        "d": len(data_with_metadata),
+        "n": num_parts,
+        "h": resource_hash,
+        "r": random_hash,
+        "o": original_hash,
+        "i": 1,
+        "l": 1,
+        "q": None,
+        "f": flags,
+        "m": adv_hashmap,
+    }
+    adv_packed = umsgpack.packb(adv_dict)
+
+    step_1 = {
+        "step": 1,
+        "name": "sender_prepare_advertisement",
+        "advertisement_packed_hex": adv_packed.hex(),
+        "advertisement_packed_length": len(adv_packed),
+        "advertisement_dict": {
+            "t": encrypted_size,
+            "d": len(data_with_metadata),
+            "n": num_parts,
+            "h": resource_hash.hex(),
+            "r": random_hash.hex(),
+            "o": original_hash.hex(),
+            "i": 1,
+            "l": 1,
+            "q": None,
+            "f": flags,
+            "m": adv_hashmap.hex(),
+        },
+        "resource_hash_hex": resource_hash.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "hashmap_hex": adv_hashmap.hex(),
+        "num_parts": num_parts,
+        "encrypted_data_length": encrypted_size,
+        "flags": flags,
+        "flags_hex": f"0x{flags:02x}",
+        "expected_proof_hex": expected_proof.hex(),
+        "sender_state_before": "QUEUED",
+        "sender_state_after": "ADVERTISED",
+        "packet_context": f"RESOURCE_ADV (0x{CONTEXT_RESOURCE_ADV:02x})",
+    }
+
+    # Step 2: Simulate windowed transfer protocol (62 rounds)
+    window = WINDOW  # 4
+    window_max = WINDOW_MAX_SLOW  # 10
+    window_min = WINDOW_MIN  # 2
+    window_flexibility = WINDOW_FLEXIBILITY  # 4
+    hashmap_height = HASHMAP_MAX_LEN  # 74 hashes from advertisement
+    received_count = 0
+    consecutive_completed = -1
+    receiver_parts = [None] * num_parts
+
+    rounds_summary = []
+    representative_round_indices = set()
+    hmu_packets = []
+    total_rounds = 0
+
+    while received_count < num_parts:
+        total_rounds += 1
+
+        # --- Request phase (request_next logic) ---
+        search_start = consecutive_completed + 1
+        hashmap_exhausted = False
+        requested_hashes = b""
+        requested_indices = []
+        outstanding = 0
+
+        pn = search_start
+        for _ in range(window):
+            if pn >= num_parts:
+                break
+            if pn < hashmap_height:
+                part_hash = hashmap_raw[pn * MAPHASH_LEN:(pn + 1) * MAPHASH_LEN]
+                requested_hashes += part_hash
+                requested_indices.append(pn)
+                outstanding += 1
+            else:
+                hashmap_exhausted = True
+                break
+            pn += 1
+
+        # Build request payload
+        if hashmap_exhausted:
+            hmu_flag = bytes([HASHMAP_IS_EXHAUSTED])
+            last_map_hash = hashmap_raw[(hashmap_height - 1) * MAPHASH_LEN:hashmap_height * MAPHASH_LEN]
+            hmu_part = hmu_flag + last_map_hash
+        else:
+            hmu_part = bytes([HASHMAP_IS_NOT_EXHAUSTED])
+
+        request_payload = hmu_part + resource_hash + requested_hashes
+
+        # --- Receive phase (sender sends parts) ---
+        for pi in requested_indices:
+            receiver_parts[pi] = parts[pi]
+            received_count += 1
+            # Update consecutive completed height
+            if pi == consecutive_completed + 1:
+                consecutive_completed = pi
+            cp = consecutive_completed + 1
+            while cp < num_parts and receiver_parts[cp] is not None:
+                consecutive_completed = cp
+                cp += 1
+
+        # Build round summary
+        round_info = {
+            "round": total_rounds,
+            "window": window,
+            "parts_requested": len(requested_indices),
+            "parts_requested_indices_first": requested_indices[0] if requested_indices else None,
+            "parts_requested_indices_last": requested_indices[-1] if requested_indices else None,
+            "received_total": received_count,
+            "consecutive_completed": consecutive_completed,
+            "hashmap_exhausted": hashmap_exhausted,
+            "hashmap_height": hashmap_height,
+        }
+
+        # Handle HMU if hashmap exhausted
+        if hashmap_exhausted:
+            segment = hashmap_height // HASHMAP_MAX_LEN
+            seg_start = segment * HASHMAP_MAX_LEN
+            seg_end = min((segment + 1) * HASHMAP_MAX_LEN, num_parts)
+            seg_hashmap = hashmap_raw[seg_start * MAPHASH_LEN:seg_end * MAPHASH_LEN]
+            hmu_payload = resource_hash + umsgpack.packb([segment, seg_hashmap])
+
+            hmu_packets.append({
+                "hmu_index": len(hmu_packets),
+                "triggered_at_round": total_rounds,
+                "segment": segment,
+                "hash_count": seg_end - seg_start,
+                "payload_hex": hmu_payload.hex(),
+                "payload_length": len(hmu_payload),
+                "format": f"resource_hash({HASHLENGTH_BYTES}) + msgpack([segment, hashmap])",
+                "packet_context": f"RESOURCE_HMU (0x{CONTEXT_RESOURCE_HMU:02x})",
+            })
+
+            round_info["hmu_segment"] = segment
+            hashmap_height += (seg_end - seg_start)
+
+        rounds_summary.append(round_info)
+
+        # Window growth (when outstanding == 0 after receiving all requested)
+        if window < window_max:
+            window += 1
+            if (window - window_min) > (window_flexibility - 1):
+                window_min += 1
+
+    assert total_rounds == 62, f"Expected 62 rounds, got {total_rounds}"
+    assert len(hmu_packets) == 7, f"Expected 7 HMU packets, got {len(hmu_packets)}"
+    assert received_count == num_parts
+
+    # Representative rounds: 1, 10, 18, 62
+    rep_round_numbers = [1, 10, 18, 62]
+    representative_rounds = []
+    for rn in rep_round_numbers:
+        r = rounds_summary[rn - 1]
+        # Build full detail for representative rounds
+        ri_first = r["parts_requested_indices_first"]
+        ri_last = r["parts_requested_indices_last"]
+        rep = dict(r)
+        if ri_first is not None:
+            rep["first_part_hex"] = hex_prefix(parts[ri_first], 32)
+            rep["first_part_length"] = len(parts[ri_first])
+            rep["last_part_hex"] = hex_prefix(parts[ri_last], 32)
+            rep["last_part_length"] = len(parts[ri_last])
+        representative_rounds.append(rep)
+
+    step_2 = {
+        "step": 2,
+        "name": "transfer_protocol_simulation",
+        "total_rounds": total_rounds,
+        "final_window": window,
+        "initial_window": WINDOW,
+        "window_max": WINDOW_MAX_SLOW,
+        "receiver_state": "TRANSFERRING",
+        "packet_context_req": f"RESOURCE_REQ (0x{CONTEXT_RESOURCE_REQ:02x})",
+        "packet_context_data": f"RESOURCE (0x{CONTEXT_RESOURCE:02x})",
+    }
+
+    transfer_protocol = {
+        "total_rounds": total_rounds,
+        "initial_window": WINDOW,
+        "final_window": window,
+        "window_max": WINDOW_MAX_SLOW,
+        "rounds_summary": rounds_summary,
+        "representative_rounds": representative_rounds,
+        "hmu_packets": hmu_packets,
+    }
+
+    # Step 3: Assembly
+    joined_parts = b"".join(receiver_parts)
+    assert len(joined_parts) == encrypted_size
+
+    decrypted = token_decrypt(joined_parts, derived_key)
+    stripped_data = decrypted[RANDOM_HASH_SIZE:]
+
+    calculated_hash = full_hash(stripped_data + random_hash)
+    hash_verified = calculated_hash == resource_hash
+    assert hash_verified, "Assembly hash verification failed"
+    assert stripped_data == input_data, "Assembled data doesn't match input"
+
+    step_3 = {
+        "step": 3,
+        "name": "receiver_assemble",
+        "assembly": {
+            "joined_parts_length": len(joined_parts),
+            "joined_parts_sha256": full_hash(joined_parts).hex(),
+            "decrypted_length": len(decrypted),
+            "stripped_data_length": len(stripped_data),
+            "stripped_data_sha256": full_hash(stripped_data).hex(),
+            "hash_verified": hash_verified,
+            "calculated_hash_hex": calculated_hash.hex(),
+        },
+        "receiver_state_sequence": ["TRANSFERRING", "ASSEMBLING", "COMPLETE"],
+    }
+
+    # Step 4: Proof
+    proof = full_hash(stripped_data + resource_hash)
+    proof_data = resource_hash + proof
+    assert proof == expected_proof, "Proof doesn't match expected"
+
+    step_4 = {
+        "step": 4,
+        "name": "receiver_prove",
+        "proof_payload_hex": proof_data.hex(),
+        "proof_payload_length": len(proof_data),
+        "proof_breakdown": {
+            "resource_hash_hex": resource_hash.hex(),
+            "proof_hex": proof.hex(),
+        },
+        "proof_layout": f"resource_hash({HASHLENGTH_BYTES}) + proof({HASHLENGTH_BYTES}) = {len(proof_data)}",
+        "packet_context": f"RESOURCE_PRF (0x{CONTEXT_RESOURCE_PRF:02x})",
+    }
+
+    # Step 5: Validation
+    proof_valid = (
+        len(proof_data) == HASHLENGTH_BYTES * 2
+        and proof_data[HASHLENGTH_BYTES:] == expected_proof
+    )
+    assert proof_valid, "Proof validation failed"
+
+    step_5 = {
+        "step": 5,
+        "name": "sender_validate_proof",
+        "proof_valid": proof_valid,
+        "validation": {
+            "proof_data_length_check": f"len({len(proof_data)}) == HASHLENGTH_BYTES*2({HASHLENGTH_BYTES * 2})",
+            "proof_hash_check": f"proof_data[{HASHLENGTH_BYTES}:] == expected_proof",
+        },
+        "sender_state": "COMPLETE",
+        "callbacks_fired": ["completion_callback"],
+    }
+
+    # Representative parts: 0, 73, 74, 551
+    rep_part_indices = [0, 73, 74, 551]
+    representative_parts = []
+    for pi in rep_part_indices:
+        representative_parts.append({
+            "part_index": pi,
+            "part_data_hex": hex_prefix(parts[pi], 64),
+            "part_data_length": len(parts[pi]),
+            "map_hash_hex": hashmap_raw[pi * MAPHASH_LEN:(pi + 1) * MAPHASH_LEN].hex(),
+        })
+
+    reconstructed_sha256 = full_hash(stripped_data).hex()
+
+    vector = {
+        "index": 1,
+        "description": "Mini resource (256KB) multi-part transfer with windowed request/response and hashmap updates",
+        "input_data_length": 256000,
+        "input_sha256": input_sha256,
+        "encrypted_data_length": encrypted_size,
+        "encrypted_data_sha256": encrypted_sha256,
+        "num_parts": num_parts,
+        "sdu": sdu,
+        "last_part_size": last_part_size,
+        "compression_attempted": True,
+        "compression_used": False,
+        "hashmap_by_segment": hashmap_by_segment,
+        "total_hashmap_hex": hashmap_raw.hex(),
+        "representative_parts": representative_parts,
+        "derived_key_hex": derived_key.hex(),
+        "deterministic_iv_hex": iv.hex(),
+        "random_hash_hex": random_hash.hex(),
+        "resource_hash_hex": resource_hash.hex(),
+        "expected_proof_hex": expected_proof.hex(),
+        "steps": [step_1, step_2, step_3, step_4, step_5],
+        "transfer_protocol": transfer_protocol,
+        "data_integrity": {
+            "original_sha256": input_sha256,
+            "reconstructed_sha256": reconstructed_sha256,
+            "match": input_sha256 == reconstructed_sha256,
+        },
+        "state_machine_sequence": [
+            {"side": "sender",   "event": "prepare_advertisement", "state_before": "QUEUED",       "state_after": "ADVERTISED",   "callback": None},
+            {"side": "receiver", "event": "accept_advertisement",  "state_before": "NONE",         "state_after": "TRANSFERRING", "callback": "resource_started"},
+            {"side": "receiver", "event": "request_parts",         "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": None},
+            {"side": "sender",   "event": "send_parts",            "state_before": "ADVERTISED",   "state_after": "TRANSFERRING", "callback": None},
+            {"side": "both",     "event": "transfer_rounds",       "state_before": "TRANSFERRING", "state_after": "TRANSFERRING", "callback": "progress_callback",
+             "details": f"{total_rounds} rounds, {len(hmu_packets)} HMU updates"},
+            {"side": "receiver", "event": "assemble",              "state_before": "TRANSFERRING", "state_after": "ASSEMBLING",   "callback": None},
+            {"side": "receiver", "event": "verify_and_prove",      "state_before": "ASSEMBLING",   "state_after": "COMPLETE",     "callback": "resource_concluded"},
+            {"side": "sender",   "event": "validate_proof",        "state_before": "TRANSFERRING", "state_after": "COMPLETE",     "callback": "completion_callback"},
+        ],
+    }
+
+    return vector
 
 
 def build_cancellation_vectors():
@@ -617,6 +1016,75 @@ def verify(output, derived_key):
     assert adv["r"] == bytes.fromhex(step_1["random_hash_hex"])
     assert adv["f"] == step_1["flags"]
     print("    [OK] Advertisement msgpack unpack verified")
+
+    # --- Mini vector (256KB) verification ---
+    mini_vec = output["transfer_sequence_vectors"][1]
+
+    # 10. Verify encrypted data independently
+    idx = 1
+    mini_input = deterministic_data(idx, 256000)
+    mini_random_hash = deterministic_random_hash(idx)
+    mini_iv = deterministic_iv(idx)
+    mini_pre = mini_random_hash + mini_input
+    mini_encrypted = token_encrypt_deterministic(mini_pre, derived_key, mini_iv)
+    assert full_hash(mini_encrypted).hex() == mini_vec["encrypted_data_sha256"], \
+        "Mini vector: encrypted data SHA256 mismatch"
+    assert len(mini_encrypted) == mini_vec["encrypted_data_length"], \
+        "Mini vector: encrypted data length mismatch"
+    print("    [OK] Mini vector: encrypted data independently verified")
+
+    # 11. Verify hashmap independently
+    sdu = RESOURCE_SDU
+    mini_num_parts = mini_vec["num_parts"]
+    assert mini_num_parts == 552
+    regen_hashmap = b""
+    for i in range(mini_num_parts):
+        part = mini_encrypted[i * sdu:(i + 1) * sdu]
+        regen_hashmap += get_map_hash(part, mini_random_hash)
+    assert regen_hashmap.hex() == mini_vec["total_hashmap_hex"], \
+        "Mini vector: hashmap mismatch"
+    print("    [OK] Mini vector: hashmap independently verified")
+
+    # 12. Verify resource hash and expected proof
+    mini_resource_hash = full_hash(mini_input + mini_random_hash)
+    assert mini_resource_hash.hex() == mini_vec["resource_hash_hex"], \
+        "Mini vector: resource hash mismatch"
+    mini_expected_proof = full_hash(mini_input + mini_resource_hash)
+    assert mini_expected_proof.hex() == mini_vec["expected_proof_hex"], \
+        "Mini vector: expected proof mismatch"
+    print("    [OK] Mini vector: resource hash and expected proof verified")
+
+    # 13. Verify assembly round-trip
+    mini_decrypted = token_decrypt(mini_encrypted, derived_key)
+    mini_stripped = mini_decrypted[RANDOM_HASH_SIZE:]
+    assert mini_stripped == mini_input, "Mini vector: assembly round-trip data mismatch"
+    assert mini_vec["data_integrity"]["match"] is True, "Mini vector: data integrity check failed"
+    print("    [OK] Mini vector: assembly round-trip verified")
+
+    # 14. Verify transfer protocol counts
+    tp = mini_vec["transfer_protocol"]
+    assert tp["total_rounds"] == 62, f"Mini vector: expected 62 rounds, got {tp['total_rounds']}"
+    assert len(tp["hmu_packets"]) == 7, f"Mini vector: expected 7 HMU packets, got {len(tp['hmu_packets'])}"
+    print("    [OK] Mini vector: 62 rounds, 7 HMU packets verified")
+
+    # 15. Verify HMU packet format
+    first_hmu = tp["hmu_packets"][0]
+    first_hmu_payload = bytes.fromhex(first_hmu["payload_hex"])
+    assert first_hmu_payload[:HASHLENGTH_BYTES] == mini_resource_hash, \
+        "Mini vector: first HMU doesn't start with resource_hash"
+    hmu_body = umsgpack.unpackb(first_hmu_payload[HASHLENGTH_BYTES:])
+    assert isinstance(hmu_body, list) and len(hmu_body) == 2, \
+        "Mini vector: HMU body is not [segment, hashmap]"
+    assert hmu_body[0] == first_hmu["segment"], \
+        "Mini vector: HMU segment index mismatch"
+    print("    [OK] Mini vector: HMU packet format verified")
+
+    # 16. Verify hashmap segments
+    assert len(mini_vec["hashmap_by_segment"]) == 8, "Mini vector: expected 8 segments"
+    for seg_info in mini_vec["hashmap_by_segment"][:7]:
+        assert seg_info["hash_count"] == 74, f"Mini vector: segment {seg_info['segment']} expected 74 hashes"
+    assert mini_vec["hashmap_by_segment"][7]["hash_count"] == 34, "Mini vector: last segment expected 34 hashes"
+    print("    [OK] Mini vector: hashmap segment structure verified")
 
 
 def verify_library_constants():
