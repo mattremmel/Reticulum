@@ -115,6 +115,68 @@ def get_packet_timeout_time(tries, rtt, tx_ring_length):
     return pow(1.5, tries - 1) * max(rtt * 2.5, 0.025) * (tx_ring_length + 1.5)
 
 
+def sim_emplace(ring, new_seq, next_rx_seq):
+    """Reproduce Channel._emplace_envelope() (Channel.py:388-409) purely computationally.
+
+    ring: list of sequence numbers (ordered)
+    Returns (success: bool, ring_after: list)
+    """
+    ring = list(ring)  # copy
+    for i, existing_seq in enumerate(ring):
+        if new_seq == existing_seq:
+            return False, ring  # duplicate
+        if new_seq < existing_seq and not (next_rx_seq - new_seq) > (SEQ_MAX // 2):
+            ring.insert(i, new_seq)
+            return True, ring
+    ring.append(new_seq)
+    return True, ring
+
+
+def sim_receive(ring, next_rx_seq, incoming_seq):
+    """Reproduce Channel._receive() (Channel.py:421-465) purely computationally.
+
+    ring: list of sequence numbers in the rx_ring
+    Returns (accepted, reason, delivered_seqs, ring_after, next_rx_after)
+      - accepted: True if envelope was accepted (not old, not duplicate)
+      - reason: string describing what happened
+      - delivered_seqs: list of sequences delivered contiguously
+      - ring_after: ring state after processing
+      - next_rx_after: next_rx_sequence after processing
+    """
+    # Step 1: Old-sequence rejection (lines 427-435)
+    if incoming_seq < next_rx_seq:
+        window_overflow = (next_rx_seq + WINDOW_MAX) % SEQ_MODULUS
+        if window_overflow < next_rx_seq:
+            if incoming_seq > window_overflow:
+                return False, "old_sequence_rejected", [], list(ring), next_rx_seq
+            # else: incoming is in wraparound window, proceed
+        else:
+            return False, "old_sequence_rejected", [], list(ring), next_rx_seq
+
+    # Step 2: Emplace (duplicate detection) (line 437)
+    is_new, ring_after = sim_emplace(ring, incoming_seq, next_rx_seq)
+    if not is_new:
+        return False, "duplicate_rejected", [], ring_after, next_rx_seq
+
+    # Step 3: Contiguous delivery scan (lines 443-453)
+    delivered = []
+    for seq in list(ring_after):
+        if seq == next_rx_seq:
+            delivered.append(seq)
+            next_rx_seq = (next_rx_seq + 1) % SEQ_MODULUS
+            if next_rx_seq == 0:
+                for seq2 in list(ring_after):
+                    if seq2 == next_rx_seq:
+                        delivered.append(seq2)
+                        next_rx_seq = (next_rx_seq + 1) % SEQ_MODULUS
+
+    # Remove delivered from ring
+    for d in delivered:
+        ring_after.remove(d)
+
+    return True, "accepted", delivered, ring_after, next_rx_seq
+
+
 # ============================================================
 # Extraction functions
 # ============================================================
@@ -1592,6 +1654,362 @@ def extract_registration_validation_vectors():
     return vectors
 
 
+def extract_sequence_dedup_vectors():
+    """Generate sequence number handling and deduplication test vectors.
+
+    Simulates Channel._receive() and Channel._emplace_envelope() state machines
+    to produce vectors covering:
+      - Duplicate rejection (in-ring and post-delivery old-sequence)
+      - Out-of-order arrival with in-order delivery
+      - Gap with partial delivery
+      - Wraparound during contiguous delivery
+      - Duplicate across wraparound boundary
+      - Ring ordering verification
+      - Extended TX progression across wraparound
+      - Wraparound-aware ring ordering
+    """
+    from RNS.vendor import umsgpack
+
+    MSGTYPE = 0xABCD
+
+    def make_envelope(seq, payload_str):
+        """Create envelope raw bytes for a given sequence and payload string."""
+        packed = umsgpack.packb(("dedup-test", payload_str))
+        return envelope_pack(MSGTYPE, seq, packed)
+
+    vectors = []
+
+    # === Scenario 0: Basic duplicate rejection ===
+    # Send seq 5, then seq 5 again (duplicate in ring), then send seq 5 after delivery (old)
+    scenario_0_steps = []
+    ring = []
+    next_rx = 5
+
+    # Step 0: Receive seq 5 — accepted, delivered immediately
+    env = make_envelope(5, "msg-5")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 5)
+    scenario_0_steps.append({
+        "step": 0,
+        "incoming_sequence": 5,
+        "envelope_raw_hex": env.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    # Step 1: Receive seq 6, then try seq 6 again (duplicate in ring before delivery)
+    # First, receive seq 7 (out of order, buffered)
+    env7 = make_envelope(7, "msg-7")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 7)
+    scenario_0_steps.append({
+        "step": 1,
+        "incoming_sequence": 7,
+        "envelope_raw_hex": env7.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    # Step 2: Receive seq 7 again — duplicate in ring
+    env7dup = make_envelope(7, "msg-7-dup")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 7)
+    scenario_0_steps.append({
+        "step": 2,
+        "incoming_sequence": 7,
+        "envelope_raw_hex": env7dup.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    # Step 3: Receive seq 5 again — old sequence (already delivered, next_rx=6)
+    env5old = make_envelope(5, "msg-5-old")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 5)
+    scenario_0_steps.append({
+        "step": 3,
+        "incoming_sequence": 5,
+        "envelope_raw_hex": env5old.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    vectors.append({
+        "index": 0,
+        "description": "Basic duplicate rejection: in-ring duplicate and post-delivery old sequence",
+        "initial_state": {"ring": [], "next_rx_sequence": 5},
+        "steps": scenario_0_steps,
+    })
+
+    # === Scenario 1: Out-of-order with in-order delivery ===
+    # Messages arrive as seq 2, 0, 1 → delivered 0, 1, 2
+    scenario_1_steps = []
+    ring = []
+    next_rx = 0
+
+    # Step 0: Receive seq 2 — buffered, not delivered
+    env = make_envelope(2, "msg-2")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 2)
+    scenario_1_steps.append({
+        "step": 0,
+        "incoming_sequence": 2,
+        "envelope_raw_hex": env.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    # Step 1: Receive seq 0 — delivered immediately
+    env = make_envelope(0, "msg-0")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 0)
+    scenario_1_steps.append({
+        "step": 1,
+        "incoming_sequence": 0,
+        "envelope_raw_hex": env.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    # Step 2: Receive seq 1 — triggers delivery of 1 and buffered 2
+    env = make_envelope(1, "msg-1")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 1)
+    scenario_1_steps.append({
+        "step": 2,
+        "incoming_sequence": 1,
+        "envelope_raw_hex": env.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    vectors.append({
+        "index": 1,
+        "description": "Out-of-order arrival (2,0,1) with contiguous in-order delivery",
+        "initial_state": {"ring": [], "next_rx_sequence": 0},
+        "steps": scenario_1_steps,
+    })
+
+    # === Scenario 2: Gap with partial delivery ===
+    # Receive 0, 1, 3, 4 — delivers 0,1 then buffers 3,4; receive 2 → delivers 2,3,4
+    scenario_2_steps = []
+    ring = []
+    next_rx = 0
+
+    for seq in [0, 1, 3, 4]:
+        env = make_envelope(seq, f"msg-{seq}")
+        accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, seq)
+        scenario_2_steps.append({
+            "step": len(scenario_2_steps),
+            "incoming_sequence": seq,
+            "envelope_raw_hex": env.hex(),
+            "accepted": accepted,
+            "reason": reason,
+            "delivered_sequences": delivered,
+            "ring_after": list(ring),
+            "next_rx_after": next_rx,
+        })
+
+    # Now receive seq 2 — fills the gap, delivers 2, 3, 4
+    env = make_envelope(2, "msg-2")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 2)
+    scenario_2_steps.append({
+        "step": len(scenario_2_steps),
+        "incoming_sequence": 2,
+        "envelope_raw_hex": env.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    vectors.append({
+        "index": 2,
+        "description": "Gap with partial delivery: 0,1 delivered; 3,4 buffered; 2 fills gap delivering 2,3,4",
+        "initial_state": {"ring": [], "next_rx_sequence": 0},
+        "steps": scenario_2_steps,
+    })
+
+    # === Scenario 3: Wraparound during contiguous delivery ===
+    # next_rx starts at 65534, receive 65534, 65535, 0 — all delivered contiguously
+    scenario_3_steps = []
+    ring = []
+    next_rx = 65534
+
+    for seq in [65534, 65535, 0]:
+        env = make_envelope(seq, f"msg-{seq}")
+        accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, seq)
+        scenario_3_steps.append({
+            "step": len(scenario_3_steps),
+            "incoming_sequence": seq,
+            "envelope_raw_hex": env.hex(),
+            "accepted": accepted,
+            "reason": reason,
+            "delivered_sequences": delivered,
+            "ring_after": list(ring),
+            "next_rx_after": next_rx,
+        })
+
+    vectors.append({
+        "index": 3,
+        "description": "Wraparound during contiguous delivery: seq 65534,65535,0 delivered across boundary",
+        "initial_state": {"ring": [], "next_rx_sequence": 65534},
+        "steps": scenario_3_steps,
+    })
+
+    # === Scenario 4: Duplicate across wraparound boundary ===
+    # Start at next_rx=65534, deliver 65534,65535,0,1 → next_rx=2
+    # Then try old sequences from both sides of the boundary
+    scenario_4_steps = []
+    ring = []
+    next_rx = 65534
+
+    for seq in [65534, 65535, 0, 1]:
+        env = make_envelope(seq, f"msg-{seq}")
+        accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, seq)
+        scenario_4_steps.append({
+            "step": len(scenario_4_steps),
+            "incoming_sequence": seq,
+            "envelope_raw_hex": env.hex(),
+            "accepted": accepted,
+            "reason": reason,
+            "delivered_sequences": delivered,
+            "ring_after": list(ring),
+            "next_rx_after": next_rx,
+        })
+
+    # Try old seq 65535 (pre-wraparound) — should be rejected
+    env = make_envelope(65535, "msg-65535-old")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 65535)
+    scenario_4_steps.append({
+        "step": len(scenario_4_steps),
+        "incoming_sequence": 65535,
+        "envelope_raw_hex": env.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    # Try old seq 0 (post-wraparound) — should be rejected
+    env = make_envelope(0, "msg-0-old")
+    accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, 0)
+    scenario_4_steps.append({
+        "step": len(scenario_4_steps),
+        "incoming_sequence": 0,
+        "envelope_raw_hex": env.hex(),
+        "accepted": accepted,
+        "reason": reason,
+        "delivered_sequences": delivered,
+        "ring_after": list(ring),
+        "next_rx_after": next_rx,
+    })
+
+    vectors.append({
+        "index": 4,
+        "description": "Duplicate across wraparound: deliver 65534-1, then reject old 65535 and old 0",
+        "initial_state": {"ring": [], "next_rx_sequence": 65534},
+        "steps": scenario_4_steps,
+    })
+
+    # === Scenario 5: Ring ordering verification ===
+    # Insert 6 out-of-order sequences, verify ring stays sorted
+    scenario_5_steps = []
+    ring = []
+    next_rx = 10
+
+    for seq in [15, 12, 18, 10, 14, 11]:
+        env = make_envelope(seq, f"msg-{seq}")
+        accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, seq)
+        scenario_5_steps.append({
+            "step": len(scenario_5_steps),
+            "incoming_sequence": seq,
+            "envelope_raw_hex": env.hex(),
+            "accepted": accepted,
+            "reason": reason,
+            "delivered_sequences": delivered,
+            "ring_after": list(ring),
+            "next_rx_after": next_rx,
+        })
+
+    vectors.append({
+        "index": 5,
+        "description": "Ring ordering: 6 out-of-order inserts maintain sorted ring with contiguous delivery",
+        "initial_state": {"ring": [], "next_rx_sequence": 10},
+        "steps": scenario_5_steps,
+    })
+
+    # === Scenario 6: Extended TX progression across wraparound ===
+    # 12 sends crossing 65535→0 boundary
+    scenario_6_steps = []
+    tx_seq = 65530
+
+    for i in range(12):
+        env = make_envelope(tx_seq, f"tx-msg-{i}")
+        scenario_6_steps.append({
+            "step": i,
+            "tx_sequence": tx_seq,
+            "envelope_raw_hex": env.hex(),
+            "next_tx_sequence": (tx_seq + 1) % SEQ_MODULUS,
+        })
+        tx_seq = (tx_seq + 1) % SEQ_MODULUS
+
+    vectors.append({
+        "index": 6,
+        "type": "tx_wraparound_progression",
+        "description": "Extended TX progression: 12 sends from seq 65530, crossing 65535→0 boundary",
+        "initial_tx_sequence": 65530,
+        "steps": scenario_6_steps,
+        "final_tx_sequence": tx_seq,
+    })
+
+    # === Scenario 7: Wraparound-aware ring ordering ===
+    # next_rx near SEQ_MAX, out-of-order arrivals spanning the boundary
+    scenario_7_steps = []
+    ring = []
+    next_rx = 65533
+
+    # Receive: 0 (wrapped), 65535, 65534, 65533 — ring should order correctly
+    for seq in [0, 65535, 65534, 65533]:
+        env = make_envelope(seq, f"msg-{seq}")
+        accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, seq)
+        scenario_7_steps.append({
+            "step": len(scenario_7_steps),
+            "incoming_sequence": seq,
+            "envelope_raw_hex": env.hex(),
+            "accepted": accepted,
+            "reason": reason,
+            "delivered_sequences": delivered,
+            "ring_after": list(ring),
+            "next_rx_after": next_rx,
+        })
+
+    vectors.append({
+        "index": 7,
+        "description": "Wraparound-aware ring ordering: next_rx=65533, arrivals 0,65535,65534,65533 sort correctly",
+        "initial_state": {"ring": [], "next_rx_sequence": 65533},
+        "steps": scenario_7_steps,
+    })
+
+    return vectors
+
+
 # ============================================================
 # Verification
 # ============================================================
@@ -1800,6 +2218,53 @@ def verify(output):
                         f"Reg validation {rv['index']}: system type with is_system_type=True should succeed"
     print(f"    [OK] {len(output['registration_validation_vectors'])} registration validation vectors verified")
 
+    # 13. Sequence dedup vectors
+    for sv in output["sequence_dedup_vectors"]:
+        if sv.get("type") == "tx_wraparound_progression":
+            # TX scenario: verify sequence arithmetic and envelope decoding
+            tx_seq = sv["initial_tx_sequence"]
+            for step in sv["steps"]:
+                assert step["tx_sequence"] == tx_seq, \
+                    f"Seq dedup {sv['index']} step {step['step']}: tx_sequence mismatch"
+                assert step["next_tx_sequence"] == (tx_seq + 1) % SEQ_MODULUS, \
+                    f"Seq dedup {sv['index']} step {step['step']}: next_tx_sequence mismatch"
+                # Verify envelope decodes correctly
+                env_raw = bytes.fromhex(step["envelope_raw_hex"])
+                dec_mt, dec_seq, dec_len, dec_data = envelope_unpack(env_raw)
+                assert dec_seq == tx_seq, \
+                    f"Seq dedup {sv['index']} step {step['step']}: envelope sequence mismatch"
+                assert dec_mt == 0xABCD, \
+                    f"Seq dedup {sv['index']} step {step['step']}: envelope msgtype mismatch"
+                tx_seq = (tx_seq + 1) % SEQ_MODULUS
+            assert tx_seq == sv["final_tx_sequence"], \
+                f"Seq dedup {sv['index']}: final tx sequence mismatch"
+        else:
+            # RX scenario: replay through sim_receive
+            initial = sv["initial_state"]
+            ring = list(initial["ring"])
+            next_rx = initial["next_rx_sequence"]
+
+            for step in sv["steps"]:
+                incoming = step["incoming_sequence"]
+                accepted, reason, delivered, ring, next_rx = sim_receive(ring, next_rx, incoming)
+                assert accepted == step["accepted"], \
+                    f"Seq dedup {sv['index']} step {step['step']}: accepted mismatch (got {accepted}, expected {step['accepted']})"
+                assert reason == step["reason"], \
+                    f"Seq dedup {sv['index']} step {step['step']}: reason mismatch (got {reason}, expected {step['reason']})"
+                assert delivered == step["delivered_sequences"], \
+                    f"Seq dedup {sv['index']} step {step['step']}: delivered mismatch (got {delivered}, expected {step['delivered_sequences']})"
+                assert ring == step["ring_after"], \
+                    f"Seq dedup {sv['index']} step {step['step']}: ring mismatch (got {ring}, expected {step['ring_after']})"
+                assert next_rx == step["next_rx_after"], \
+                    f"Seq dedup {sv['index']} step {step['step']}: next_rx mismatch (got {next_rx}, expected {step['next_rx_after']})"
+
+                # Verify envelope bytes decode correctly
+                env_raw = bytes.fromhex(step["envelope_raw_hex"])
+                dec_mt, dec_seq, dec_len, dec_data = envelope_unpack(env_raw)
+                assert dec_seq == incoming, \
+                    f"Seq dedup {sv['index']} step {step['step']}: envelope sequence mismatch"
+    print(f"    [OK] {len(output['sequence_dedup_vectors'])} sequence dedup vectors verified")
+
     # JSON round-trip
     json_str = json.dumps(output, indent=2)
     assert json.loads(json_str) == output, "JSON round-trip failed"
@@ -1900,6 +2365,10 @@ def main():
     rv_vectors = extract_registration_validation_vectors()
     print(f"  Extracted {len(rv_vectors)} registration validation vectors")
 
+    print("Extracting sequence dedup vectors...")
+    sd_vectors = extract_sequence_dedup_vectors()
+    print(f"  Extracted {len(sd_vectors)} sequence dedup vectors")
+
     output = {
         "description": "Reticulum v1.1.3 - channel/buffer protocol test vectors",
         "source": "RNS/Channel.py, RNS/Buffer.py",
@@ -1917,6 +2386,7 @@ def main():
         "send_receive_vectors": sr_vectors,
         "handler_chaining_vectors": hc_vectors,
         "registration_validation_vectors": rv_vectors,
+        "sequence_dedup_vectors": sd_vectors,
     }
 
     verify(output)

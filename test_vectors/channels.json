@@ -1483,5 +1483,557 @@
       "ce_type": 1,
       "factory_registered": false
     }
+  ],
+  "sequence_dedup_vectors": [
+    {
+      "index": 0,
+      "description": "Basic duplicate rejection: in-ring duplicate and post-delivery old sequence",
+      "initial_state": {
+        "ring": [],
+        "next_rx_sequence": 5
+      },
+      "steps": [
+        {
+          "step": 0,
+          "incoming_sequence": 5,
+          "envelope_raw_hex": "abcd0005001292aa64656475702d74657374a56d73672d35",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            5
+          ],
+          "ring_after": [],
+          "next_rx_after": 6
+        },
+        {
+          "step": 1,
+          "incoming_sequence": 7,
+          "envelope_raw_hex": "abcd0007001292aa64656475702d74657374a56d73672d37",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            7
+          ],
+          "next_rx_after": 6
+        },
+        {
+          "step": 2,
+          "incoming_sequence": 7,
+          "envelope_raw_hex": "abcd0007001692aa64656475702d74657374a96d73672d372d647570",
+          "accepted": false,
+          "reason": "duplicate_rejected",
+          "delivered_sequences": [],
+          "ring_after": [
+            7
+          ],
+          "next_rx_after": 6
+        },
+        {
+          "step": 3,
+          "incoming_sequence": 5,
+          "envelope_raw_hex": "abcd0005001692aa64656475702d74657374a96d73672d352d6f6c64",
+          "accepted": false,
+          "reason": "old_sequence_rejected",
+          "delivered_sequences": [],
+          "ring_after": [
+            7
+          ],
+          "next_rx_after": 6
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "description": "Out-of-order arrival (2,0,1) with contiguous in-order delivery",
+      "initial_state": {
+        "ring": [],
+        "next_rx_sequence": 0
+      },
+      "steps": [
+        {
+          "step": 0,
+          "incoming_sequence": 2,
+          "envelope_raw_hex": "abcd0002001292aa64656475702d74657374a56d73672d32",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            2
+          ],
+          "next_rx_after": 0
+        },
+        {
+          "step": 1,
+          "incoming_sequence": 0,
+          "envelope_raw_hex": "abcd0000001292aa64656475702d74657374a56d73672d30",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            0
+          ],
+          "ring_after": [
+            2
+          ],
+          "next_rx_after": 1
+        },
+        {
+          "step": 2,
+          "incoming_sequence": 1,
+          "envelope_raw_hex": "abcd0001001292aa64656475702d74657374a56d73672d31",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            1,
+            2
+          ],
+          "ring_after": [],
+          "next_rx_after": 3
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "description": "Gap with partial delivery: 0,1 delivered; 3,4 buffered; 2 fills gap delivering 2,3,4",
+      "initial_state": {
+        "ring": [],
+        "next_rx_sequence": 0
+      },
+      "steps": [
+        {
+          "step": 0,
+          "incoming_sequence": 0,
+          "envelope_raw_hex": "abcd0000001292aa64656475702d74657374a56d73672d30",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            0
+          ],
+          "ring_after": [],
+          "next_rx_after": 1
+        },
+        {
+          "step": 1,
+          "incoming_sequence": 1,
+          "envelope_raw_hex": "abcd0001001292aa64656475702d74657374a56d73672d31",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            1
+          ],
+          "ring_after": [],
+          "next_rx_after": 2
+        },
+        {
+          "step": 2,
+          "incoming_sequence": 3,
+          "envelope_raw_hex": "abcd0003001292aa64656475702d74657374a56d73672d33",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            3
+          ],
+          "next_rx_after": 2
+        },
+        {
+          "step": 3,
+          "incoming_sequence": 4,
+          "envelope_raw_hex": "abcd0004001292aa64656475702d74657374a56d73672d34",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            3,
+            4
+          ],
+          "next_rx_after": 2
+        },
+        {
+          "step": 4,
+          "incoming_sequence": 2,
+          "envelope_raw_hex": "abcd0002001292aa64656475702d74657374a56d73672d32",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            2,
+            3,
+            4
+          ],
+          "ring_after": [],
+          "next_rx_after": 5
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "description": "Wraparound during contiguous delivery: seq 65534,65535,0 delivered across boundary",
+      "initial_state": {
+        "ring": [],
+        "next_rx_sequence": 65534
+      },
+      "steps": [
+        {
+          "step": 0,
+          "incoming_sequence": 65534,
+          "envelope_raw_hex": "abcdfffe001692aa64656475702d74657374a96d73672d3635353334",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            65534
+          ],
+          "ring_after": [],
+          "next_rx_after": 65535
+        },
+        {
+          "step": 1,
+          "incoming_sequence": 65535,
+          "envelope_raw_hex": "abcdffff001692aa64656475702d74657374a96d73672d3635353335",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            65535
+          ],
+          "ring_after": [],
+          "next_rx_after": 0
+        },
+        {
+          "step": 2,
+          "incoming_sequence": 0,
+          "envelope_raw_hex": "abcd0000001292aa64656475702d74657374a56d73672d30",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            0
+          ],
+          "ring_after": [],
+          "next_rx_after": 1
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "description": "Duplicate across wraparound: deliver 65534-1, then reject old 65535 and old 0",
+      "initial_state": {
+        "ring": [],
+        "next_rx_sequence": 65534
+      },
+      "steps": [
+        {
+          "step": 0,
+          "incoming_sequence": 65534,
+          "envelope_raw_hex": "abcdfffe001692aa64656475702d74657374a96d73672d3635353334",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            65534
+          ],
+          "ring_after": [],
+          "next_rx_after": 65535
+        },
+        {
+          "step": 1,
+          "incoming_sequence": 65535,
+          "envelope_raw_hex": "abcdffff001692aa64656475702d74657374a96d73672d3635353335",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            65535
+          ],
+          "ring_after": [],
+          "next_rx_after": 0
+        },
+        {
+          "step": 2,
+          "incoming_sequence": 0,
+          "envelope_raw_hex": "abcd0000001292aa64656475702d74657374a56d73672d30",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            0
+          ],
+          "ring_after": [],
+          "next_rx_after": 1
+        },
+        {
+          "step": 3,
+          "incoming_sequence": 1,
+          "envelope_raw_hex": "abcd0001001292aa64656475702d74657374a56d73672d31",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            1
+          ],
+          "ring_after": [],
+          "next_rx_after": 2
+        },
+        {
+          "step": 4,
+          "incoming_sequence": 65535,
+          "envelope_raw_hex": "abcdffff001a92aa64656475702d74657374ad6d73672d36353533352d6f6c64",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            65535
+          ],
+          "next_rx_after": 2
+        },
+        {
+          "step": 5,
+          "incoming_sequence": 0,
+          "envelope_raw_hex": "abcd0000001692aa64656475702d74657374a96d73672d302d6f6c64",
+          "accepted": false,
+          "reason": "old_sequence_rejected",
+          "delivered_sequences": [],
+          "ring_after": [
+            65535
+          ],
+          "next_rx_after": 2
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "description": "Ring ordering: 6 out-of-order inserts maintain sorted ring with contiguous delivery",
+      "initial_state": {
+        "ring": [],
+        "next_rx_sequence": 10
+      },
+      "steps": [
+        {
+          "step": 0,
+          "incoming_sequence": 15,
+          "envelope_raw_hex": "abcd000f001392aa64656475702d74657374a66d73672d3135",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            15
+          ],
+          "next_rx_after": 10
+        },
+        {
+          "step": 1,
+          "incoming_sequence": 12,
+          "envelope_raw_hex": "abcd000c001392aa64656475702d74657374a66d73672d3132",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            12,
+            15
+          ],
+          "next_rx_after": 10
+        },
+        {
+          "step": 2,
+          "incoming_sequence": 18,
+          "envelope_raw_hex": "abcd0012001392aa64656475702d74657374a66d73672d3138",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            12,
+            15,
+            18
+          ],
+          "next_rx_after": 10
+        },
+        {
+          "step": 3,
+          "incoming_sequence": 10,
+          "envelope_raw_hex": "abcd000a001392aa64656475702d74657374a66d73672d3130",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            10
+          ],
+          "ring_after": [
+            12,
+            15,
+            18
+          ],
+          "next_rx_after": 11
+        },
+        {
+          "step": 4,
+          "incoming_sequence": 14,
+          "envelope_raw_hex": "abcd000e001392aa64656475702d74657374a66d73672d3134",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            12,
+            14,
+            15,
+            18
+          ],
+          "next_rx_after": 11
+        },
+        {
+          "step": 5,
+          "incoming_sequence": 11,
+          "envelope_raw_hex": "abcd000b001392aa64656475702d74657374a66d73672d3131",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            11,
+            12
+          ],
+          "ring_after": [
+            14,
+            15,
+            18
+          ],
+          "next_rx_after": 13
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "type": "tx_wraparound_progression",
+      "description": "Extended TX progression: 12 sends from seq 65530, crossing 65535\u21920 boundary",
+      "initial_tx_sequence": 65530,
+      "steps": [
+        {
+          "step": 0,
+          "tx_sequence": 65530,
+          "envelope_raw_hex": "abcdfffa001592aa64656475702d74657374a874782d6d73672d30",
+          "next_tx_sequence": 65531
+        },
+        {
+          "step": 1,
+          "tx_sequence": 65531,
+          "envelope_raw_hex": "abcdfffb001592aa64656475702d74657374a874782d6d73672d31",
+          "next_tx_sequence": 65532
+        },
+        {
+          "step": 2,
+          "tx_sequence": 65532,
+          "envelope_raw_hex": "abcdfffc001592aa64656475702d74657374a874782d6d73672d32",
+          "next_tx_sequence": 65533
+        },
+        {
+          "step": 3,
+          "tx_sequence": 65533,
+          "envelope_raw_hex": "abcdfffd001592aa64656475702d74657374a874782d6d73672d33",
+          "next_tx_sequence": 65534
+        },
+        {
+          "step": 4,
+          "tx_sequence": 65534,
+          "envelope_raw_hex": "abcdfffe001592aa64656475702d74657374a874782d6d73672d34",
+          "next_tx_sequence": 65535
+        },
+        {
+          "step": 5,
+          "tx_sequence": 65535,
+          "envelope_raw_hex": "abcdffff001592aa64656475702d74657374a874782d6d73672d35",
+          "next_tx_sequence": 0
+        },
+        {
+          "step": 6,
+          "tx_sequence": 0,
+          "envelope_raw_hex": "abcd0000001592aa64656475702d74657374a874782d6d73672d36",
+          "next_tx_sequence": 1
+        },
+        {
+          "step": 7,
+          "tx_sequence": 1,
+          "envelope_raw_hex": "abcd0001001592aa64656475702d74657374a874782d6d73672d37",
+          "next_tx_sequence": 2
+        },
+        {
+          "step": 8,
+          "tx_sequence": 2,
+          "envelope_raw_hex": "abcd0002001592aa64656475702d74657374a874782d6d73672d38",
+          "next_tx_sequence": 3
+        },
+        {
+          "step": 9,
+          "tx_sequence": 3,
+          "envelope_raw_hex": "abcd0003001592aa64656475702d74657374a874782d6d73672d39",
+          "next_tx_sequence": 4
+        },
+        {
+          "step": 10,
+          "tx_sequence": 4,
+          "envelope_raw_hex": "abcd0004001692aa64656475702d74657374a974782d6d73672d3130",
+          "next_tx_sequence": 5
+        },
+        {
+          "step": 11,
+          "tx_sequence": 5,
+          "envelope_raw_hex": "abcd0005001692aa64656475702d74657374a974782d6d73672d3131",
+          "next_tx_sequence": 6
+        }
+      ],
+      "final_tx_sequence": 6
+    },
+    {
+      "index": 7,
+      "description": "Wraparound-aware ring ordering: next_rx=65533, arrivals 0,65535,65534,65533 sort correctly",
+      "initial_state": {
+        "ring": [],
+        "next_rx_sequence": 65533
+      },
+      "steps": [
+        {
+          "step": 0,
+          "incoming_sequence": 0,
+          "envelope_raw_hex": "abcd0000001292aa64656475702d74657374a56d73672d30",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            0
+          ],
+          "next_rx_after": 65533
+        },
+        {
+          "step": 1,
+          "incoming_sequence": 65535,
+          "envelope_raw_hex": "abcdffff001692aa64656475702d74657374a96d73672d3635353335",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            0,
+            65535
+          ],
+          "next_rx_after": 65533
+        },
+        {
+          "step": 2,
+          "incoming_sequence": 65534,
+          "envelope_raw_hex": "abcdfffe001692aa64656475702d74657374a96d73672d3635353334",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [],
+          "ring_after": [
+            0,
+            65534,
+            65535
+          ],
+          "next_rx_after": 65533
+        },
+        {
+          "step": 3,
+          "incoming_sequence": 65533,
+          "envelope_raw_hex": "abcdfffd001692aa64656475702d74657374a96d73672d3635353333",
+          "accepted": true,
+          "reason": "accepted",
+          "delivered_sequences": [
+            65533,
+            65534,
+            65535,
+            0
+          ],
+          "ring_after": [],
+          "next_rx_after": 1
+        }
+      ]
+    }
   ]
 }
